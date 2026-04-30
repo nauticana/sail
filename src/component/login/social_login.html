@@ -1,0 +1,13 @@
+<div class="social-login">
+  @if (googleEnabled) {
+    <div #googleBtn class="social-google"></div>
+  }
+  @if (appleEnabled) {
+    <button type="button" class="social-apple-btn" (click)="onAppleClick()" [disabled]="loading()">
+      Sign in with Apple
+    </button>
+  }
+  @if (errorMessage()) {
+    <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+  }
+</div>

@@ -1,0 +1,10 @@
+<div class="checkout-button">
+  <button mat-raised-button class="primary" type="button"
+          [disabled]="loading()"
+          (click)="startCheckout()">
+    @if (loading()) { Starting checkout… } @else { {{ label() }} }
+  </button>
+  @if (errorMessage()) {
+    <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+  }
+</div>

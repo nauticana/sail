@@ -1,0 +1,75 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">Two-Factor Authentication</h2>
+
+    @switch (step()) {
+      @case ('init') {
+        <p class="auth-instructions">Add an extra layer of security to your account with TOTP-based two-factor authentication.</p>
+        <form [formGroup]="initForm" (ngSubmit)="startSetup()" class="auth-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Confirm your password</mat-label>
+            <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+          </mat-form-field>
+          <button mat-raised-button class="primary" type="submit" [disabled]="!initForm.valid">Enable 2FA</button>
+        </form>
+      }
+      @case ('qr') {
+        <p class="auth-instructions">Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy).</p>
+        <div class="twofactor-qr">
+          <img [src]="qrUri()" alt="2FA QR Code" width="200" height="200">
+        </div>
+        <p class="auth-instructions">Or enter this secret manually: <code>{{ secret() }}</code></p>
+
+        @if (backupCodes().length > 0) {
+          <div class="twofactor-backup">
+            <h3>Backup Codes</h3>
+            <p class="auth-instructions">Save these codes in a safe place. Each code can only be used once.</p>
+            <ul class="backup-code-list">
+              @for (code of backupCodes(); track code) {
+                <li><code>{{ code }}</code></li>
+              }
+            </ul>
+          </div>
+        }
+
+        <button mat-raised-button class="primary" (click)="proceedToVerify()">I've saved my backup codes</button>
+      }
+      @case ('verify') {
+        <p class="auth-instructions">Enter the 6-digit code from your authenticator app to confirm setup.</p>
+        <form [formGroup]="verifyForm" (ngSubmit)="confirmSetup()" class="auth-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Verification Code</mat-label>
+            <input matInput type="text" formControlName="code" maxlength="6" autocomplete="one-time-code" required>
+          </mat-form-field>
+
+          <button mat-raised-button class="primary" type="submit" [disabled]="!verifyForm.valid">
+            Verify and Enable
+          </button>
+        </form>
+      }
+      @case ('done') {
+        <div class="auth-success" role="status">{{ successMessage() }}</div>
+        <form [formGroup]="disableForm" (ngSubmit)="disable2FA()" class="auth-form">
+          <p class="auth-instructions">To disable 2FA, confirm your password and a current 2FA code.</p>
+          <mat-form-field appearance="outline">
+            <mat-label>Password</mat-label>
+            <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Current 6-digit code</mat-label>
+            <input matInput type="text" formControlName="code" maxlength="6" autocomplete="one-time-code" required>
+          </mat-form-field>
+          <button mat-button class="warn" type="submit" [disabled]="!disableForm.valid">Disable 2FA</button>
+        </form>
+      }
+    }
+
+    @if (errorMessage()) {
+      <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="auth-actions">
+      <a routerLink="/dashboard">Back to Dashboard</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+<div class="plan-selector">
+  @for (plan of plans(); track plan.id) {
+    <div class="plan-card" [class.plan-selected]="plan.id === selected()">
+      <h3 class="plan-caption">{{ plan.caption }}</h3>
+      <div class="plan-price">
+        <span class="plan-amount">{{ plan.monthlyCost }}</span>
+        <span class="plan-period">/ month</span>
+      </div>
+      @if (featuresFor(plan.id).length > 0) {
+        <ul class="plan-features">
+          @for (feature of featuresFor(plan.id); track feature) {
+            <li>{{ feature }}</li>
+          }
+        </ul>
+      }
+      <button mat-raised-button class="primary" type="button" (click)="onSelect(plan.id)">
+        @if (plan.id === selected()) { Selected } @else { Choose }
+      </button>
+    </div>
+  }
+  @if (plans().length === 0) {
+    <p class="empty-state">No plans available.</p>
+  }
+</div>

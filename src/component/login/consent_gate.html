@@ -1,0 +1,30 @@
+<form [formGroup]="form" class="consent-form" role="group" aria-label="Consent required to continue">
+  <label class="consent-row">
+    <mat-checkbox [formControlName]="ConsentType.PRIVACY_POLICY" required>
+      I have read and agree to the
+      <a [attr.href]="effectivePrivacyUrl()" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+      and Terms of Service.
+    </mat-checkbox>
+  </label>
+
+  <label class="consent-row">
+    <mat-checkbox [formControlName]="ConsentType.CROSS_BORDER" required>
+      I consent to my personal information being processed outside my region
+      as described in the Privacy Policy.
+    </mat-checkbox>
+  </label>
+
+  @for (opt of optionalConsents(); track opt.id) {
+    <label class="consent-row">
+      <mat-checkbox [formControlName]="opt.id" [required]="opt.required ?? false">
+        {{ opt.label }}
+        @if (opt.linkUrl && opt.linkText) {
+          <a [attr.href]="opt.linkUrl" target="_blank" rel="noopener noreferrer">{{ opt.linkText }}</a>
+        }
+        @if (opt.hint) {
+          <small class="consent-hint">{{ opt.hint }}</small>
+        }
+      </mat-checkbox>
+    </label>
+  }
+</form>

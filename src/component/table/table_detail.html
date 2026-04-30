@@ -1,0 +1,53 @@
+<section class="child-table">
+<div class="child-table-header">
+    <h3>{{ getCaption() }}</h3>
+    @if (canCreate()) {
+        <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
+    }
+</div>
+<table class="mat-table">
+    <thead>
+        <tr>
+            @for (col of displayedColumns; track col) {
+                <th>{{ colCaption(col) }}</th>
+            }
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (record of records; track $index) {
+            <tr [class.deleted-record]="record[config.opField] === 'D'" [class.updated-record]="record[config.opField] === 'U'" [class.new-record]="record[config.opField] === 'I'">
+                @if (record == editingRecord) {
+                    @for (col of displayedColumns; track col) {
+                        <td>
+                            @if (isReadOnly(col)) {
+                                {{ record[col] }}
+                            } @else {
+                                <dynamic-field [tableName]="tableName" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></dynamic-field>
+                            }
+                        </td>
+                    }
+                    <td>
+                        <button mat-icon-button (click)="saveRow()" title="Save"><mat-icon>save</mat-icon></button>
+                        <button mat-icon-button (click)="cancelRow(record)" title="Cancel"><mat-icon>cancel</mat-icon></button>
+                    </td>
+                } @else {
+                    @for (col of displayedColumns; track col) {
+                        <td>{{ displayValue(col, record[col]) }}</td>
+                    }
+                    <td>
+                        @if (canUpdate()) {
+                            <button mat-icon-button (click)="editRow(record)" title="Edit"><mat-icon>edit</mat-icon></button>
+                        }
+                        @if (record[config.opField] === 'D') {
+                            <button mat-icon-button (click)="unDeleteRow(record)" title="Undelete"><mat-icon>restore_from_trash</mat-icon></button>
+                        } @else if (canDelete()) {
+                            <button mat-icon-button (click)="deleteRow(record)" title="Delete"><mat-icon>delete</mat-icon></button>
+                        }
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+</section>

@@ -1,0 +1,58 @@
+<div class="auth-container">
+  @if (guiConfig.appTitle) {
+    <div class="auth-header">
+      <h1 class="auth-app-title">{{ guiConfig.appTitle }}</h1>
+    </div>
+  }
+  <div class="auth-card">
+    <h2 class="auth-title">Change Password</h2>
+    <form [formGroup]="chpassForm" (ngSubmit)="changePassword()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput type="text" formControlName="username" required>
+      </mat-form-field>
+
+      @if (!forgotPassword()) {
+        <mat-form-field appearance="outline">
+          <mat-label>Current Password</mat-label>
+          <input matInput type="password" formControlName="old_password" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>New Password</mat-label>
+          <input matInput type="password" formControlName="new_password" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm New Password</mat-label>
+          <input matInput type="password" formControlName="confirm_password" required>
+        </mat-form-field>
+      }
+
+      <div class="auth-checkbox">
+        <mat-checkbox (change)="toggleForgotPassword($event.checked)">
+          I don't remember my old password, send me a confirmation code in email
+        </mat-checkbox>
+      </div>
+
+      @if (errorMessage()) {
+        <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+      }
+
+      @if (successMessage()) {
+        <div class="auth-success" role="status">{{ successMessage() }}</div>
+      }
+
+      <button mat-raised-button class="primary" type="submit" [disabled]="!chpassForm.valid">
+        @if (forgotPassword()) {
+          Send Confirmation Code
+        } @else {
+          Change Password
+        }
+      </button>
+    </form>
+    <div class="auth-actions">
+      <a routerLink="/login/local">Back to Login</a>
+    </div>
+  </div>
+</div>

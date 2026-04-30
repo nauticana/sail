@@ -1,0 +1,54 @@
+@if (isLookupTableSearch()) {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <input matInput [value]="readonlyField() ? displayCaption : value()" [required]="required" [readonly]="readonlyField()">
+        <button mat-icon-button matSuffix (click)="openLookup()" [disabled]="readonlyField()">
+            <mat-icon>search</mat-icon>
+        </button>
+    </mat-form-field>
+} @else if (inputType === 'select' && readonlyField()) {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <input matInput [value]="displayCaption" readonly>
+    </mat-form-field>
+} @else if (inputType === 'select') {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <mat-select [value]="value()" (selectionChange)="onSelectChange($event);">
+            @for (option of options; track option.Value) {
+                <mat-option [value]="option.Value">{{option.Caption}}</mat-option>
+            }
+        </mat-select>
+    </mat-form-field>
+} @else if (inputType === 'checkbox') {
+    <mat-checkbox [checked]="value() === true || value() === '1'" (change)="onCheckboxChange($event);" [disabled]="readonlyField()">{{ colCaption(field()) }}</mat-checkbox>
+} @else if (readonlyField() && isDateLike && !value()) {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <input matInput value="" readonly>
+    </mat-form-field>
+} @else if (isTextArea) {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <textarea matInput
+         [value]="value()"
+         (input)="onInputChange($event);"
+         [disabled]="readonlyField()"
+         [required]="required"
+         [attr.maxLength]="maxLength"
+         [rows]="textAreaRows">
+        </textarea>
+    </mat-form-field>
+} @else {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <input matInput
+         [type]="inputType"
+         [value]="value()"
+         (input)="onInputChange($event);"
+         [disabled]="readonlyField()"
+         [required]="required"
+         [attr.maxLength]="maxLength"
+         [attr.step]="step">
+    </mat-form-field>
+}

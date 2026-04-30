@@ -1,0 +1,35 @@
+<h2 mat-dialog-title>{{ getCaption() }} Search</h2>
+<div mat-dialog-content>
+    <record-form [tableName]="tableName" [record]="searchRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
+    <div class="search-actions">
+        <button mat-raised-button class="primary" (click)="onSearch()">Search</button>
+        <button mat-button (click)="onClear()">Clear</button>
+    </div>
+    @if (records.length > 0) {
+        <table>
+            <thead>
+                <tr>
+                    <th>Select</th>
+                    @for (column of displayedColumns; track column) {
+                        <th>{{ colCaption(column) }}</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (record of records; track trackByRecord($index, record)) {
+                    <tr>
+                        <td><button class="select-btn" (click)="onSelect(record)">Select</button></td>
+                        @for (column of displayedColumns; track column) {
+                            <td>{{ displayValue(column, record[column]) }}</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    } @else {
+        <p>No records found</p>
+    }
+</div>
+<div mat-dialog-actions>
+    <button mat-button [mat-dialog-close]>Cancel</button>
+</div>

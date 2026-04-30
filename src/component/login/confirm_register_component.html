@@ -1,0 +1,37 @@
+<div class="auth-container">
+  @if (guiConfig.appTitle) {
+    <div class="auth-header">
+      <h1 class="auth-app-title">{{ guiConfig.appTitle }}</h1>
+    </div>
+  }
+  <div class="auth-card">
+    <h2 class="auth-title">Confirm Registration</h2>
+    <p class="auth-instructions">Enter the confirmation code sent to your email address.</p>
+    <form [formGroup]="confirmForm" (ngSubmit)="confirm()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" required>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Confirmation Code</mat-label>
+        <input matInput type="text" formControlName="code" required>
+      </mat-form-field>
+
+      @if (errorMessage()) {
+        <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+      }
+
+      @if (successMessage()) {
+        <div class="auth-success" role="status">{{ successMessage() }}</div>
+      }
+
+      <button mat-raised-button class="primary" type="submit" [disabled]="!confirmForm.valid">
+        Confirm
+      </button>
+    </form>
+    <div class="auth-actions">
+      <a routerLink="/login/local">Back to Login</a>
+    </div>
+  </div>
+</div>

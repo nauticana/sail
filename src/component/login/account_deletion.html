@@ -1,0 +1,42 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">Delete account</h2>
+    <p class="auth-instructions">
+      This action cannot be undone. Your account will be anonymized and all
+      active sessions will be signed out. To confirm, type
+      <strong>{{ confirmationText() }}</strong> below.
+    </p>
+
+    <form [formGroup]="form" class="auth-form" (ngSubmit)="onDelete()">
+      <mat-form-field appearance="outline">
+        <mat-label>Type {{ confirmationText() }} to confirm</mat-label>
+        <input matInput formControlName="confirm" autocomplete="off" required>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Confirm your password</mat-label>
+        <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Reason (optional)</mat-label>
+        <textarea matInput rows="3" formControlName="reason"></textarea>
+      </mat-form-field>
+
+      <button mat-raised-button class="warn" type="submit" [disabled]="!canSubmit()">
+        @if (loading()) { Deleting… } @else { Permanently delete account }
+      </button>
+
+      @if (errorMessage()) {
+        <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+      }
+      @if (successMessage()) {
+        <div class="auth-success" role="status">{{ successMessage() }}</div>
+      }
+    </form>
+
+    <div class="auth-actions">
+      <a routerLink="/dashboard">Cancel</a>
+    </div>
+  </div>
+</div>

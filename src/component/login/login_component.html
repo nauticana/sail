@@ -1,0 +1,43 @@
+<div class="auth-container">
+  @if (guiConfig.appTitle) {
+    <div class="auth-header">
+      <h1 class="auth-app-title">{{ guiConfig.appTitle }}</h1>
+    </div>
+  }
+  <div class="auth-card">
+    <h2 class="auth-title">Login</h2>
+    @if (loggedOut) {
+      <p class="auth-message" role="status" aria-live="polite">You have been logged out successfully.</p>
+    }
+    <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput type="text" formControlName="username" required>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" required>
+      </mat-form-field>
+      <button mat-raised-button class="primary" type="submit" [disabled]="!loginForm.valid">
+        Login
+      </button>
+    </form>
+    @if (showSocialLogin()) {
+      <hr class="auth-divider">
+      <app-social-login
+        [providers]="enabledSocialProviders()"
+        (loginSuccess)="onSocialSuccess($event)"
+        (loginError)="onSocialError($event)" />
+    }
+    <div class="auth-actions">
+      <a routerLink="/login/chpass">I forgot my password</a>
+    </div>
+    @if (guiConfig.loginFooterLinks && guiConfig.loginFooterLinks.length > 0) {
+      <div class="auth-footer">
+        @for (link of guiConfig.loginFooterLinks; track link.routerLink) {
+          <a [routerLink]="link.routerLink">{{ link.label }}</a>
+        }
+      </div>
+    }
+  </div>
+</div>

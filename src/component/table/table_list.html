@@ -1,0 +1,41 @@
+<h2>{{ getCaption() }}</h2>
+
+@if (canCreate()) {
+    <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
+}
+
+<table>
+    <thead>
+        <tr>
+            @for (column of displayedColumns; track column) {
+                <th>{{ colCaption(column) }}</th>
+            }
+        </tr>
+    </thead>
+@if (records.length > 0) {
+    <tbody>
+    @for (record of records; track trackByRecord($index, record)) {
+        <tr>
+        @for (column of displayedColumns; track column) {
+            <td>
+            @if (isLinkColumn(column)) {
+                <a tabindex="0" role="button" (click)="editRecord(record)" (keydown.enter)="editRecord(record)">{{ displayValue(column, record[column]) }}</a>
+            } @else if (isBoolean(column)) {
+                <mat-checkbox [checked]="record[column] === true || record[column] === 'T'" disabled></mat-checkbox>
+            } @else if (column !== 'actions') {
+                {{ displayValue(column, record[column]) }}
+            } @else {
+                <button mat-icon-button type="button" (click)="editRecord(record)" title="Edit"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button type="button" (click)="deleteRecord(record)" title="Delete"><mat-icon>delete</mat-icon></button>
+            }
+            </td>
+        }
+        </tr>
+    }
+    </tbody>
+}
+</table>
+
+@if (records.length === 0 && displayedColumns.length > 0) {
+    <p class="empty-state">No records found.</p>
+}

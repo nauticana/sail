@@ -1,0 +1,27 @@
+<div class="payment-methods">
+  <h3 class="payment-methods-title">Payment methods</h3>
+
+  @if (loading()) {
+    <p class="empty-state">Loading…</p>
+  } @else if (methods().length > 0) {
+    <ul class="payment-methods-list">
+      @for (method of methods(); track method.id) {
+        <li class="payment-method">
+          <span class="payment-method-label">
+            {{ method.provider }} · {{ method.methodType }}
+            @if (method.last4) { · •••• {{ method.last4 }} }
+          </span>
+          @if (method.isDefault) {
+            <span class="payment-default-badge">Default</span>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty-state">No payment methods on file.</p>
+  }
+
+  @if (errorMessage()) {
+    <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+  }
+</div>

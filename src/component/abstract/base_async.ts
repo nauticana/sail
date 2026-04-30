@@ -1,0 +1,49 @@
+import { signal } from '@angular/core';
+import { Observable } from 'rxjs';
+
+/**
+ * Base class for components that perform async operations and need to show
+ * loading / error / success state. Reduces the same signal boilerplate
+ * across billing, security, and registration components.
+ *
+ * Subclasses use `run(obs, onSuccess, fallbackError)` to wire an Observable
+ * into the shared state automatically.
+ */
+export abstract class BaseAsync {
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+
+  /** Clear any prior messages. */
+  protected clearMessages(): void {
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  /** Set errorMessage from an HTTP error object; falls back to `fallback`. */
+  protected setError(err: any, fallback: string): void {
+    this.errorMessage.set(err?.error?.message ?? fallback);
+    this.loading.set(false);
+  }
+
+  /**
+   * Subscribe to an Observable with shared loading/error semantics.
+   * Clears messages, sets loading, invokes onSuccess on next, and routes
+   * errors through setError with the given fallback message.
+   */
+  protected run<T>(
+    obs: Observable<T>,
+    onSuccess: (value: T) => void,
+    fallbackError = 'Operation failed. Please try again.',
+  ): void {
+    this.clearMessages();
+    this.loading.set(true);
+    obs.subscribe({
+      next: (value) => {
+        this.loading.set(false);
+        onSuccess(value);
+      },
+      error: (err) => this.setError(err, fallbackError),
+    });
+  }
+}

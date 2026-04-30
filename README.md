@@ -1,0 +1,741 @@
+# @nauticana/sail
+
+A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
+
+> **Compatibility:** sail **v0.5.x** targets keel **v0.5.x**. The two libraries are versioned in lock-step.
+
+## What it provides
+
+| Category | Exports |
+|----------|---------|
+| **Table components** | `TableList`, `TableSearch`, `TableEdit`, `TableDetail`, `TableLookup` |
+| **Form components** | `DynamicField`, `RecordForm`, `TableForm` |
+| **Navigation** | `Navigation` (sidenav + toolbar with menu, responsive) |
+| **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
+| **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `AccountDeletionComponent` |
+| **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent` |
+| **Billing** | `PlanSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent` |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere), `BillingService`, `BackendService`, `LabelService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `BaseAsync` |
+| **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `TrustedDevice`, `PublicPlan`, `PaymentMethod`, `Subscription`, `Invoice`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
+| **Decorators** | `@IsString()`, `@IsNumeric()` (class-validator based) |
+
+## Quick start
+
+### 1. Install
+
+sail is published on the public npm registry — no `.npmrc` or registry override needed:
+
+```bash
+npm install @nauticana/sail class-validator
+```
+
+This adds the following to your `package.json`:
+
+```json
+"dependencies": {
+  "@nauticana/sail": "^0.5.0",
+  "class-validator": "^0.15.1"
+}
+```
+
+### 2. Configure tsconfig paths
+
+Since sail ships raw TypeScript source, you need a path mapping so the Angular compiler can resolve and compile it. Add to your `tsconfig.json`:
+
+```json
+"paths": {
+  "@nauticana/sail": ["./node_modules/@nauticana/sail/src/index"]
+}
+```
+
+> **Note:** If your tsconfig has `"baseUrl": "src"`, use `"../node_modules/@nauticana/sail/src/index"` instead (paths resolve relative to `baseUrl`).
+
+Suppress class-validator CommonJS warnings in `angular.json`:
+```json
+"build": {
+  "options": {
+    "allowedCommonJsDependencies": ["class-validator"]
+  }
+}
+```
+
+### 3. Create your AuthService
+
+```typescript
+// src/service/auth.service.ts
+import { Injectable } from '@angular/core';
+import { BaseAuthService, configureRestUrls } from '@nauticana/sail';
+import { environment } from '../environment/environment';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService extends BaseAuthService {
+  constructor() {
+    super();
+    configureRestUrls(environment.httphost);
+  }
+
+  // Add project-specific auth methods here (e.g., loginWithGoogle override, OTP, etc.)
+}
+```
+
+### 4. Bootstrap your app
+
+```typescript
+// src/main.ts
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { SAIL_GUI_CONFIG, BaseAuthService, authInterceptor, apiResponseInterceptor, TwoFactorVerifyComponent } from '@nauticana/sail';
+import { AuthService } from './service/auth.service';
+import { DashUser } from './component/dashboard/dash_user';
+import { App } from './app/app';
+
+bootstrapApplication(App, {
+  providers: [
+    provideZonelessChangeDetection(),
+    provideHttpClient(withInterceptors([apiResponseInterceptor, authInterceptor])),
+    provideRouter([]),
+    { provide: BaseAuthService, useExisting: AuthService },
+    {
+      provide: SAIL_GUI_CONFIG,
+      useValue: {
+        opField: 'op_code',
+        hiddenFields: ['op_code', 'PartnerId'],
+        appTitle: 'My App',
+        dashboardComponent: DashUser,
+        publicRoutes: [
+          { path: 'login/local', loadComponent: () => import('@nauticana/sail').then(m => m.LoginComponent) },
+          { path: 'login/register', loadComponent: () => import('@nauticana/sail').then(m => m.RegisterComponent) },
+          { path: 'login/chpass', loadComponent: () => import('@nauticana/sail').then(m => m.ChpassComponent) },
+          { path: 'login/2fa', component: TwoFactorVerifyComponent },
+          { path: 'confirm/register', loadComponent: () => import('@nauticana/sail').then(m => m.ConfirmRegisterComponent) },
+          { path: 'confirm/password', loadComponent: () => import('@nauticana/sail').then(m => m.ConfirmChpassComponent) },
+        ],
+        publicRouteLinks: [
+          { label: 'Login', routerLink: '/login/local' },
+          { label: 'Register', routerLink: '/login/register' },
+        ],
+        loginFooterLinks: [
+          { label: 'Sign in with Google', routerLink: '/login/google' },
+        ],
+        // Map backend menu items to custom components
+        menuItemRouteOverrides: {
+          // 'external_connection': SocialConnectionComponent,
+          // 'analytic/*': TableReport,
+        },
+      },
+    },
+  ],
+});
+```
+
+### 5. Create the root component
+
+```typescript
+// src/app/app.ts
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Navigation } from '@nauticana/sail';
+
+@Component({
+  selector: 'app-root',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [Navigation],
+  template: `<app-navigation><span toolbar-title>My App</span></app-navigation>`,
+})
+export class App {}
+```
+
+### 6. Provide global styles
+
+All sail components use `ViewEncapsulation.None` — they ship no CSS. Your project must provide a global stylesheet covering sail selectors.
+
+**Required structural styles** (without these, the sidenav collapses and gets cut off). Add to your `src/styles.css`:
+
+```css
+.sidenav-container { height: 100vh; }
+.sidenav { width: 250px; }
+```
+
+Key CSS classes used by components:
+
+```
+/* Layout */
+.auth-container, .auth-card, .auth-header, .auth-title, .auth-form,
+.auth-actions, .auth-footer, .auth-app-title, .auth-checkbox,
+.auth-section-label, .auth-instructions, .form-row, .register-card
+
+/* Feedback */
+.auth-error, .auth-success, .geocode-status, .geocode-loading,
+.geocode-success, .geocode-error
+
+/* Tables */
+.edit-container, .actions-bar, .tab-content, .empty-state,
+.detail-actions, .search-actions, .select-btn, .form-container
+
+/* Navigation */
+.sidenav-container, .sidenav, .toolbar-spacer
+
+/* State classes */
+.deleted-record, .updated-record, .new-record
+
+/* Buttons (replace deprecated Material color attributes) */
+.primary, .accent, .warn, .current-device-badge
+
+/* Security */
+.twofactor-qr, .twofactor-backup, .backup-code-list,
+.trusted-devices-table
+```
+
+## How it works
+
+sail follows a **metadata-driven** architecture. On login, the backend returns `ApplicationData` containing:
+
+- **MainMenu** — menu structure with pages and permissions
+- **Permissions** — role-based access control entries
+- **TableDefinitions** — column metadata, types, validation rules, foreign keys
+- **Apis** — REST endpoint mappings per table
+- **ConstantCache / TableCache** — dropdown/lookup values
+
+`BaseAuthService.initRoutes()` dynamically builds Angular routes from this metadata. Each menu item automatically gets a `TableSearch` or `TableList` route with the correct API endpoint and table metadata. Custom components can override specific menu items via `menuItemRouteOverrides` in the config.
+
+## List pagination
+
+keel REST list responses are paginated:
+
+```json
+{ "items": [...], "limit": 100, "offset": 0, "total": 12345 }
+```
+
+`BackendService.list<T>()` continues to return `Observable<T[]>` — sail unwraps `items` for you. To access the metadata, use `listPaginated<T>()`:
+
+```typescript
+this.backend.listPaginated<MyRow>('orders', { _limit: '50', _offset: '0' })
+    .subscribe((page) => {
+      this.rows.set(page.items);
+      this.total.set(page.total);   // total rows matching the filter
+    });
+```
+
+Default page size is 100, capped at 1000 server-side. Pass `_limit` / `_offset` in the filter map to control paging.
+
+## Configuration reference
+
+```typescript
+interface SailGuiConfig {
+  opField: string;                    // Operation field name (default: 'op_code')
+  hiddenFields: string[];             // Fields hidden from forms (default: ['op_code', 'PartnerId'])
+  appTitle?: string;                  // Shown on login pages
+  googleMapsApiKey?: string;          // For RegisterComponent geocoding
+  dashboardComponent?: Type<any>;     // Component for /dashboard route
+  publicRoutes?: Routes;              // Routes available before login
+  publicRouteLinks?: RouteLink[];     // Links shown in toolbar when logged out
+  loginFooterLinks?: RouteLink[];     // Extra links below login form
+  extraRoutes?: (data) => Routes;     // Dynamic routes from ApplicationData
+  menuItemRouteOverrides?: {          // Map RestUri to custom component
+    [restUriPattern: string]: Type<unknown>;  // Supports 'exact' and 'prefix/*'
+  };
+
+  // Social / consent / account-deletion config
+  googleClientId?: string;            // Google Identity Services client ID
+  appleServiceId?: string;            // Apple Services ID
+  appleRedirectUri?: string;          // Apple Sign-In redirect URI
+  privacyPolicyUrl?: string;          // Linked from ConsentGateComponent
+  defaultPolicyVersion?: string;      // Content hash of the deployed policy
+  defaultPolicyLanguage?: string;     // ISO 639-1 fallback language
+  accountDeletedRoute?: string;       // Route after account deletion (default '/login/local')
+}
+```
+
+## Backend endpoints (keel v0.5)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /public/login/local` | Username/password login with 2FA + trusted-device support |
+| `POST /public/login/google` | Gmail OAuth-code login (legacy; prefer `/public/login/social`) |
+| `POST /public/login/social` | ID-token social login (Google, Apple) |
+| `POST /public/otp/send` | Send OTP code to phone or email; returns opaque `otpToken` |
+| `POST /public/otp/verify` | Verify OTP code with `otpToken`, returns JWT |
+| `POST /public/otp/resend` | Re-issue OTP for an existing `otpToken` |
+| `POST /public/2fa/verify` | Login-time TOTP verification (uses `loginToken`) |
+| `POST /public/2fa/backup-verify` | Login-time backup-code verification |
+| `GET /api/config/appdata` | Metadata (menus, permissions, table definitions) |
+| `POST/GET/DELETE /api/{version}/{table}/list\|get\|post\|delete` | CRUD operations (paginated `list`) |
+| `POST /api/user/2fa/setup` | Generate TOTP secret, QR URI, and backup codes — **requires re-auth** |
+| `POST /api/user/2fa/verify` | Confirm 2FA setup by verifying TOTP code |
+| `POST /api/user/2fa/disable` | Disable 2FA — **requires password + current TOTP code** |
+| `GET /api/user/trusted-device/list` | List trusted devices |
+| `POST /api/user/trusted-device/revoke` | Revoke a trusted device |
+| `POST /api/user/logout-everywhere` | Sign out of all devices — **requires re-auth** |
+| `DELETE /api/user/account` | Soft-delete the caller's account — **requires re-auth** |
+| `POST /api/push/register` | Register an FCM / APNs token |
+| `POST /api/push/revoke` | Revoke an FCM / APNs token |
+| `POST /api/billing/checkout` | Create provider-hosted checkout session — **JWT-gated, allowlist-validated** |
+| `GET /public/plans` | Subscription plan catalog (unauthenticated) |
+| `GET /api/billing/subscription` | Active subscription for the partner |
+| `POST /api/billing/subscription/cancel` | Cancel auto-renew |
+| `GET /api/billing/invoices` | Invoice history |
+| `GET /api/billing/payment-methods` | Saved payment methods |
+
+Device registration happens within `/public/2fa/verify` when `trustDevice=true`.
+
+## Enabling 2FA in your project
+
+Add the 2FA verification route to your `publicRoutes` config:
+```typescript
+import { TwoFactorVerifyComponent, TwoFactorSetupComponent, TrustedDevicesComponent } from '@nauticana/sail';
+
+// In publicRoutes:
+{ path: 'login/2fa', component: TwoFactorVerifyComponent }
+
+// In extraRoutes or authenticated routes (optional — for user self-service):
+{ path: 'security/2fa', component: TwoFactorSetupComponent }
+{ path: 'security/devices', component: TrustedDevicesComponent }
+```
+
+The login flow handles 2FA automatically: when the backend returns `twoFactorRequired: true`, sail redirects to `/login/2fa`. No other code changes needed.
+
+## Billing
+
+sail ships a shared `BillingService` and three billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
+
+### Service
+
+```typescript
+import { BillingService } from '@nauticana/sail';
+
+@Component({ /* ... */ })
+export class PricingPage {
+  private billing = inject(BillingService);
+
+  readonly plans = toSignal(this.billing.listPlans(), { initialValue: [] });
+  readonly sub   = toSignal(this.billing.getSubscription());
+}
+```
+
+| Method | Endpoint | Returns |
+|--------|----------|---------|
+| `listPlans()` | `GET /public/plans` | `Observable<PublicPlan[]>` |
+| `createCheckout(req)` | `POST /api/billing/checkout` | `Observable<CheckoutResponse>` |
+| `getSubscription()` | `GET /api/billing/subscription` | `Observable<Subscription>` |
+| `cancelSubscription()` | `POST /api/billing/subscription/cancel` | `Observable<void>` |
+| `listInvoices()` | `GET /api/billing/invoices` | `Observable<Invoice[]>` |
+| `listPaymentMethods()` | `GET /api/billing/payment-methods` | `Observable<PaymentMethod[]>` |
+
+### Components
+
+**Plan picker** — pure presentational, no API calls:
+```html
+<app-plan-selector
+    [plans]="plans()"
+    [selected]="selectedPlan()"
+    [features]="{ PRO: ['Unlimited users', '24/7 support'] }"
+    (selectionChange)="selectedPlan.set($event)">
+</app-plan-selector>
+```
+
+**Checkout button** — calls `createCheckout()` and redirects to the provider-hosted URL. `PublicPlan.priceId` lets you wire the picker directly to checkout without a local mapping table:
+```html
+<app-checkout-button
+    [priceId]="selectedPlan().priceId!"
+    [mode]="'subscription'"
+    [successUrl]="'https://app.example.com/billing/done'"
+    [cancelUrl]="'https://app.example.com/billing'"
+    [email]="userEmail">
+</app-checkout-button>
+```
+
+For one-off charges use `[mode]="'payment'"`. For "save a card without charging" (Stripe SetupIntent), use `[mode]="'setup'"` and **omit** `[priceId]` — keel rejects a non-empty `priceId` in setup mode with 400.
+
+> **keel allowlists** — `priceId`, `successUrl`, and `cancelUrl` must each match the server-side `AllowedPriceIDs` / `AllowedRedirectHosts` allowlists; otherwise the request is rejected with 400. Configure these on your keel deployment.
+
+> **`AllowedRedirectHosts` matching** is hostname-only by default — entries without a colon (e.g. `app.example.com`) tolerate any port. Add an explicit port (e.g. `app.example.com:8443`) only when port-strict matching is intentional.
+
+**Metadata stringification.** `CheckoutRequest.metadata` keys and values are typed as strings because that's what providers store. keel stringifies numeric and boolean metadata server-side, so a `partner_id: 42` written in your domain handler arrives back in webhook payloads as `"42"`. Stringify on the way in:
+
+```typescript
+metadata: {
+  partner_id: String(partnerId),
+  source:     'pricing-page',
+}
+```
+
+**Payment methods** — lists saved methods with loading and empty states:
+```html
+<app-payment-methods></app-payment-methods>
+```
+
+### Registration → checkout flow
+
+The registration confirmation (`ConfirmRegisterComponent`) already handles the payment redirect. When the backend returns `paymentRequired: true`, the user is sent to `resp.paymentUrl` (Stripe Checkout) automatically. No extra wiring needed — just select a paid plan during registration.
+
+### `BaseAsync`
+
+Both `CheckoutButtonComponent` and `PaymentMethodsComponent` extend `BaseAsync` — an abstract class that bundles `loading()`, `errorMessage()`, `successMessage()` signals and a `run(obs, onSuccess, fallbackError)` helper. Reuse it in your own async components:
+
+```typescript
+import { BaseAsync, BillingService } from '@nauticana/sail';
+
+@Component({ /* ... */ })
+export class MyWidget extends BaseAsync {
+  private billing = inject(BillingService);
+
+  cancel() {
+    this.run(
+      this.billing.cancelSubscription(),
+      () => this.successMessage.set('Cancelled.'),
+      'Could not cancel.',
+    );
+  }
+}
+```
+
+Template:
+```html
+<button (click)="cancel()" [disabled]="loading()">Cancel plan</button>
+@if (errorMessage()) { <div class="auth-error">{{ errorMessage() }}</div> }
+@if (successMessage()) { <div class="auth-success">{{ successMessage() }}</div> }
+```
+
+### Suggested styles for billing components
+
+Add to `src/styles.css` to match the rest of the library:
+```css
+/* Plan selector */
+.plan-selector { display: flex; gap: 1rem; flex-wrap: wrap; }
+.plan-card { flex: 1 1 220px; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; }
+.plan-selected { border-color: #1976d2; box-shadow: 0 0 0 2px #1976d2; }
+.plan-caption { margin: 0 0 .5rem; }
+.plan-price .plan-amount { font-size: 1.5rem; font-weight: 600; }
+.plan-features { padding-left: 1.2rem; }
+
+/* Payment methods */
+.payment-methods-list { list-style: none; padding: 0; }
+.payment-method { display: flex; justify-content: space-between; padding: .5rem 0; }
+.payment-default-badge { font-size: .75rem; background: #e0e0e0; padding: 2px 8px; border-radius: 12px; }
+
+/* Checkout button */
+.checkout-button { display: flex; flex-direction: column; gap: .5rem; }
+```
+
+## Consent capture
+
+`ConsentGateComponent` is a reusable signup-consent primitive that mirrors keel's `user.SignupConsent` structure. It always renders two required checkboxes (`privacy_policy`, `cross_border`) and lets you declare any number of optional consents.
+
+```typescript
+import { ConsentGateComponent, ConsentOption, ConsentState, ConsentType } from '@nauticana/sail';
+
+@Component({
+  imports: [ConsentGateComponent],
+  template: `
+    <app-consent-gate
+        [policyVersion]="'v1'"
+        [policyLanguage]="'en'"
+        [optionalConsents]="extras"
+        (consentStateChange)="onConsent($event)">
+    </app-consent-gate>
+  `,
+})
+export class SignupPage {
+  readonly extras: ConsentOption[] = [
+    { id: ConsentType.VIDEO_OPT_IN, label: 'Record my trips on video', hint: 'Optional; change in settings later.' },
+    { id: ConsentType.MARKETING,    label: 'Email me product updates' },
+  ];
+
+  onConsent(state: ConsentState) {
+    // state.consents is Record<string, boolean>, state.valid is false until
+    // both required checkboxes are ticked.
+  }
+}
+```
+
+The component relies on `config.privacyPolicyUrl`, `config.defaultPolicyVersion`, and `config.defaultPolicyLanguage` as fallbacks when the inputs are omitted.
+
+## Phone / email OTP login
+
+keel issues an opaque server-side `otpToken` from `sendOtp()` (32 random bytes, base64-URL, bound to the user_id in cache for ~5 min). Echo it back verbatim to `verifyOtp()` / `resendOtp()`. The login fall-through still returns 200 with a token on unknown contacts (no SMS dispatched), so the response shape never leaks which numbers are registered.
+
+`BaseAuthService` provides `sendOtp()`, `resendOtp()`, and `verifyOtp()`. Pair them with the presentational `OtpInputComponent` for a complete OTP screen:
+
+```typescript
+// src/page/otp_confirm.ts
+import { Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { BaseAuthService, OtpInputComponent } from '@nauticana/sail';
+
+@Component({
+  imports: [OtpInputComponent],
+  template: `
+    <app-otp-input
+        [contact]="contact()"
+        [length]="6"
+        (codeComplete)="onVerify($event)"
+        (resend)="onResend()">
+    </app-otp-input>
+    @if (error()) { <div class="auth-error">{{ error() }}</div> }
+  `,
+})
+export class OtpConfirmPage {
+  private auth = inject(BaseAuthService);
+  private router = inject(Router);
+  readonly contact = signal('+1 (416) 555-1234');
+  readonly otpToken = signal('');
+  readonly error = signal('');
+
+  onVerify(code: string) {
+    this.auth.verifyOtp({ otpToken: this.otpToken(), code }).subscribe({
+      next: () => this.router.navigate(['/dashboard']),
+      error: (err) => this.error.set(err.error?.message ?? 'Invalid code.'),
+    });
+  }
+
+  onResend() {
+    this.auth.resendOtp(this.otpToken()).subscribe();
+  }
+}
+```
+
+Override `verifyOtp()` in your own `AuthService extends BaseAuthService` when you need role routing.
+
+| Endpoint | Service method |
+|----------|---------------|
+| `POST /public/otp/send` | `sendOtp(req)` — returns `{ otpToken }` |
+| `POST /public/otp/resend` | `resendOtp(otpToken, purpose?)` |
+| `POST /public/otp/verify` | `verifyOtp({ otpToken, code })` — auto-completes login on success |
+
+## Social login
+
+`SocialLoginComponent` renders Google / Apple buttons using each provider's official SDK. It loads the SDKs dynamically via `loadScript()` — nothing is bundled into your app.
+
+```html
+<app-social-login
+    [providers]="['google', 'apple']"
+    [consent]="consentState"
+    (loginSuccess)="onSuccess($event)"
+    (loginError)="onError($event)">
+</app-social-login>
+```
+
+Config required in `SAIL_GUI_CONFIG`:
+
+```typescript
+{
+  googleClientId: 'xxxxx.apps.googleusercontent.com',
+  appleServiceId: 'com.example.app.web',
+  appleRedirectUri: 'https://example.com/login',  // must match Apple Services ID
+}
+```
+
+Under the hood, the component calls `BaseAuthService.loginSocial(provider, idToken, consent)` → `POST /public/login/social` and emits `loginSuccess: LoginResponseSocial`. The session is completed automatically (token stored, app data loaded, routes initialized).
+
+For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWithGoogle(code)` (hits `/public/login/google`) is still supported; prefer `loginSocial` for new code.
+
+## Account deletion / logout everywhere / push tokens
+
+These are App Store / Play Store compliance primitives from keel. All are opt-in.
+
+### Re-authentication gate
+
+The four sensitive endpoints below require **recent re-authentication** before they will run — pass `password` and/or `twoFactorCode` to prove the user is still present at the keyboard. The shipped components already capture this; only callers using the service methods directly need to do this.
+
+| Method | Required re-auth |
+|--------|-----------------|
+| `setup2FA(reauth)` | `password` (or `twoFactorCode` when re-rotating) |
+| `disable2FA(password, code)` | **both** `password` and current TOTP `code` |
+| `deleteAccount(reauth, reason?)` | `password` (or `twoFactorCode`) |
+| `logoutEverywhere(reauth)` | `password` (or `twoFactorCode`) |
+
+The `ReauthCredentials` type is exported as a shared shape:
+```typescript
+import { ReauthCredentials } from '@nauticana/sail';
+const reauth: ReauthCredentials = { password: 'hunter2' };
+auth.deleteAccount(reauth, 'Closing my account.').subscribe();
+```
+
+### Account deletion
+
+```html
+<app-account-deletion [confirmationText]="'DELETE'"></app-account-deletion>
+```
+
+Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** confirms their password. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`).
+
+### Logout everywhere
+
+`TrustedDevicesComponent` ships a "Sign out of all devices" button that reveals a password field, then calls `BaseAuthService.logoutEverywhere({ password })` (`POST /api/user/logout-everywhere`). It also displays a single-device-mode banner when configured:
+
+```html
+<app-trusted-devices [singleDeviceSession]="user.singleDeviceSession"></app-trusted-devices>
+```
+
+Pass `singleDeviceSession` from your login response (the field is part of `LoginResponse2FA`). When true, the banner reads: *"This account is in single-device mode — signing in on another device will sign you out here."*
+
+### Push tokens
+
+For mobile apps / web push, register your FCM / APNs token after login:
+
+```typescript
+auth.registerPushToken('I', fcmToken, '1.2.3', 'iPhone 15').subscribe();
+// On logout or device rotation:
+auth.revokePushToken(oldToken).subscribe();
+```
+
+Platform codes: `'I'` iOS, `'A'` Android, `'W'` Web. The token acquisition (Capacitor / web-push / Firebase SDK) stays in the consumer app — sail only owns the server call.
+
+| Endpoint | Service method |
+|----------|---------------|
+| `DELETE /api/user/account` | `deleteAccount(reauth, reason?)` |
+| `POST /api/user/logout-everywhere` | `logoutEverywhere(reauth)` |
+| `POST /api/push/register` | `registerPushToken(platform, token, appVersion?, deviceModel?)` |
+| `POST /api/push/revoke` | `revokePushToken(token)` |
+
+### Suggested styles for auth components
+
+```css
+/* Consent gate */
+.consent-form { display: flex; flex-direction: column; gap: 12px; }
+.consent-row { font-size: 14px; line-height: 1.4; }
+.consent-hint { display: block; margin-top: 4px; font-size: 12px; color: #666; }
+
+/* OTP input */
+.otp-container { display: flex; flex-direction: column; align-items: center; padding: 16px 24px; }
+.otp-sent-to { margin: 0; color: #666; font-size: 14px; }
+.otp-contact { margin: 4px 0 24px; font-weight: 600; font-size: 16px; }
+.otp-digits { display: flex; gap: 8px; margin-bottom: 16px; }
+.otp-digit { width: 40px; height: 48px; border: 2px solid #ddd; border-radius: 8px;
+             display: flex; align-items: center; justify-content: center;
+             font-size: 20px; font-weight: 600; }
+.otp-digit.active { border-color: #1976d2; }
+.otp-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+              width: 100%; max-width: 300px; }
+.keypad-key { height: 56px; font-size: 22px; font-weight: 500; border-radius: 12px; }
+.keypad-spacer { height: 56px; }
+
+/* Social login */
+.social-login { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.social-apple-btn { height: 44px; border-radius: 22px; background: #000; color: #fff;
+                    border: 0; font-weight: 600; cursor: pointer; }
+
+/* Trusted devices single-device banner */
+.single-device-banner { padding: 12px; border-radius: 8px; background: #fff3cd;
+                        color: #856404; margin-bottom: 16px; font-size: 14px; }
+```
+
+## Updating to the latest version
+
+```bash
+npm update @nauticana/sail
+```
+
+Or to install a specific version:
+
+```bash
+npm install @nauticana/sail@0.5.0
+```
+
+## Migrating to v0.5.0
+
+The downstream code adopting this library was previously written against the legacy frontend library (renamed to sail) targeting basis backend (renamed to keel). v0.5.0 aligns sail with keel v0.5.0 and renames all `Basis*` symbols to `Sail*`. There is no backward-compatibility shim — apply every step below.
+
+### 1. Update `package.json`
+
+```diff
+-  "@aspect/gui": "github:nauticana/sail"
++  "@nauticana/sail": "^0.5.0"
+```
+
+sail is now on the public npm registry. If your project carries a leftover `.npmrc` pointing at GitHub Packages from the legacy setup, **delete it** — the public registry is the default and no override is needed:
+
+```diff
+- @nauticana:registry=https://npm.pkg.github.com
+```
+
+### 2. Update `tsconfig.json` paths
+
+```diff
+-  "@aspect/gui": ["./node_modules/@aspect/gui/src/index"]
++  "@nauticana/sail": ["./node_modules/@nauticana/sail/src/index"]
+```
+
+If your `tsconfig.json` has `"baseUrl": "src"`, the relative path is `"../node_modules/@nauticana/sail/src/index"`.
+
+### 3. Rename imports in your `src/`
+
+Find-and-replace across the entire `src/` tree:
+
+| Replace | With |
+|---|---|
+| `@aspect/gui` | `@nauticana/sail` |
+| `BASIS_GUI_CONFIG` | `SAIL_GUI_CONFIG` |
+| `BasisGuiConfig` | `SailGuiConfig` |
+
+Both the injection token and the interface were renamed.
+
+### 4. Update OTP flow — opaque `otpToken` replaces `sessionId`
+
+keel v0.5 issues a server-side opaque `otpToken` from `sendOtp()` instead of returning the raw `sessionId` (`= user_account.id`). The token is bound to the user_id in keel's cache for ~5 minutes. The change closes a user-id brute-force vector and removes the `sessionId` / `isNewUser` enumeration leaks.
+
+Wherever you stored the OTP `sessionId`, swap it for `otpToken: string`.
+
+```diff
+- readonly sessionId = signal(0);
++ readonly otpToken = signal('');
+
+  // sendOtp response shape:
+- // { sessionId: number; isNewUser: boolean }
++ // { otpToken: string }
+
+  this.auth.sendOtp({ contact: phone, purpose: 'login' }).subscribe({
+-   next: (resp) => this.sessionId.set(resp.sessionId),
++   next: (resp) => this.otpToken.set(resp.otpToken),
+  });
+
+  // verifyOtp request shape:
+- this.auth.verifyOtp({ sessionId: this.sessionId(), code }).subscribe(...)
++ this.auth.verifyOtp({ otpToken: this.otpToken(), code }).subscribe(...)
+
+  // resendOtp signature changed:
+- this.auth.resendOtp(this.sessionId()).subscribe();
++ this.auth.resendOtp(this.otpToken()).subscribe();
+```
+
+`sendOtp()` always returns 200 — even on unknown contacts on the login path, the response shape is identical (with a server-issued fake token). This is intentional anti-enumeration; verify will fail with a generic 401. No client-side handling needed.
+
+`OtpVerifyResponse` no longer carries `isNewUser`. If your app branches on first-time-user, detect it after the JWT lands by inspecting your own user-state load.
+
+### 5. Update consumer subscriptions
+
+`BackendService.list<T>()` returns `Observable<T[]>` (unchanged). It now expects keel to return paginated `{items, limit, offset, total}` and has dropped the legacy "bare array" fallback. If you have an in-house wrapper that calls keel `list` endpoints directly, expect the wrapper shape.
+
+For pagination metadata, use `listPaginated<T>()`:
+
+```typescript
+backend.listPaginated<MyRow>('orders', { _limit: '50', _offset: '0' })
+  .subscribe(page => {
+    this.rows.set(page.items);
+    this.total.set(page.total);
+  });
+```
+
+### 6. Optional: replace deprecated bootstrap
+
+If you bootstrapped with `provideZoneChangeDetection`, switch to `provideZonelessChangeDetection` (Angular 21 default). The shipped `@nauticana/sail` components are signal-based and zoneless-safe.
+
+### 7. Clean install
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+ng build
+```
+
+Type errors after upgrade fall into two buckets:
+
+- **`Cannot find name 'BasisGuiConfig'`** — you missed a rename in step 3. Search again.
+- **`Property 'sessionId' does not exist on type 'OtpResponse'`** — finish step 4 in the file flagged.
+
+### 8. Backend alignment
+
+This library only talks to keel **v0.5.x**. Older keel servers will reject the `otpToken` field on verify with HTTP 400. Upgrade keel and sail together. See [keel/README.md → Migration Guide](https://github.com/nauticana/keel/blob/main/README.md) for the matching backend changes.

@@ -1,0 +1,76 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">Trusted Devices</h2>
+    <p class="auth-instructions">Devices that can skip two-factor authentication for 30 days.</p>
+
+    @if (singleDeviceSession()) {
+      <div class="single-device-banner" role="status">
+        This account is in single-device mode — signing in on another device will sign you out here.
+      </div>
+    }
+
+    @if (devices().length > 0) {
+      <table class="trusted-devices-table">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Last Used</th>
+            <th>Trusted Since</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (device of devices(); track device.id) {
+            <tr>
+              <td>
+                {{ device.name }}
+                @if (isCurrentDevice(device)) {
+                  <span class="current-device-badge">(this device)</span>
+                }
+              </td>
+              <td>{{ formatDate(device.last_used_at) }}</td>
+              <td>{{ formatDate(device.created_at) }}</td>
+              <td>
+                <button mat-icon-button (click)="revokeDevice(device)" title="Revoke">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="empty-state">No trusted devices.</p>
+    }
+
+    @if (errorMessage()) {
+      <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="auth-success" role="status">{{ successMessage() }}</div>
+    }
+
+    @if (logoutOpen()) {
+      <form [formGroup]="logoutForm" class="auth-form" (ngSubmit)="signOutEverywhere()">
+        <p class="auth-instructions">Confirm your password to sign out of every device.</p>
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+        </mat-form-field>
+        <div class="auth-actions">
+          <button mat-raised-button class="warn" type="submit" [disabled]="!logoutForm.valid || loading()">
+            Sign out everywhere
+          </button>
+          <button mat-button type="button" (click)="logoutOpen.set(false)">Cancel</button>
+        </div>
+      </form>
+    } @else {
+      <div class="auth-actions">
+        <button mat-button class="warn" type="button" (click)="logoutOpen.set(true)" [disabled]="loading()">
+          Sign out of all devices
+        </button>
+        <a routerLink="/dashboard">Back to Dashboard</a>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,133 @@
+import { ChangeDetectionStrategy, Component, inject, Input, input, OnInit, ViewEncapsulation } from "@angular/core";
+import { DynamicField } from "../form/form_field";
+import { MatButtonModule } from "@angular/material/button";
+import { BaseForm } from "../abstract/base_form";
+import { MatDialog } from "@angular/material/dialog";
+import { TableForm } from "../form/form_table";
+import { MatIconModule } from "@angular/material/icon";
+
+@Component({
+    selector: 'table-detail',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    encapsulation: ViewEncapsulation.None,
+    templateUrl: './table_detail.html',
+    imports: [
+        DynamicField,
+        MatButtonModule,
+        MatIconModule,
+    ],
+})
+export class TableDetail extends BaseForm implements OnInit {
+    @Input() override tableName = '';
+    @Input() records: any[] = [];
+    readonly parentTableName = input('');
+    readonly parentRecord = input<any>({});
+    /** When true, the parent view is in read-only mode — disable all child row editing. */
+    readonly parentReadOnly = input(false);
+
+    editingRecord: any = null;
+    originalRecord: any = null;
+    displayedColumns: string[] = [];
+    fkColumns: string[] = [];
+
+    private readonly dialog = inject(MatDialog);
+
+    override canCreate() { return !this.parentReadOnly() && super.canCreate(); }
+    override canUpdate() { return !this.parentReadOnly() && super.canUpdate(); }
+    override canDelete() { return !this.parentReadOnly() && super.canDelete(); }
+
+    ngOnInit(): void {
+        this.displayedColumns = this.getDisplayedColumns(this.records);
+        const fkCfg = this.getForeignKeyConfig(this.parentTableName());
+        if (fkCfg && fkCfg.fk && fkCfg.fk.Columns) {
+            for (const col of fkCfg.fk.Columns) {
+                this.fkColumns.push(col.PascalName);
+            }
+        }
+    }
+
+    override isReadOnly(fieldName: string): boolean {
+        return (this.fkColumns.includes(fieldName) || super.isReadOnly(fieldName));
+    }
+
+    openEditDialog(record: any, isNew: boolean, readOnlyColumns: string[]) {
+        const dialogRef = this.dialog.open(TableForm, {
+            width: this.dialogWidth,
+            disableClose: true,
+            data: this.getDialogData(record, isNew, readOnlyColumns),
+        });
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result) {
+                if (isNew) {
+                    this.records.push(result);
+                } else {
+                    Object.assign(record, result);
+                }
+            }
+        });
+    }
+
+    addRecord() {
+        const newRecord = this.emptyRecord();
+        newRecord[this.config.opField] = 'I';
+        this.initializeForeignKeys(newRecord, this.parentTableName(), this.parentRecord());
+
+        if (this.displayedColumns.length > 6) {
+            this.openEditDialog(newRecord, true, this.fkColumns);
+        } else {
+            this.records.push(newRecord);
+            this.isNew = true;
+            this.originalRecord = null;
+            this.editingRecord = newRecord;
+        }
+    }
+
+    editRow(record: any) {
+        if (this.displayedColumns.length > 6) {
+            this.openEditDialog(record, false, this.fkColumns);
+        } else {
+            this.editingRecord = record;
+            this.isNew = record[this.config.opField] === 'I';
+            this.originalRecord = {...record};
+            this.formatRecordTimeStamp(record);
+        }
+    }
+
+    saveRow() {
+        this.readyToSave(this.editingRecord);
+        this.editingRecord = null;
+        this.originalRecord = null;
+        this.isNew = false;
+    }
+
+    cancelRow(record: any) {
+        if (this.originalRecord) {
+            Object.assign(record, this.originalRecord);
+        } else {
+            const index = this.records.indexOf(record);
+            if (index > -1) {
+                this.records.splice(index, 1);
+            }
+        }
+        this.editingRecord = null;
+        this.originalRecord = null;
+        this.isNew = false;
+    }
+
+    deleteRow(record: any) {
+        if (record[this.config.opField] === 'I') {
+            const index = this.records.indexOf(record);
+            if (index > -1) {
+                this.records.splice(index, 1);
+            }
+        } else {
+            record[this.config.opField] = 'D';
+        }
+    }
+
+    unDeleteRow(record: any) {
+        if (record[this.config.opField] === 'D') {
+            record[this.config.opField] = 'U';
+        }
+    }
+}

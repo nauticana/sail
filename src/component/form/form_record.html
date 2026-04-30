@@ -1,0 +1,14 @@
+<div class="form-container">
+    @for (key of computedFields(); track key) {
+        @if (!isArray(record()[key])) {
+            <dynamic-field
+             [tableName]="tableName()"
+             [value]="record()[key]"
+             (valueChange)="record()[key]=$event"
+             (recordUpdate)="onRecordUpdate($event)"
+             [field]="key"
+             [readonly]="isReadOnly()(key)">
+            </dynamic-field>
+        }
+    }
+</div>

@@ -1,0 +1,132 @@
+<div class="auth-container">
+  @if (guiConfig.appTitle) {
+    <div class="auth-header">
+      <h1 class="auth-app-title">{{ guiConfig.appTitle }}</h1>
+    </div>
+  }
+  <div class="auth-card register-card">
+    <h2 class="auth-title">Create Your Account</h2>
+    <form [formGroup]="registerForm" (ngSubmit)="register()" class="auth-form">
+
+      <div class="auth-section-label">Account</div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>First Name</mat-label>
+          <input matInput type="text" formControlName="FirstName" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Last Name</mat-label>
+          <input matInput type="text" formControlName="LastName" required>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="Email" required>
+      </mat-form-field>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Username</mat-label>
+          <input matInput type="text" formControlName="UserName" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="Password" required>
+        </mat-form-field>
+      </div>
+
+      <div class="auth-section-label">Plan</div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Subscription plan</mat-label>
+        <mat-select formControlName="PlanID" required>
+          @for (p of plans(); track p.id) {
+            <mat-option [value]="p.id">
+              {{ p.caption }}@if (p.monthlyCost > 0) { — \${{ p.monthlyCost }}/mo }
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="auth-section-label">Business Information</div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Business/Company Name</mat-label>
+        <input matInput type="text" formControlName="PartnerCaption" required>
+      </mat-form-field>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Phone</mat-label>
+          <input matInput type="tel" formControlName="Phone" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Website URL</mat-label>
+          <input matInput type="url" formControlName="DomainURL" required>
+        </mat-form-field>
+      </div>
+
+      <div class="auth-section-label">Location</div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Address (Street and Number)</mat-label>
+        <input matInput type="text" formControlName="Address" required>
+      </mat-form-field>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>City</mat-label>
+          <input matInput type="text" formControlName="City" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>State</mat-label>
+          <input matInput type="text" formControlName="State" required>
+        </mat-form-field>
+      </div>
+
+      <div class="form-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Zipcode</mat-label>
+          <input matInput type="text" formControlName="Zipcode" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Country</mat-label>
+          <input matInput type="text" formControlName="Country" required>
+        </mat-form-field>
+      </div>
+
+      <div class="auth-checkbox">
+        <mat-checkbox formControlName="consentLocation">
+          I consent to geocode my business address for location services
+        </mat-checkbox>
+      </div>
+
+      @if (geocodeStatus() === 'loading') {
+        <div class="geocode-status geocode-loading" role="status">Verifying address...</div>
+      } @else if (geocodeStatus() === 'success') {
+        <div class="geocode-status geocode-success" role="status">Address verified.</div>
+      } @else if (geocodeStatus() === 'error') {
+        <div class="geocode-status geocode-error" role="alert">{{ geocodeError() }}</div>
+      }
+
+      @if (registerError()) {
+        <div class="geocode-status geocode-error" role="alert">{{ registerError() }}</div>
+      }
+
+      <button mat-raised-button class="primary" type="submit"
+        [disabled]="!registerForm.valid || geocodeStatus() !== 'success'">
+        Create Account
+      </button>
+    </form>
+    <div class="auth-actions">
+      <a routerLink="/login/local">Already have an account? Sign in</a>
+    </div>
+  </div>
+</div>

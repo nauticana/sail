@@ -1,0 +1,45 @@
+<div class="auth-container">
+  @if (guiConfig.appTitle) {
+    <div class="auth-header">
+      <h1 class="auth-app-title">{{ guiConfig.appTitle }}</h1>
+    </div>
+  }
+  <div class="auth-card">
+    <h2 class="auth-title">Two-Factor Verification</h2>
+    <p class="auth-instructions">
+      @if (useBackupCode()) {
+        Enter one of your backup codes.
+      } @else {
+        Enter the 6-digit code from your authenticator app.
+      }
+    </p>
+    <form [formGroup]="verifyForm" (ngSubmit)="verify()" class="auth-form">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ useBackupCode() ? 'Backup Code' : 'Verification Code' }}</mat-label>
+        <input matInput type="text" formControlName="code" autocomplete="one-time-code" required>
+      </mat-form-field>
+
+      @if (!useBackupCode()) {
+        <div class="auth-checkbox">
+          <mat-checkbox formControlName="trustDevice">
+            Trust this device for 30 days
+          </mat-checkbox>
+        </div>
+      }
+
+      @if (errorMessage()) {
+        <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+      }
+
+      <button mat-raised-button class="primary" type="submit" [disabled]="!verifyForm.valid">
+        Verify
+      </button>
+    </form>
+    <div class="auth-actions">
+      <a tabindex="0" role="button" (click)="toggleBackupCode()" (keydown.enter)="toggleBackupCode()">
+        {{ useBackupCode() ? 'Use authenticator code' : 'Use a backup code instead' }}
+      </a>
+      <a routerLink="/login/local">Back to Login</a>
+    </div>
+  </div>
+</div>
