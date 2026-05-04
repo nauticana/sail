@@ -50,7 +50,7 @@ export class TableSearch extends BaseForm implements OnInit {
                 }
             });
         }
-        this.editableRecord = this.emptyRecord();
+        this.editableRecord = this.emptySearchRecord();
         this.searchColumns = this.getDisplayedColumns();
     }
 
@@ -63,7 +63,33 @@ export class TableSearch extends BaseForm implements OnInit {
     }
 
     onClear() {
-        this.editableRecord = this.emptyRecord();
+        this.editableRecord = this.emptySearchRecord();
+    }
+
+    /**
+     * Search-form variant of `emptyRecord()`. Boolean columns are forced to
+     * null so an unmodified Search click does not coerce filters from the
+     * table's HasDefault value (e.g. an `is_primary` column with a `FALSE`
+     * default would otherwise have the form submit `?IsPrimary=false` and
+     * silently exclude every primary-flag row).
+     *
+     * The user opts into a boolean filter by clicking the checkbox: first
+     * click sets it to `true`, a second click sets it to `false`, and the
+     * Clear button resets back to `null` (no filter). `buildSearchTerms`
+     * already skips `null` / `undefined` values, so the URL only carries
+     * filters the user explicitly toggled.
+     */
+    private emptySearchRecord(): any {
+        const rec = this.emptyRecord();
+        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        if (tableDef?.Columns) {
+            for (const col of tableDef.Columns) {
+                if (col.DataType === 'boolean') {
+                    rec[col.PascalName] = null;
+                }
+            }
+        }
+        return rec;
     }
 
     onAddRecord() {
