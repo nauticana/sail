@@ -15,6 +15,7 @@ export * from './component/table/table_search';
 export * from './component/table/table_edit';
 export * from './component/table/table_detail';
 export * from './component/table/table_lookup';
+export * from './component/table/table_report';
 export * from './component/navigation/navigation';
 export * from './component/login/login_component';
 export * from './component/login/register_component';

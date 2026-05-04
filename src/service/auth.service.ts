@@ -443,8 +443,24 @@ export abstract class BaseAuthService {
     return this.cache.Apis[dictionaryId];
   }
 
+  /**
+   * keel emits Reports as `map[string]*RestReport` which serializes to a
+   * JSON object keyed by report id, not an array. The previous cast to
+   * `RestReport[]` was a type lie that produced an empty iteration in
+   * practice. Object.values is the correct unwrap.
+   */
   getReports(): RestReport[] {
-    return (this.cache?.['Reports'] as RestReport[]) ?? [];
+    const reports = this.cache?.['Reports'] as Record<string, RestReport> | undefined;
+    return reports ? Object.values(reports) : [];
+  }
+
+  /**
+   * Look up a single report by its id (e.g. 'scorecard' for /api/v1/analytic/scorecard).
+   * Returns undefined if Reports cache is missing or the id isn't registered.
+   */
+  getReport(id: string): RestReport | undefined {
+    const reports = this.cache?.['Reports'] as Record<string, RestReport> | undefined;
+    return reports?.[id];
   }
 
   canRead(tableName: string)   { return this.checkPermission('TABLE', 'SELECT', tableName); }
@@ -494,6 +510,7 @@ export abstract class BaseAuthService {
     // auth.service → TableSearch/TableList → BaseTable → auth.service
     const { TableSearch } = await import('../component/table/table_search');
     const { TableList } = await import('../component/table/table_list');
+    const { TableReport } = await import('../component/table/table_report');
 
     this.getAppData().pipe(take(1)).subscribe({
         next: (data: ApplicationData) => {
@@ -531,6 +548,17 @@ export abstract class BaseAuthService {
                         children.push({
                             path: page.ItemId,
                             component: overrideComponent,
+                            canActivate: [this.canActivate],
+                            data: { tableName, apiName },
+                        });
+                    } else if (this.getReport(page.ItemId)) {
+                        // Menu item id matches a row in rest_report_header →
+                        // render with TableReport. Report endpoints don't go
+                        // through the metadata-driven CRUD layer (apis cache),
+                        // so apiName here is just restUri (e.g. analytic/scorecard).
+                        children.push({
+                            path: page.ItemId,
+                            component: TableReport,
                             canActivate: [this.canActivate],
                             data: { tableName, apiName },
                         });

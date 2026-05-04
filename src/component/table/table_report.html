@@ -1,0 +1,26 @@
+<h2>{{ reportTitle() }}</h2>
+
+@if (errorMessage()) {
+    <p class="empty-state">{{ errorMessage() }}</p>
+} @else if (records().length === 0) {
+    <p class="empty-state">No data available.</p>
+} @else {
+    <table>
+        <thead>
+            <tr>
+                @for (column of displayedColumns(); track column) {
+                    <th>{{ titleCase(column) }}</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (record of records(); track $index) {
+                <tr>
+                    @for (column of displayedColumns(); track column) {
+                        <td>{{ record[column] }}</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}

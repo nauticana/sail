@@ -106,10 +106,13 @@ export interface ReportParam {
 }
 
 export interface RestReport {
-  Id:        string;
-  Version:   string;
-  QueryName: string;
-  Params:    ReportParam[];
+  Id:          string;
+  Version:     string;
+  QueryName:   string;
+  // Long-form text rendered as the report page header. The short nav-rail
+  // label is application_menu_item.caption — no duplication here.
+  Description: string;
+  Params:      ReportParam[];
 }
 
 // 2FA / Trusted device types
