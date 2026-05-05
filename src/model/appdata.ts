@@ -101,8 +101,15 @@ export interface DictionaryPath {
 }
 
 export interface ReportParam {
-  Name:     string;
-  DataType: string;
+  Name:       string;
+  DataType:   string;
+  /**
+   * When set, the parameter input renders as a dropdown populated from
+   * the matching constant_value rows (Pass/Fail/etc.) instead of a free-text
+   * input. Empty string / undefined means no domain — render a plain input
+   * typed by DataType.
+   */
+  ConstantId?: string;
 }
 
 export interface RestReport {
