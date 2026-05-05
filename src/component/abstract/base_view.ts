@@ -62,9 +62,16 @@ export abstract class BaseView extends BaseTable {
         });
     }
 
+    /**
+     * Open the row dialog. Renamed conceptually from "edit": when the user
+     * has only `canRead()` , we still want to show them the record + child rows.
+     * The dialog itself (TableEdit) handles read-only mode — its Edit/New/Delete
+     * buttons are gated by the same permissions.
+     * Block only when neither read nor update is granted.
+     */
     editRecord(record: {[key: string]: any}) {
-        if (!this.canUpdate()) {
-            alert('Missing authorization to update records');
+        if (!this.canUpdate() && !this.canRead()) {
+            alert('Missing authorization to view records');
             return;
         }
         const dialogData = this.getDialogData(record, false);
