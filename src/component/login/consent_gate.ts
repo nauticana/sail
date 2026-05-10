@@ -92,17 +92,26 @@ export class ConsentGateComponent {
       }
       this.formValue.set(this.form.getRawValue());
       this.formValid.set(this.form.valid);
+      this.consentStateChange.emit(this.state());
     });
 
+    // Emit on every form change. We emit explicitly here rather than via a
+    // standalone `effect(() => emit(state()))` because output emission
+    // from inside an effect is unreliable in production AOT builds: the
+    // effect's scheduler runs in a microtask outside the user-event CD
+    // tick, and parent OnPush views can miss the propagated signal write.
+    // Emitting inside the RxJS subscription puts the emission on the
+    // synchronous click-handler path, where Angular's zone-aware CD
+    // picks up the parent's `consents` signal write deterministically.
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.formValue.set(this.form.getRawValue());
       this.formValid.set(this.form.valid);
+      this.consentStateChange.emit(this.state());
     });
     this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.formValid.set(this.form.valid);
+      this.consentStateChange.emit(this.state());
     });
-
-    effect(() => this.consentStateChange.emit(this.state()));
   }
 
   protected readonly ConsentType = ConsentType;
