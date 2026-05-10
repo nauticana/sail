@@ -263,8 +263,12 @@ export abstract class BaseAuthService {
    * numbers by comparing 200 vs 404.
    */
   sendOtp(req: OtpRequest): Observable<OtpResponse> {
-    const { contactType: _contactType, ...payload } = req;
-    return this.http.post<OtpResponse>(this.otpSendUrl, payload);
+    // Send the request as-is — `contactType` is now a real backend
+    // field (keel v0.5.11+) that selects the SMS-vs-email dispatch
+    // channel. The pre-v0.5.11 strip-before-post workaround was
+    // removed when email-OTP support landed in keel/handler/
+    // otp_handler.go.
+    return this.http.post<OtpResponse>(this.otpSendUrl, req);
   }
 
   resendOtp(otpToken: string, purpose?: OtpRequest['purpose']): Observable<{ status: string }> {

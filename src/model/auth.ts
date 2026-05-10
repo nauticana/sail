@@ -43,19 +43,26 @@ export interface SignupConsent {
 }
 
 // ── Phone / email OTP ──
-// `contactType` is a frontend-only convenience field used to drive UI
-// navigation (phone-confirm vs email-confirm). It is NOT sent to the
-// backend — keel detects phone-vs-email from the `contact` value itself.
-// `BaseAuthService.sendOtp` strips this field before posting, since keel
-// rejects unknown JSON fields with 400.
+// `contactType` selects the OTP delivery channel. As of keel v0.5.11
+// the backend honors this field directly: 'phone' (default — `contact`
+// is normalized to E.164 and OTP goes via SMS) or 'email' (`contact`
+// is lowercased + trimmed and OTP goes via the keel MailClient).
+// Older keel deployments ignore anything other than phone — pin the
+// consumer's go.mod when this matters.
 export type OtpContactType = 'phone' | 'email';
 export type OtpPurpose     = 'login' | 'register' | 'verify';
 
 export interface OtpRequest {
   contact:        string;
-  contactType?:   OtpContactType;  // frontend-only, stripped before POST
+  contactType?:   OtpContactType;  // 'phone' (default) | 'email'
   purpose?:       OtpPurpose;
   defaultRegion?: string;          // ISO country hint for phone normalization
+  // The OTHER contact the user supplied at signup, persisted on the
+  // new user_account row even though it isn't being OTP-verified at
+  // this step. When contactType='email', this is the user's phone;
+  // when contactType='phone', this is the user's email. Optional —
+  // omit for login flows (only registration creates the row).
+  secondaryContact?: string;
   policyType?:    string;
   policyVersion?: string;
   policyRegion?:  string;
