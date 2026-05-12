@@ -31,11 +31,15 @@ export const RestURL = {
   deleteAccountURL:    '/api/user/account',
   pushRegisterURL:     '/api/push/register',
   pushRevokeURL:       '/api/push/revoke',
-  // Payout — keel/payout endpoints (B5b + A3 interface).
+  // Payout — keel/payout endpoints.
   payoutOnboardStartURL: '/api/v1/payout/onboard/start',
   payoutReusableURL:     '/api/v1/payout/reusable',
   payoutReusableLinkURL: '/api/v1/payout/reusable/link',
   payoutStatusURL:       '/api/v1/payout/status',
+  // User payment methods — list/delete go through keel's generic REST
+  // CRUD against the UserSpecific basis table; only set-default has a
+  // custom endpoint (atomic multi-row UPDATE).
+  paymentMethodSetDefaultURL: '/api/v1/payment-methods/set-default',
 };
 
 /** Call this at app startup to set the backend host URL */

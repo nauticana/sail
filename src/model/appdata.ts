@@ -328,3 +328,27 @@ export interface CountryProfile {
 	taxIdPlaceholder: string;
 	taxIdHint:        string;
 }
+
+// ── User payment methods ──
+// Consumer-side saved cards/wallets. Mirrors basis user_payment_method
+// one-to-one. Distinct from PaymentMethod (partner-scoped SaaS billing
+// card).
+//
+// PascalCase fields match keel's generic REST CRUD response shape —
+// list and delete go through that path (the table is UserSpecific so
+// the auto-filter scopes reads + owner-locks DELETE). Only set-default
+// has a custom endpoint because it needs atomic multi-row UPDATE.
+
+export interface UserPaymentMethod {
+	Id:           number;
+	UserId?:      number;
+	MethodType:   string;   // matches basis constant_header 'payment_method_type' — card / bank / wallet / apple_pay / google_pay
+	Provider:     string;   // 'stripe', ...
+	LastFour?:    string;
+	Brand?:       string;
+	ExpiryMonth?: number;
+	ExpiryYear?:  number;
+	Currency:     string;
+	IsDefault:    boolean;
+	CreatedAt:    string;
+}
