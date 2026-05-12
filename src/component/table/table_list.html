@@ -1,8 +1,20 @@
 <h2>{{ getCaption() }}</h2>
 
-@if (canCreate()) {
-    <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
-}
+<div class="table-list__toolbar">
+    @if (canCreate()) {
+        <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
+    }
+    @for (action of getActions(false); track action.action) {
+        @if (canExecuteAction(action)) {
+            <button mat-stroked-button type="button"
+                    [title]="action.caption"
+                    (click)="executeAction(action)">
+                @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
+                {{ action.caption }}
+            </button>
+        }
+    }
+</div>
 
 <table>
     <thead>
@@ -27,6 +39,15 @@
             } @else {
                 <button mat-icon-button type="button" (click)="editRecord(record)" title="Edit"><mat-icon>edit</mat-icon></button>
                 <button mat-icon-button type="button" (click)="deleteRecord(record)" title="Delete"><mat-icon>delete</mat-icon></button>
+                @for (action of getActions(true); track action.action) {
+                    @if (canExecuteAction(action)) {
+                        <button mat-icon-button type="button"
+                                [title]="action.caption"
+                                (click)="executeAction(action, record)">
+                            <mat-icon>{{ action.icon || 'play_arrow' }}</mat-icon>
+                        </button>
+                    }
+                }
             }
             </td>
         }

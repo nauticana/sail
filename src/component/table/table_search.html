@@ -14,4 +14,14 @@
     @if (canCreate()) {
         <button mat-raised-button class="accent" (click)="onAddRecord()">New Record</button>
     }
+    @for (action of getActions(false); track action.action) {
+        @if (canExecuteAction(action)) {
+            <button mat-stroked-button type="button"
+                    [title]="action.caption"
+                    (click)="executeAction(action)">
+                @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
+                {{ action.caption }}
+            </button>
+        }
+    }
 </div>

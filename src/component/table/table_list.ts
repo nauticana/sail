@@ -4,6 +4,7 @@ import { ActivatedRoute, Params } from "@angular/router";
 import { BaseView } from "../abstract/base_view";
 import { TableEdit } from "./table_edit";
 import { BackendService } from "../../service/rest_service";
+import { TableAction } from "../../model/appdata";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
@@ -74,6 +75,29 @@ export class TableList extends BaseView implements OnInit {
                 this.cdr.markForCheck();
             },
             error: (err) => console.error('Fetch failed', err),
+        });
+    }
+
+    /**
+     * Fire a TableAction. For record-specific actions, `record` carries
+     * the row's primary key columns (lifted via BaseTable.primaryKeyValues).
+     * For table-level actions, `record` is undefined and the body is empty.
+     * Refreshes the row list on success — most actions mutate visible
+     * state (set_default flipping defaults, etc.).
+     */
+    executeAction(action: TableAction, record?: {[key: string]: unknown}): void {
+        if (!this.canExecuteAction(action)) {
+            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
+            return;
+        }
+        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
+        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
+        this.backendService.executeAction(action.method, body).subscribe({
+            next: () => this.fetchRecords(),
+            error: (err) => {
+                console.error(`Action ${action.action} failed`, err);
+                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
+            },
         });
     }
 

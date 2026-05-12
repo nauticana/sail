@@ -5,6 +5,8 @@ import { BaseForm } from "../abstract/base_form";
 import { MatDialog } from "@angular/material/dialog";
 import { TableForm } from "../form/form_table";
 import { MatIconModule } from "@angular/material/icon";
+import { BackendService } from "../../service/rest_service";
+import { TableAction } from "../../model/appdata";
 
 @Component({
     selector: 'table-detail',
@@ -31,6 +33,34 @@ export class TableDetail extends BaseForm implements OnInit {
     fkColumns: string[] = [];
 
     private readonly dialog = inject(MatDialog);
+    private readonly backendService = inject(BackendService);
+
+    /**
+     * Fire a TableAction. Per-row actions require the record to be
+     * server-side (not 'I' inserted-locally-not-saved); table-level
+     * actions only need the parent to be writable. Action POSTs hit
+     * the resolved URL directly — no need to round-trip through the
+     * parent form.
+     */
+    executeAction(action: TableAction, record?: {[key: string]: unknown}): void {
+        if (!this.canExecuteAction(action)) {
+            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
+            return;
+        }
+        if (action.recordSpecific && record && record[this.config.opField] === 'I') {
+            alert('Save the record first before running this action.');
+            return;
+        }
+        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
+        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
+        this.backendService.executeAction(action.method, body).subscribe({
+            next: () => {/* parent form re-fetches on its own save */},
+            error: (err) => {
+                console.error(`Action ${action.action} failed`, err);
+                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
+            },
+        });
+    }
 
     override canCreate() { return !this.parentReadOnly() && super.canCreate(); }
     override canUpdate() { return !this.parentReadOnly() && super.canUpdate(); }

@@ -56,13 +56,27 @@ export interface TableColumn {
   Validators?:  AbstractControlOptions['validators'];
 }
 
+// One custom button registered against a table via the basis
+// table_action seed. Auth gating uses the existing
+// authorization_role_permission path against (authorityObject,
+// authorityCheck, low_limit=tableName) — see canExecute() in
+// BaseAuthService.
+//
+// recordSpecific=true  → button renders next to per-row edit/delete.
+// recordSpecific=false → button renders next to the "New Record" toolbar.
+//
+// `method` is the URL POST target the click should hit (resolved by
+// keel from table_name + action_name + optional method_name override).
 export interface TableAction {
-  action:         string;
-  caption:        string;
-  method:         string;
-  enable:         string;
-  authorityCheck: string;
-  recordSpecific: string;
+  action:           string;   // lowercase action_name
+  caption:          string;
+  method:           string;   // resolved URL path (POST target)
+  icon?:            string;   // Material icon name; falsy → label-only
+  recordSpecific:   boolean;
+  displayOrder?:    number;
+  confirmMessage?:  string;
+  authorityObject:  string;   // uppercased table_name — for canExecute()
+  authorityCheck:   string;   // uppercased action_name — for canExecute()
 }
 
 export interface ForeignKey {

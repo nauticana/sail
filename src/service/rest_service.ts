@@ -91,4 +91,16 @@ export class BackendService {
     delete(apiName: string, filter?: {[key: string]: string}): Observable<{message: string}> {
         return this.http.delete<{message: string}>(this.apiUrl(apiName + '/delete'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
     }
+
+    /**
+     * Fire a TableAction button. `actionPath` is the resolved URL path
+     * the keel REST engine pre-computed onto TableAction.method
+     * (e.g. "/user_payment_method/set_default"); pass it verbatim and
+     * the call will POST to {host}{api_prefix}{actionPath} with the
+     * supplied body. For record-specific actions the body carries the
+     * primary key values; for table-level actions it is typically `{}`.
+     */
+    executeAction<T = unknown>(actionPath: string, body: Record<string, unknown> = {}): Observable<T> {
+        return this.http.post<T>(this.apiUrl(actionPath), body).pipe(catchError(this.handleError));
+    }
 }

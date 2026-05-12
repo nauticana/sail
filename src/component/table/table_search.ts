@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, Input, OnInit, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
+import { MatIconModule } from "@angular/material/icon";
 import { ActivatedRoute, Router } from "@angular/router";
 import { BaseForm } from "../abstract/base_form";
 import { RecordForm } from "../form/form_record";
 import { ApplicationMenu } from "../../model/common";
+import { TableAction } from "../../model/appdata";
+import { BackendService } from "../../service/rest_service";
 
 @Component({
     selector: 'table-search',
@@ -12,6 +15,7 @@ import { ApplicationMenu } from "../../model/common";
     templateUrl: './table_search.html',
     imports: [
         MatButtonModule,
+        MatIconModule,
         RecordForm,
     ],
 })
@@ -24,6 +28,27 @@ export class TableSearch extends BaseForm implements OnInit {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly cdr = inject(ChangeDetectorRef);
+    private readonly backendService = inject(BackendService);
+
+    /**
+     * Fire a table-level TableAction from the search-screen toolbar.
+     * Record-specific actions never show up here — search has no
+     * row context.
+     */
+    executeAction(action: TableAction): void {
+        if (!this.canExecuteAction(action)) {
+            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
+            return;
+        }
+        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
+        this.backendService.executeAction(action.method, {}).subscribe({
+            next: () => {/* no-op — search screen has no list to refresh */},
+            error: (err) => {
+                console.error(`Action ${action.action} failed`, err);
+                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
+            },
+        });
+    }
 
     ngOnInit() {
         const data = this.route.snapshot.data;

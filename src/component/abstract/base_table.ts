@@ -1,5 +1,5 @@
 import { inject } from "@angular/core";
-import { ForeignKey, TableColumn, TableDefinition } from "../../model/appdata";
+import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
 import { ConstantValue } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
@@ -54,6 +54,48 @@ export abstract class BaseTable {
 
     canDelete() {
         return this.cacheService.canDelete(this.tableName);
+    }
+
+    /**
+     * Returns the table's registered TableAction list — populated by
+     * keel's REST engine from the basis `table_action` table. Empty
+     * when the table has no custom actions.
+     */
+    getActions(recordSpecific?: boolean): TableAction[] {
+        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const actions = tableDef?.Actions ?? [];
+        if (recordSpecific === undefined) return [...actions].sort(this.sortActions);
+        return actions.filter((a) => a.recordSpecific === recordSpecific).sort(this.sortActions);
+    }
+
+    private sortActions = (a: TableAction, b: TableAction) =>
+        (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+
+    /**
+     * Authorization gate for a TableAction. Mirrors canRead/canCreate
+     * etc. — looks up the caller's grant against (authorityObject,
+     * authorityCheck) scoped to the table name. Returns true when the
+     * action button should render.
+     */
+    canExecuteAction(action: TableAction): boolean {
+        return this.cacheService.canExecute(action.authorityObject, action.authorityCheck, this.tableName);
+    }
+
+    /**
+     * Pulls the primary-key column values off a record into a plain
+     * object keyed by the columns' PascalName. Used as the request
+     * body when a record-specific TableAction fires — the backend
+     * handler receives the row's PK exactly the way generic CRUD
+     * does for get / delete.
+     */
+    primaryKeyValues(record: Record<string, unknown>): Record<string, unknown> {
+        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const pk: Record<string, unknown> = {};
+        if (!tableDef?.Keys) return pk;
+        for (const key of tableDef.Keys) {
+            pk[key.PascalName] = record[key.PascalName];
+        }
+        return pk;
     }
 
     emptyRecord(): any {

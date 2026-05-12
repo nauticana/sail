@@ -37,9 +37,10 @@ export const RestURL = {
   payoutReusableLinkURL: '/api/v1/payout/reusable/link',
   payoutStatusURL:       '/api/v1/payout/status',
   // User payment methods — list/delete go through keel's generic REST
-  // CRUD against the UserSpecific basis table; only set-default has a
-  // custom endpoint (atomic multi-row UPDATE).
-  paymentMethodSetDefaultURL: '/api/v1/payment-methods/set-default',
+  // CRUD against the UserSpecific basis table; set-default is a
+  // TableAction (basis table_action row), mounted at the conventional
+  // URL POST /api/v1/user_payment_method/set_default.
+  paymentMethodSetDefaultURL: '/api/v1/user_payment_method/set_default',
 };
 
 /** Call this at app startup to set the backend host URL */

@@ -471,6 +471,15 @@ export abstract class BaseAuthService {
   canCreate(tableName: string) { return this.checkPermission('TABLE', 'INSERT', tableName); }
   canUpdate(tableName: string) { return this.checkPermission('TABLE', 'UPDATE', tableName); }
   canDelete(tableName: string) { return this.checkPermission('TABLE', 'DELETE', tableName); }
+  /**
+   * Authorization check for a custom TableAction. authorityObject is the
+   * uppercased table_name; activity is the uppercased action_name. The
+   * grant's low_limit is checked against the table_name (lowercase) —
+   * matching the convention populated by keel's loadTableActions.
+   */
+  canExecute(authorityObject: string, activity: string, tableName: string): boolean {
+    return this.checkPermission(authorityObject, activity, tableName);
+  }
   canAccess(pageName: string)  { return this.checkPermission('PAGE', 'ACCESS', pageName); }
   canReport(reportName: string) { return this.checkPermission('REPORT', 'ACCESS', reportName); }
 
