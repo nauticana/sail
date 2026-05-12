@@ -274,3 +274,57 @@ export interface Invoice {
 	issuedAt: string;
 	paidAt?:  string;
 }
+
+// ── Payout types ──
+// See keel/payout for the backend contract. user_bank_info is owned by
+// basis; these types mirror keel/payout's ReusableAccount and
+// StartOnboardingResult one-to-one.
+
+// One provider account the user already has on a different partner.
+// PayoutService.listReusable() returns these so multi-partner users can
+// pick an existing account instead of redoing KYC.
+export interface ReusableAccount {
+	partnerId:         number;
+	partnerCaption:    string;
+	provider:          string;  // 'AW' Airwallex, 'SC' Stripe Connect, 'WI' Wise
+	providerAccountId: string;
+	countryCode:       string;  // ISO 3166-1 alpha-2
+	currency:          string;  // ISO 4217
+	onboardedAt:       string;
+}
+
+// Result of PayoutService.startOnboarding(). url is opened in a webview /
+// external browser; the provider posts back via webhook when activation
+// lands.
+export interface PayoutOnboardingSession {
+	url:               string;
+	externalAccountId: string;
+	expiresAt:         string;
+}
+
+// Payload the bank-info form emits. Maps 1:1 to basis user_bank_info
+// columns. The consumer decides where to POST it — typically a direct
+// generic-CRUD insert against /api/v1/user_bank_info.
+export interface BankInfoFormValue {
+	countryCode:       string;
+	currency:          string;
+	accountHolderName: string;
+	billingAddress:    string;
+	taxIdType:         string;  // 'S' SIN, 'N' SSN, 'E' EIN, 'V' VAT, 'O' other
+	taxId:             string;
+	provider:          string;
+	providerAgreement: boolean;
+}
+
+// CountryProfile drives the country dropdown in the bank-info form.
+// Each profile bundles ISO codes + tax-id labelling so the form's
+// hint/placeholder text follows the country selection.
+export interface CountryProfile {
+	code:             string;  // ISO 3166-1 alpha-2
+	label:            string;
+	currency:         string;  // ISO 4217
+	taxIdType:        string;  // matches basis constant_header 'tax_id_type'
+	taxIdLabel:       string;
+	taxIdPlaceholder: string;
+	taxIdHint:        string;
+}
