@@ -15,7 +15,7 @@ import { PartnerRegistration, PublicPlan } from '../../model/appdata';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 
 @Component({
-  selector: 'app-register',
+  selector: 'sail-register',
   templateUrl: './register_component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

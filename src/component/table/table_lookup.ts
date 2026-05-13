@@ -4,10 +4,9 @@ import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, Ma
 import { MatIconModule } from "@angular/material/icon";
 import { RecordForm } from "../form/form_record";
 import { BaseView } from "../abstract/base_view";
-import { BackendService } from "../../service/rest_service";
 
 @Component({
-    selector: 'table-lookup',
+    selector: 'sail-table-lookup',
     templateUrl: './table_lookup.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
@@ -25,7 +24,6 @@ export class TableLookup extends BaseView implements OnInit {
     searchRecord: any = {};
     searchColumns: string[] = [];
 
-    private readonly backendService = inject(BackendService);
     private readonly dialogRef = inject(MatDialogRef<TableLookup>);
     private readonly data = inject<{tableName?: string; apiName?: string}>(MAT_DIALOG_DATA);
     protected readonly cdr = inject(ChangeDetectorRef);

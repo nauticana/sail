@@ -27,7 +27,7 @@ const APPLE_URL = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/
  * without config are hidden (with a console.warn for diagnostics).
  */
 @Component({
-  selector: 'app-social-login',
+  selector: 'sail-social-login',
   templateUrl: './social_login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

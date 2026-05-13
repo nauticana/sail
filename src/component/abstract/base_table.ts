@@ -1,59 +1,69 @@
 import { inject, signal, WritableSignal } from "@angular/core";
 import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
-import { ConstantValue } from "../../model/common";
+import { ConstantValue, LookupStyle, OpCode } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
+import { BackendService } from "../../service/rest_service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
+import { titleCase } from "../../util/text";
+
+
+/** CRUD verb used by `requireAuth()` to compose the "Missing authorization" alert. */
+export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view';
 
 
 export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
+    protected readonly backendService = inject(BackendService);
     protected readonly config: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
     protected readonly dialogWidth: string = '400px';
     readonly tableName: WritableSignal<string> = signal('');
+    /** Optional consumer-set override; when empty the title-cased table name is used. */
     caption = '';
+    /** Consumer-set per-field option overrides (per fieldName). When unset, options come from the column's LookupDomain / LookupTable. */
     fieldOptions: {[key: string]: ConstantValue[]} = {};
-    fieldLabels: {[key: string]: string} = {};
     isReadOnlyBound = this.isReadOnly.bind(this);
 
     isReadOnly(_fieldName: string): boolean {
         return false;
     }
 
-    titleCase(str: string): string {
-        return str.replaceAll('_', ' ').toLowerCase().split(' ').map((word: string) => {
-                return word.charAt(0).toUpperCase() + word.slice(1);
-        }).join(' ');
+    /** Re-exported on the class so templates can call `titleCase(x)` without an extra import in the consumer. */
+    titleCase(str: string): string { return titleCase(str); }
+
+    /** Display title for the active table; recomputes when `tableName` changes. */
+    getCaption(): string {
+        return this.caption || titleCase(this.tableName());
     }
 
-    getCaption() {
-        if (!this.caption) {
-            this.caption = this.titleCase(this.tableName());
-        }
-        return this.caption;
-    }
-
+    /** Display label for a column; uses the metadata Caption, otherwise title-cases the field name. */
     colCaption(fieldName: string): string {
-        if (!this.fieldLabels[fieldName]) {
-            const col = this.getColumn(fieldName);
-            this.fieldLabels[fieldName] = col?.Caption || this.titleCase(fieldName);
-        }
-        return this.fieldLabels[fieldName];
+        const col = this.getColumn(fieldName);
+        return col?.Caption || titleCase(fieldName);
     }
 
-    canRead() {
-        return this.cacheService.canRead(this.tableName());
-    }
+    canRead()   { return this.cacheService.canRead(this.tableName()); }
+    canCreate() { return this.cacheService.canCreate(this.tableName()); }
+    canUpdate() { return this.cacheService.canUpdate(this.tableName()); }
+    canDelete() { return this.cacheService.canDelete(this.tableName()); }
 
-    canCreate() {
-        return this.cacheService.canCreate(this.tableName());
-    }
+    /** True when the record is a locally-inserted row not yet persisted (op_code === 'I'). */
+    isInserted(record: Record<string, unknown>): boolean { return record[this.config.opField] === OpCode.Insert; }
+    /** True when the record is marked for update (op_code === 'U'). */
+    isUpdated(record: Record<string, unknown>):  boolean { return record[this.config.opField] === OpCode.Update; }
+    /** True when the record is marked for delete (op_code === 'D'). */
+    isDeleted(record: Record<string, unknown>):  boolean { return record[this.config.opField] === OpCode.Delete; }
 
-    canUpdate() {
-        return this.cacheService.canUpdate(this.tableName());
-    }
-
-    canDelete() {
-        return this.cacheService.canDelete(this.tableName());
+    /**
+     * Authorization guard with shared "Missing authorization" copy. Pass the
+     * permission predicate (typically a `canX()` method on this class) and
+     * the verb that fills the alert. Returns true when allowed.
+     *
+     *   if (!this.requireAuth(() => this.canDelete(), 'delete')) return;
+     */
+    protected requireAuth(check: () => boolean, verb: AuthVerb): boolean {
+        if (check()) return true;
+        alert(`Missing authorization to ${verb} records`);
+        return false;
     }
 
     /**
@@ -82,6 +92,55 @@ export abstract class BaseTable {
     }
 
     /**
+     * Fire a TableAction. Template method:
+     *
+     *   1. Authorization check + alert  (shared)
+     *   2. Subclass-specific pre-flight guard via `beforeExecuteAction()` —
+     *      returns false to abort silently (the hook has already shown its
+     *      own alert).
+     *   3. Optional confirm prompt from `action.confirmMessage`
+     *   4. POST `{}` for table-level actions or `primaryKeyValues(record)`
+     *      for record-specific actions
+     *   5. On success, dispatch `onActionSuccess()` so subclasses can refresh
+     *      their views; on error, log and alert.
+     *
+     * Subclasses typically only override the two hooks.
+     */
+    executeAction(action: TableAction, record?: Record<string, unknown>): void {
+        if (!this.canExecuteAction(action)) {
+            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
+            return;
+        }
+        if (!this.beforeExecuteAction(action, record)) return;
+        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
+        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
+        this.backendService.executeAction(action.method, body).subscribe({
+            next: () => this.onActionSuccess(action, record),
+            error: (err) => {
+                console.error(`Action ${action.action} failed`, err);
+                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
+            },
+        });
+    }
+
+    /**
+     * Pre-flight hook for `executeAction()`. Return false to abort the action
+     * (the override should `alert()` or otherwise surface why). Default: allow.
+     */
+    protected beforeExecuteAction(_action: TableAction, _record?: Record<string, unknown>): boolean {
+        return true;
+    }
+
+    /**
+     * Post-success hook for `executeAction()`. Override to refresh the screen
+     * — e.g. `TableList` re-fetches the row list. Default: no-op (screens
+     * driven by parent state, like `TableDetail`, leave refresh to the parent).
+     */
+    protected onActionSuccess(_action: TableAction, _record?: Record<string, unknown>): void {
+        // intentionally empty
+    }
+
+    /**
      * Pulls the primary-key column values off a record into a plain
      * object keyed by the columns' PascalName. Used as the request
      * body when a record-specific TableAction fires — the backend
@@ -99,7 +158,7 @@ export abstract class BaseTable {
     }
 
     emptyRecord(): any {
-        const record : any = {[this.config.opField]: 'I'}
+        const record : any = {[this.config.opField]: OpCode.Insert}
         const tableDef = this.cacheService.getTableDefinition(this.tableName());
         const tableOverride = this.config.tableOverrides?.[this.tableName()];
         const editableTimestamps = new Set(tableOverride?.editableTimestamps ?? []);
@@ -178,7 +237,7 @@ export abstract class BaseTable {
             const match = options?.find(o => o.Value === String(rawValue));
             if (match) return match.Caption ?? String(rawValue);
         }
-        if (col.LookupTable && col.LookupStyle === 'D') {
+        if (col.LookupTable && col.LookupStyle === LookupStyle.Dropdown) {
             const options = this.cacheService.getTableValues(col.LookupTable);
             const match = options?.find(o => o.Value === String(rawValue));
             if (match) return match.Caption ?? String(rawValue);
@@ -261,7 +320,7 @@ export abstract class BaseTable {
     readyToSave(record: any, original?: any) {
         this.restoreRecordTimeStamp(record);
         const op = record[this.config.opField];
-        if (op === 'I' || op === 'D') return; // already marked
+        if (op === OpCode.Insert || op === OpCode.Delete) return; // already marked
         // Original snapshot may carry display-formatted timestamps; restore both
         // sides to the same wire format before comparing, otherwise scalar
         // fields like Passdate look "modified" purely due to formatting.
@@ -269,11 +328,11 @@ export abstract class BaseTable {
             const normalized = { ...original };
             this.restoreRecordTimeStamp(normalized);
             if (!this.isRecordDirty(record, normalized)) {
-                record[this.config.opField] = 'R';
+                record[this.config.opField] = OpCode.Readonly;
                 return;
             }
         }
-        record[this.config.opField] = 'U';
+        record[this.config.opField] = OpCode.Update;
     }
 
     /** Shallow compare of own scalar fields, ignoring child arrays and op_code. */
@@ -308,7 +367,7 @@ export abstract class BaseTable {
         if (col && col.LookupDomain) {
             return this.cacheService.getDomainValues(col.LookupDomain);
         }
-        if (col && col.LookupTable && col.LookupStyle === 'D') {
+        if (col && col.LookupTable && col.LookupStyle === LookupStyle.Dropdown) {
             return this.cacheService.getTableValues(col.LookupTable);
         }
         return undefined;

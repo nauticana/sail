@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. Use **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400.
+> **Compatibility:** sail and keel are versioned in lock-step. Use **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 ## What it provides
 
@@ -143,7 +143,7 @@ import { Navigation } from '@nauticana/sail';
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Navigation],
-  template: `<app-navigation><span toolbar-title>My App</span></app-navigation>`,
+  template: `<sail-navigation><span toolbar-title>My App</span></sail-navigation>`,
 })
 export class App {}
 ```
@@ -328,23 +328,23 @@ export class PricingPage {
 
 **Plan picker** — pure presentational, no API calls:
 ```html
-<app-plan-selector
+<sail-plan-selector
     [plans]="plans()"
     [selected]="selectedPlan()"
     [features]="{ PRO: ['Unlimited users', '24/7 support'] }"
     (selectionChange)="selectedPlan.set($event)">
-</app-plan-selector>
+</sail-plan-selector>
 ```
 
 **Checkout button** — calls `createCheckout()` and redirects to the provider-hosted URL. `PublicPlan.priceId` lets you wire the picker directly to checkout without a local mapping table:
 ```html
-<app-checkout-button
+<sail-checkout-button
     [priceId]="selectedPlan().priceId!"
     [mode]="'subscription'"
     [successUrl]="'https://app.example.com/billing/done'"
     [cancelUrl]="'https://app.example.com/billing'"
     [email]="userEmail">
-</app-checkout-button>
+</sail-checkout-button>
 ```
 
 For one-off charges use `[mode]="'payment'"`. For "save a card without charging" (Stripe SetupIntent), use `[mode]="'setup'"` and **omit** `[priceId]` — keel rejects a non-empty `priceId` in setup mode with 400.
@@ -364,7 +364,7 @@ metadata: {
 
 **Payment methods** — lists saved methods with loading and empty states:
 ```html
-<app-payment-methods></app-payment-methods>
+<sail-payment-methods></sail-payment-methods>
 ```
 
 ### Registration → checkout flow
@@ -430,12 +430,12 @@ import { ConsentGateComponent, ConsentOption, ConsentState, ConsentType } from '
 @Component({
   imports: [ConsentGateComponent],
   template: `
-    <app-consent-gate
+    <sail-consent-gate
         [policyVersion]="'v1'"
         [policyLanguage]="'en'"
         [optionalConsents]="extras"
         (consentStateChange)="onConsent($event)">
-    </app-consent-gate>
+    </sail-consent-gate>
   `,
 })
 export class SignupPage {
@@ -468,12 +468,12 @@ import { BaseAuthService, OtpInputComponent } from '@nauticana/sail';
 @Component({
   imports: [OtpInputComponent],
   template: `
-    <app-otp-input
+    <sail-otp-input
         [contact]="contact()"
         [length]="6"
         (codeComplete)="onVerify($event)"
         (resend)="onResend()">
-    </app-otp-input>
+    </sail-otp-input>
     @if (error()) { <div class="auth-error">{{ error() }}</div> }
   `,
 })
@@ -510,12 +510,12 @@ Override `verifyOtp()` in your own `AuthService extends BaseAuthService` when yo
 `SocialLoginComponent` renders Google / Apple buttons using each provider's official SDK. It loads the SDKs dynamically via `loadScript()` — nothing is bundled into your app.
 
 ```html
-<app-social-login
+<sail-social-login
     [providers]="['google', 'apple']"
     [consent]="consentState"
     (loginSuccess)="onSuccess($event)"
     (loginError)="onError($event)">
-</app-social-login>
+</sail-social-login>
 ```
 
 Config required in `SAIL_GUI_CONFIG`:
@@ -557,7 +557,7 @@ auth.deleteAccount(reauth, 'Closing my account.').subscribe();
 ### Account deletion
 
 ```html
-<app-account-deletion [confirmationText]="'DELETE'"></app-account-deletion>
+<sail-account-deletion [confirmationText]="'DELETE'"></sail-account-deletion>
 ```
 
 Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** confirms their password. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`).
@@ -567,7 +567,7 @@ Typed-confirmation UX: the destructive button is disabled until the user types t
 `TrustedDevicesComponent` ships a "Sign out of all devices" button that reveals a password field, then calls `BaseAuthService.logoutEverywhere({ password })` (`POST /api/user/logout-everywhere`). It also displays a single-device-mode banner when configured:
 
 ```html
-<app-trusted-devices [singleDeviceSession]="user.singleDeviceSession"></app-trusted-devices>
+<sail-trusted-devices [singleDeviceSession]="user.singleDeviceSession"></sail-trusted-devices>
 ```
 
 Pass `singleDeviceSession` from your login response (the field is part of `LoginResponse2FA`). When true, the banner reads: *"This account is in single-device mode — signing in on another device will sign you out here."*
@@ -976,6 +976,111 @@ Type errors after the upgrade fall into four buckets:
 - **`Cannot assign to 'tableName' because it is a read-only property.`** — a subclass declared `readonly tableName = input('')`, conflicting with the inherited writable signal. Use the `tableNameInput = input('', { alias: 'tableName' })` + `effect()` pattern from step 1 instead.
 - **`Property 'X' does not exist on type 'EventEmitter<T>'.`** — you still import `EventEmitter`. Replace the field with `output<T>()` per step 3.
 - **`'@Input' is deprecated`** / Angular language-service squiggles on decorators — step 3.
+
+## Migrating to v0.8.1 — selector standardisation, OOP cleanup, keel v0.8.3 alignment
+
+v0.8.1 is a polish pass on top of v0.8.0's signal migration. The biggest change is **the component selector prefix**: every sail component is now `sail-*`, where v0.8.0 still shipped a mix of `app-*` (older components) and `sail-*` (the v0.6 / v0.7 additions). The rest of the release is internal OOP cleanup that's mostly invisible to downstream code, plus a TypeScript downgrade and a keel pin.
+
+| | v0.8.0 | v0.8.1 |
+|---|---|---|
+| keel | `v0.8.0` | `v0.8.3` |
+| TypeScript | `~6.0.3` | `~5.9.3` |
+| Component selector prefix | `app-*` (older) + `sail-*` (newer) | `sail-*` (uniform) |
+
+### 1. Selector rename — `app-*` → `sail-*` (and `table-*` / `dynamic-field` / `record-form` → `sail-*`)
+
+Every sail component selector now starts with `sail-`. **This is the breaking change**: any downstream template that embeds a sail component needs the prefix updated. Search-and-replace across your templates:
+
+| Old | New |
+|---|---|
+| `<app-navigation>` | `<sail-navigation>` |
+| `<app-login>` | `<sail-login>` |
+| `<app-register>` | `<sail-register>` |
+| `<app-chpass>` | `<sail-chpass>` |
+| `<app-confirm-register>` | `<sail-confirm-register>` |
+| `<app-confirm-chpass>` | `<sail-confirm-chpass>` |
+| `<app-twofactor-setup>` | `<sail-twofactor-setup>` |
+| `<app-twofactor-verify>` | `<sail-twofactor-verify>` |
+| `<app-trusted-devices>` | `<sail-trusted-devices>` |
+| `<app-account-deletion>` | `<sail-account-deletion>` |
+| `<app-consent-gate>` | `<sail-consent-gate>` |
+| `<app-otp-input>` | `<sail-otp-input>` |
+| `<app-social-login>` | `<sail-social-login>` |
+| `<app-plan-selector>` | `<sail-plan-selector>` |
+| `<app-checkout-button>` | `<sail-checkout-button>` |
+| `<app-payment-methods>` | `<sail-payment-methods>` |
+| `<table-list>` | `<sail-table-list>` |
+| `<table-search>` | `<sail-table-search>` |
+| `<table-edit>` | `<sail-table-edit>` |
+| `<table-detail>` | `<sail-table-detail>` |
+| `<table-lookup>` | `<sail-table-lookup>` |
+| `<table-report>` | `<sail-table-report>` |
+| `<table-form>` | `<sail-table-form>` |
+| `<record-form>` | `<sail-record-form>` |
+| `<dynamic-field>` | `<sail-dynamic-field>` |
+
+The payout / user-payment-method selectors (`<sail-payout-bank-info-form>`, `<sail-payout-provider-onboarding>`, `<sail-user-payment-methods>`) were already on `sail-*` in v0.7.0 — no change there.
+
+**Why:** the Angular style guide assigns `app-*` to the consumer application (Angular CLI defaults to it for new components). A library shipping `app-*` selectors collides with the downstream's own components and reads ambiguously in mixed templates. v0.8.1 makes the prefix uniform across sail and unambiguous against your code.
+
+### 2. Internal: TableAction template-method pull-up
+
+`executeAction()` was duplicated three times across `TableList`, `TableSearch`, and `TableDetail` in v0.8.0. v0.8.1 moves the body into `BaseTable` with two `protected` hooks:
+
+```typescript
+protected beforeExecuteAction(action: TableAction, record?: Record<string, unknown>): boolean { return true; }
+protected onActionSuccess(action: TableAction, record?: Record<string, unknown>): void { /* no-op */ }
+```
+
+**For your subclasses:** if you have a custom view that extends `BaseTable` / `BaseForm` / `BaseView` and renders the action toolbar, you no longer write your own `executeAction()` — inherit it. Override `onActionSuccess()` to refresh your screen (the way `TableList` re-fetches) and `beforeExecuteAction()` to add per-screen pre-flight guards (the way `TableDetail` blocks unsaved rows).
+
+**For your templates:** unchanged. Action buttons still call `(click)="executeAction(action, record)"`.
+
+**Bonus:** `TableEdit` now renders per-record actions too (v0.8.0 was missing them) and re-fetches the record after a successful action.
+
+### 3. Internal: `BaseAsync` pulled up onto 5 more components
+
+`ChpassComponent`, `ConfirmChpassComponent`, `ConfirmRegisterComponent`, `TwoFactorSetupComponent`, and `TwoFactorVerifyComponent` were re-declaring their own `errorMessage` / `successMessage` signals and hand-rolled subscribe blocks. They now `extends BaseAsync` and use `this.run(obs, onSuccess, fallback)` — public template API is unchanged (`{{ errorMessage() }}` / `{{ successMessage() }}` still work).
+
+### 4. Internal: `BaseRestService` + `requireAuth()` + `openRecordDialog()` + `linkedSignal` alias-inputs
+
+- **`BaseRestService`** (`src/service/base_rest.service.ts`) owns the shared `inject(HttpClient)` and `url(path)` helper. `BackendService`, `BaseAuthService`, `BillingService`, `PayoutService`, and `UserPaymentMethodService` all extend it. The 27 hand-spelled `RestURL.httpHost + RestURL.xURL` getters in `BaseAuthService` are now `readonly` fields built via `this.url(...)`.
+- **`BaseTable.requireAuth(check, verb)`** replaces 8 copies of `alert('Missing authorization to … records')` across the codebase.
+- **`BaseView.openRecordDialog(record, isNew)`** collapses the duplicated `addRecord` / `editRecord` dialog-open bodies.
+- **`linkedSignal`** replaces the v0.8.0 `input() + signal + effect()` pattern across `TableList`, `TableSearch`, `TableEdit`, `TableDetail`, and `DynamicField`. One-line declarations per field; behaviour is unchanged (empty input doesn't override a `.set()` value).
+
+If your downstream component extends `BaseTable` / `BaseView` and uses the alias-input pattern from v0.8.0 (`input + effect`), you can optionally migrate to `linkedSignal` — but the old pattern still compiles.
+
+### 5. Internal: `BaseTable.caption` is no longer memoised; `Navigation.allMenuItems` via `toSignal`
+
+`getCaption()` and `colCaption()` previously cached on first read, so `tableName` updates after first render returned stale captions. They now recompute each call (cost is negligible). `Navigation` reads `allMenuItems` via `toSignal(getMenus(), { initialValue: [] })` instead of a manual `subscribe` in `ngOnInit`.
+
+### 6. TypeScript pinned to `~5.9.3`
+
+`@angular/compiler-cli@21.2` declares `typescript >=5.9 <6.1` as a peer, but downstream projects report that TS `6.0.3` requires `--legacy-peer-deps` on `npm install` because of transitive package mismatches. To keep the install path clean for all consumers, v0.8.1 pins to `~5.9.3`. Bump your downstream's `package.json` to match:
+
+```diff
+- "typescript": "~6.0.x"
++ "typescript": "~5.9.3"
+```
+
+### 7. Clean install + recompile
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+ng build
+```
+
+Expected errors after the upgrade:
+
+- **`'app-*' is not a known element`** — selector rename, see step 1.
+- **`'@Output' is deprecated`** — leftover from the v0.8.0 migration; finish it.
+- **`peerinvalid` / `--legacy-peer-deps` prompts on `npm install`** — your project still has TS 6.x. Downgrade per step 6.
+
+### 8. Backend alignment
+
+v0.8.1 targets **keel v0.8.3**. The shared keel API surface didn't grow in this release; the version pin tracks keel's matching v0.8.x line. See [keel/README.md → Migration Guide](https://github.com/nauticana/keel/blob/main/README.md) for the matching backend changes.
 
 ## Modernization items
 

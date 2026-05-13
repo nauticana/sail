@@ -1,15 +1,15 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
 import { DynamicField } from "../form/form_field";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseForm } from "../abstract/base_form";
 import { MatDialog } from "@angular/material/dialog";
 import { TableForm } from "../form/form_table";
 import { MatIconModule } from "@angular/material/icon";
-import { BackendService } from "../../service/rest_service";
 import { TableAction } from "../../model/appdata";
+import { OpCode } from "../../model/common";
 
 @Component({
-    selector: 'table-detail',
+    selector: 'sail-table-detail',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
     templateUrl: './table_detail.html',
@@ -20,12 +20,14 @@ import { TableAction } from "../../model/appdata";
     ],
 })
 export class TableDetail extends BaseForm implements OnInit {
-    readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly recordsInput = input<any[]>([], { alias: 'records' });
+    protected readonly tableNameInput = input('', { alias: 'tableName' });
+    protected readonly recordsInput   = input<any[]>([], { alias: 'records' });
     readonly parentTableName = input('');
     readonly parentRecord = input<any>({});
     /** When true, the parent view is in read-only mode — disable all child row editing. */
     readonly parentReadOnly = input(false);
+
+    override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
     records: any[] = [];
     editingRecord: any = null;
@@ -34,39 +36,25 @@ export class TableDetail extends BaseForm implements OnInit {
     fkColumns: string[] = [];
 
     private readonly dialog = inject(MatDialog);
-    private readonly backendService = inject(BackendService);
 
     constructor() {
         super();
-        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
+        // records is a writable array (push/splice in event handlers); keep it in sync with the input
+        // via effect rather than linkedSignal so mutations work on the consumer's array reference.
         effect(() => { this.records = this.recordsInput(); });
     }
 
     /**
-     * Fire a TableAction. Per-row actions require the record to be
-     * server-side (not 'I' inserted-locally-not-saved); table-level
-     * actions only need the parent to be writable. Action POSTs hit
-     * the resolved URL directly — no need to round-trip through the
-     * parent form.
+     * Per-row actions require the record to be server-side (not 'I'
+     * inserted-locally-not-saved); the keel action POST would hit a record
+     * that doesn't exist yet. Table-level actions are always allowed.
      */
-    executeAction(action: TableAction, record?: {[key: string]: unknown}): void {
-        if (!this.canExecuteAction(action)) {
-            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
-            return;
-        }
-        if (action.recordSpecific && record && record[this.config.opField] === 'I') {
+    protected override beforeExecuteAction(action: TableAction, record?: Record<string, unknown>): boolean {
+        if (action.recordSpecific && record && record[this.config.opField] === OpCode.Insert) {
             alert('Save the record first before running this action.');
-            return;
+            return false;
         }
-        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
-        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
-        this.backendService.executeAction(action.method, body).subscribe({
-            next: () => {/* parent form re-fetches on its own save */},
-            error: (err) => {
-                console.error(`Action ${action.action} failed`, err);
-                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
-            },
-        });
+        return true;
     }
 
     override canCreate() { return !this.parentReadOnly() && super.canCreate(); }
@@ -106,7 +94,7 @@ export class TableDetail extends BaseForm implements OnInit {
 
     addRecord() {
         const newRecord = this.emptyRecord();
-        newRecord[this.config.opField] = 'I';
+        newRecord[this.config.opField] = OpCode.Insert;
         this.initializeForeignKeys(newRecord, this.parentTableName(), this.parentRecord());
 
         if (this.displayedColumns.length > 6) {
@@ -124,7 +112,7 @@ export class TableDetail extends BaseForm implements OnInit {
             this.openEditDialog(record, false, this.fkColumns);
         } else {
             this.editingRecord = record;
-            this.isNew = record[this.config.opField] === 'I';
+            this.isNew = record[this.config.opField] === OpCode.Insert;
             this.originalRecord = {...record};
             this.formatRecordTimeStamp(record);
         }
@@ -152,19 +140,19 @@ export class TableDetail extends BaseForm implements OnInit {
     }
 
     deleteRow(record: any) {
-        if (record[this.config.opField] === 'I') {
+        if (record[this.config.opField] === OpCode.Insert) {
             const index = this.records.indexOf(record);
             if (index > -1) {
                 this.records.splice(index, 1);
             }
         } else {
-            record[this.config.opField] = 'D';
+            record[this.config.opField] = OpCode.Delete;
         }
     }
 
     unDeleteRow(record: any) {
-        if (record[this.config.opField] === 'D') {
-            record[this.config.opField] = 'U';
+        if (record[this.config.opField] === OpCode.Delete) {
+            record[this.config.opField] = OpCode.Update;
         }
     }
 }

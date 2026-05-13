@@ -7,9 +7,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
+import { BaseAsync } from '../abstract/base_async';
 
 @Component({
-  selector: 'app-twofactor-verify',
+  selector: 'sail-twofactor-verify',
   templateUrl: './twofactor_verify.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
@@ -22,13 +23,12 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
     RouterLink,
   ],
 })
-export class TwoFactorVerifyComponent {
+export class TwoFactorVerifyComponent extends BaseAsync {
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
   readonly useBackupCode = signal(false);
-  readonly errorMessage = signal('');
 
   readonly verifyForm = this.fb.group({
     code: ['', [Validators.required, Validators.minLength(6)]],
@@ -38,18 +38,17 @@ export class TwoFactorVerifyComponent {
   toggleBackupCode() {
     this.useBackupCode.update(v => !v);
     this.verifyForm.controls.code.reset();
-    this.errorMessage.set('');
+    this.clearMessages();
   }
 
   verify() {
     if (this.verifyForm.invalid) return;
-    this.errorMessage.set('');
-
     const { code, trustDevice } = this.verifyForm.value;
 
     if (this.useBackupCode()) {
-      this.auth.verifyBackupCode(code!).subscribe({
-        next: (res) => {
+      this.run(
+        this.auth.verifyBackupCode(code!),
+        (res) => {
           if (res.valid && res.token) {
             localStorage.removeItem('loginToken');
             this.auth.token = res.token;
@@ -61,11 +60,10 @@ export class TwoFactorVerifyComponent {
             this.errorMessage.set('Invalid backup code.');
           }
         },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message ?? 'Backup code verification failed.');
-        },
-      });
+        'Backup code verification failed.',
+      );
     } else {
+      this.clearMessages();
       this.auth.verify2FALogin(
         code!,
         trustDevice ?? false,

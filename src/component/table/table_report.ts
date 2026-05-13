@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
-import { HttpClient, HttpParams } from "@angular/common/http";
+import { HttpParams } from "@angular/common/http";
 import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatFormFieldModule } from "@angular/material/form-field";
@@ -7,12 +7,13 @@ import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseAuthService } from "../../service/auth.service";
-import { RestURL } from "../../service/rest_url";
+import { BaseRestService } from "../../service/base_rest.service";
 import { ConstantValue } from "../../model/common";
 import { ReportParam } from "../../model/appdata";
+import { titleCase } from "../../util/text";
 
 @Component({
-    selector: 'table-report',
+    selector: 'sail-table-report',
     templateUrl: './table_report.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
@@ -24,11 +25,10 @@ import { ReportParam } from "../../model/appdata";
         MatButtonModule,
     ],
 })
-export class TableReport {
+export class TableReport extends BaseRestService {
     readonly apiName = input('');
     readonly tableName = input('');
 
-    private readonly http = inject(HttpClient);
     private readonly auth = inject(BaseAuthService);
 
     readonly records = signal<Record<string, unknown>[]>([]);
@@ -49,7 +49,7 @@ export class TableReport {
      */
     readonly reportTitle = computed(() => {
         const reportId = this.apiName().split('/').pop() ?? '';
-        return this.auth.getReport(reportId)?.Description || this.titleCase(this.tableName());
+        return this.auth.getReport(reportId)?.Description || titleCase(this.tableName());
     });
 
     /**
@@ -65,6 +65,7 @@ export class TableReport {
     });
 
     constructor() {
+        super();
         effect(() => {
             const api = this.apiName();
             if (!api) return;
@@ -133,8 +134,7 @@ export class TableReport {
                 httpParams = httpParams.set(k, v);
             }
         }
-        const url = RestURL.httpHost + '/api/' + api;
-        this.http.get<Record<string, unknown>[]>(url, { params: httpParams }).subscribe({
+        this.http.get<Record<string, unknown>[]>(this.url('/api/' + api), { params: httpParams }).subscribe({
             next: (rows) => {
                 this.records.set(rows ?? []);
                 if (rows?.length) {
@@ -145,14 +145,11 @@ export class TableReport {
                 this.errorMessage.set('');
             },
             error: (err) => {
-                this.errorMessage.set(err?.error ?? 'Failed to load report data.');
+                this.errorMessage.set(err?.error?.detail ?? err?.error?.message ?? 'Failed to load report data.');
             },
         });
     }
 
-    titleCase(str: string): string {
-        return str.replaceAll('_', ' ').toLowerCase().split(' ')
-            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-    }
+    /** Re-exported for templates; same as the shared util. */
+    titleCase(str: string): string { return titleCase(str); }
 }

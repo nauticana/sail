@@ -1,15 +1,15 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, OnInit, signal, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
 import { BaseForm } from "../abstract/base_form";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatTabsModule } from "@angular/material/tabs";
 import { TableDetail } from "./table_detail";
-import { BackendService } from "../../service/rest_service";
 import { RecordForm } from "../form/form_record";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { OpCode } from "../../model/common";
 
 @Component({
-    selector: 'table-edit',
+    selector: 'sail-table-edit',
     templateUrl: './table_edit.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
@@ -22,13 +22,15 @@ import { MatIconModule } from "@angular/material/icon";
     ]
 })
 export class TableEdit extends BaseForm implements OnInit {
-    readonly recordInput = input<any>({}, { alias: 'record' });
-    readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly apiNameInput = input('', { alias: 'apiName' });
-    readonly record = signal<any>({});
-    readonly apiName = signal('');
+    protected readonly recordInput    = input<any>({}, { alias: 'record' });
+    protected readonly tableNameInput = input('',      { alias: 'tableName' });
+    protected readonly apiNameInput   = input('',      { alias: 'apiName' });
+
+    readonly record              = linkedSignal<any, any>({       source: () => this.recordInput(),    computation: (v, p) => v ?? p?.value ?? {} });
+    override readonly tableName  = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
+    readonly apiName             = linkedSignal<string, string>({ source: () => this.apiNameInput(),   computation: (v, p) => v || p?.value || '' });
+
     isReadOnlyMode = true;
-    private readonly backendService = inject(BackendService);
     private readonly dialogRef = inject(MatDialogRef<TableEdit>, {optional: true});
     private readonly dialogData = inject<{record?: any; tableName?: string; apiName?: string; isNew?: boolean} | null>(MAT_DIALOG_DATA, {optional: true});
     private readonly cdr = inject(ChangeDetectorRef);
@@ -38,13 +40,6 @@ export class TableEdit extends BaseForm implements OnInit {
     protected get isDialog(): boolean { return !!this.dialogRef; }
     /** Snapshot taken when the user enters edit mode; used for dirty-tracking on save. */
     private originalSnapshot: any = null;
-
-    constructor() {
-        super();
-        effect(() => { const v = this.recordInput();    if (v) this.record.set(v); });
-        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
-        effect(() => { const v = this.apiNameInput();   if (v) this.apiName.set(v); });
-    }
 
     ngOnInit(): void {
         if (this.dialogData) {
@@ -77,6 +72,11 @@ export class TableEdit extends BaseForm implements OnInit {
                 this.tabFields.push(field);
             }
         }
+    }
+
+    /** Re-fetch the row from the backend after a server-side mutation (TableAction success, etc.). */
+    protected override onActionSuccess(): void {
+        if (!this.isNew) this.fetchFullRecord();
     }
 
     private fetchFullRecord() {
@@ -149,7 +149,7 @@ export class TableEdit extends BaseForm implements OnInit {
     onDelete() {
         if (confirm('Are you sure you want to delete this record?')) {
             const result = {...this.editableRecord};
-            result[this.config.opField] = 'D';
+            result[this.config.opField] = OpCode.Delete;
             this.backendService.post(this.apiName(), result).subscribe({
                 next: () => {
                     this.isReadOnlyMode = true;

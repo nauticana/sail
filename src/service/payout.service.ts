@@ -1,7 +1,7 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RestURL } from './rest_url';
+import { BaseRestService } from './base_rest.service';
 import {
   PayoutOnboardingSession,
   ReusableAccount,
@@ -19,13 +19,7 @@ import {
  * RestURL.payout*URL.
  */
 @Injectable({ providedIn: 'root' })
-export class PayoutService {
-  private readonly http = inject(HttpClient);
-
-  private url(path: string): string {
-    return RestURL.httpHost + path;
-  }
-
+export class PayoutService extends BaseRestService {
   /** Launch the hosted-KYC flow. Returns a URL to open + provider-side handle. */
   startOnboarding(): Observable<PayoutOnboardingSession> {
     return this.http.post<PayoutOnboardingSession>(this.url(RestURL.payoutOnboardStartURL), {});

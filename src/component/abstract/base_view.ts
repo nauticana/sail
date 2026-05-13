@@ -35,66 +35,53 @@ export abstract class BaseView extends BaseTable {
         return tableDef.Keys.map((key) => record[key.PascalName]).join('_');
     }
 
-    addRecord() {
-        if (!this.canCreate()) {
-            alert('Missing authorization to create records');
-            return;
-        }
-        const record = this.emptyRecord();
-
-        if (Object.keys(record).length === 1 && this.records.length > 0) {
-            Object.keys(this.records[0]).forEach((key) => {
-                record[key] = '';
-            });
-        }
-
-        const dialogRef = this.dialog.open(this.dialogComponent(), {
-            width: '90vw',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
-            disableClose: true,
-            data: this.getDialogData(record, true),
-        });
-
-        dialogRef.afterClosed().subscribe((result) => {
-            if (result) this.handleUpdate(result, true, {});
-        });
-    }
-
     /**
-     * Open the row dialog. Renamed conceptually from "edit": when the user
-     * has only `canRead()` , we still want to show them the record + child rows.
-     * The dialog itself (TableEdit) handles read-only mode — its Edit/New/Delete
-     * buttons are gated by the same permissions.
-     * Block only when neither read nor update is granted.
+     * Shared row-dialog opener. Builds the dialog data and wires the result
+     * straight into `handleUpdate()` (subclass-specific). Used by both
+     * `addRecord()` (new row + empty `original`) and `editRecord()` (existing
+     * row passed through verbatim).
      */
-    editRecord(record: {[key: string]: any}) {
-        if (!this.canUpdate() && !this.canRead()) {
-            alert('Missing authorization to view records');
-            return;
-        }
-        const dialogData = this.getDialogData(record, false);
+    private openRecordDialog(record: {[key: string]: any}, isNew: boolean): void {
+        const dialogData = this.getDialogData(record, isNew);
         const apiName = this.apiName();
-        if (apiName) {
-            dialogData['apiName'] = apiName;
-        }
-        const dialogRef = this.dialog.open(this.dialogComponent(), {
+        if (apiName) dialogData['apiName'] = apiName;
+
+        this.dialog.open(this.dialogComponent(), {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',
             disableClose: true,
             data: dialogData,
-        });
-        dialogRef.afterClosed().subscribe((result) => {
-            if (result) this.handleUpdate(result, false, record);
+        }).afterClosed().subscribe((result) => {
+            if (result) this.handleUpdate(result, isNew, isNew ? {} : record);
         });
     }
 
-    deleteRecord(record: {[key: string]: any}) {
-        if (!this.canDelete()) {
-            alert('Missing authorization to delete records');
-            return;
+    addRecord() {
+        if (!this.requireAuth(() => this.canCreate(), 'create')) return;
+        const record = this.emptyRecord();
+        // Seed columns from an existing row when emptyRecord() returned just the
+        // op-code field (table metadata wasn't loaded yet).
+        if (Object.keys(record).length === 1 && this.records.length > 0) {
+            Object.keys(this.records[0]).forEach((key) => { record[key] = ''; });
         }
+        this.openRecordDialog(record, true);
+    }
+
+    /**
+     * Open the row dialog. Renamed conceptually from "edit": when the user
+     * has only `canRead()`, we still want to show them the record + child rows.
+     * The dialog itself (TableEdit) handles read-only mode — its Edit/New/Delete
+     * buttons are gated by the same permissions.
+     * Block only when neither read nor update is granted.
+     */
+    editRecord(record: {[key: string]: any}) {
+        if (!this.canUpdate() && !this.requireAuth(() => this.canRead(), 'view')) return;
+        this.openRecordDialog(record, false);
+    }
+
+    deleteRecord(record: {[key: string]: any}) {
+        if (!this.requireAuth(() => this.canDelete(), 'delete')) return;
         this.handleDelete(record);
     }
 }

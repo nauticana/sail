@@ -6,7 +6,7 @@
     }
 </h1>
 <div class="page-container">
-    <record-form [tableName]="tableName()" [record]="editableRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></sail-record-form>
 </div>
 <div class="search-actions">
     <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>

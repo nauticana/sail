@@ -24,7 +24,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
  * `/login/local`).
  */
 @Component({
-  selector: 'app-account-deletion',
+  selector: 'sail-account-deletion',
   templateUrl: './account_deletion.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

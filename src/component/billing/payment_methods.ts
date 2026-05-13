@@ -11,7 +11,7 @@ import { PaymentMethod } from '../../model/appdata';
  * `[portalUrl]` to show it; otherwise the button is hidden.
  */
 @Component({
-  selector: 'app-payment-methods',
+  selector: 'sail-payment-methods',
   templateUrl: './payment_methods.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

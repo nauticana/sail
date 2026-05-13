@@ -1,8 +1,8 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RestURL } from './rest_url';
 import { BackendService } from './rest_service';
+import { BaseRestService } from './base_rest.service';
 import { UserPaymentMethod } from '../model/appdata';
 
 /**
@@ -17,8 +17,7 @@ import { UserPaymentMethod } from '../model/appdata';
  * single-row CRUD can't express.
  */
 @Injectable({ providedIn: 'root' })
-export class UserPaymentMethodService {
-  private readonly http = inject(HttpClient);
+export class UserPaymentMethodService extends BaseRestService {
   private readonly backend = inject(BackendService);
 
   /**
@@ -40,9 +39,6 @@ export class UserPaymentMethodService {
    * Custom endpoint — see service-class doc for the rationale.
    */
   setDefault(id: number): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(
-      RestURL.httpHost + RestURL.paymentMethodSetDefaultURL,
-      { id },
-    );
+    return this.http.post<{ message: string }>(this.url(RestURL.paymentMethodSetDefaultURL), { id });
   }
 }

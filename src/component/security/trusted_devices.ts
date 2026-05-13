@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
 @Component({
-  selector: 'app-trusted-devices',
+  selector: 'sail-trusted-devices',
   templateUrl: './trusted_devices.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

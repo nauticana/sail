@@ -7,9 +7,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
+import { BaseAsync } from '../abstract/base_async';
 
 @Component({
-  selector: 'app-chpass',
+  selector: 'sail-chpass',
   templateUrl: './chpass_component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
@@ -22,15 +23,13 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
     RouterLink,
   ],
 })
-export class ChpassComponent {
+export class ChpassComponent extends BaseAsync {
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
   forgotPassword = signal(false);
-  errorMessage = signal('');
-  successMessage = signal('');
 
   chpassForm = this.fb.group({
     username: ['', Validators.required],
@@ -62,9 +61,6 @@ export class ChpassComponent {
   }
 
   changePassword(): void {
-    this.errorMessage.set('');
-    this.successMessage.set('');
-
     if (this.chpassForm.invalid) return;
 
     const { username, old_password, new_password, confirm_password } = this.chpassForm.value;
@@ -74,23 +70,22 @@ export class ChpassComponent {
       return;
     }
 
-    const request = this.forgotPassword()
+    const isForgot = this.forgotPassword();
+    const request = isForgot
       ? this.auth.forgotPassword(username!)
       : this.auth.chpass(username!, new_password!, old_password!);
 
-    request.subscribe({
-      next: () => {
-        if (this.forgotPassword()) {
+    this.run(
+      request,
+      () => {
+        if (isForgot) {
           this.successMessage.set('A confirmation code has been sent to your email.');
           this.router.navigate(['/confirm/password'], { queryParams: { username } });
         } else {
           this.successMessage.set('Password changed successfully.');
         }
       },
-      error: (err) => {
-        const msg = typeof err.error === 'string' ? err.error : err.error?.message;
-        this.errorMessage.set(msg || 'Password change failed. Please try again.');
-      },
-    });
+      'Password change failed. Please try again.',
+    );
   }
 }

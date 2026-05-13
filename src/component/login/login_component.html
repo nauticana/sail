@@ -24,7 +24,7 @@
     </form>
     @if (showSocialLogin()) {
       <hr class="auth-divider">
-      <app-social-login
+      <sail-social-login
         [providers]="enabledSocialProviders()"
         (loginSuccess)="onSocialSuccess($event)"
         (loginError)="onSocialError($event)" />

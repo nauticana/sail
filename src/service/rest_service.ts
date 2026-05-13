@@ -1,13 +1,13 @@
-import { HttpClient, HttpErrorResponse, HttpParams } from "@angular/common/http";
-import { inject, Injectable } from "@angular/core";
+import { HttpErrorResponse, HttpParams } from "@angular/common/http";
+import { Injectable } from "@angular/core";
 import { catchError, map, Observable, throwError } from "rxjs";
 import { PaginatedList } from "../model/appdata";
 import { RestURL } from "./rest_url";
+import { BaseRestService } from "./base_rest.service";
 
 @Injectable({providedIn: 'root'})
-export class BackendService {
-    protected readonly prefix = RestURL.httpHost + RestURL.api_prefix;
-    protected readonly http = inject(HttpClient);
+export class BackendService extends BaseRestService {
+    protected readonly prefix = this.url(RestURL.api_prefix);
 
     protected handleError(error: HttpErrorResponse) {
         if (error.status === 0) {

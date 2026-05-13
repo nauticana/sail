@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, output, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, output, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog } from "@angular/material/dialog";
@@ -7,11 +7,11 @@ import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { BaseTable } from "../abstract/base_table";
-import { ConstantValue } from "../../model/common";
+import { ConstantValue, LookupStyle } from "../../model/common";
 import { TableLookup } from "../table/table_lookup";
 
 @Component({
-    selector: 'dynamic-field',
+    selector: 'sail-dynamic-field',
     templateUrl: './form_field.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
@@ -31,7 +31,7 @@ import { TableLookup } from "../table/table_lookup";
     ]
 })
 export class DynamicField extends BaseTable {
-    readonly tableNameInput = input('', { alias: 'tableName' });
+    protected readonly tableNameInput = input('', { alias: 'tableName' });
     readonly value = input<any>(undefined);
     readonly valueChange = output<any>();
     readonly recordUpdate = output<{[key: string]: any}>();
@@ -41,19 +41,16 @@ export class DynamicField extends BaseTable {
     readonly subscriptSizing = input<'fixed' | 'dynamic'>('dynamic');
     readonly appearance = input<'fill' | 'outline'>('outline');
 
-    private readonly dialog = inject(MatDialog);
+    override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
-    constructor() {
-        super();
-        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
-    }
+    private readonly dialog = inject(MatDialog);
 
     get col() {
         return this.getColumn(this.field());
     }
 
     get inputType() {
-        if (!this.col || !this.col.InputType || this.col.LookupStyle === 'S') return 'text';
+        if (!this.col || !this.col.InputType || this.col.LookupStyle === LookupStyle.Search) return 'text';
         return this.col.InputType;
     }
 
@@ -90,7 +87,7 @@ export class DynamicField extends BaseTable {
     }
 
     isLookupTableSearch(): boolean {
-        return !!(this.col && this.col.LookupTable && this.col.LookupStyle === 'S');
+        return !!(this.col && this.col.LookupTable && this.col.LookupStyle === LookupStyle.Search);
     }
 
     get maxLength() {

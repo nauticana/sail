@@ -1,16 +1,14 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, effect, inject, input, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Params } from "@angular/router";
 import { BaseView } from "../abstract/base_view";
 import { TableEdit } from "./table_edit";
-import { BackendService } from "../../service/rest_service";
-import { TableAction } from "../../model/appdata";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
 
 @Component({
-    selector: 'table-list',
+    selector: 'sail-table-list',
     templateUrl: './table_list.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
@@ -18,21 +16,20 @@ import { MatIconModule } from "@angular/material/icon";
 })
 export class TableList extends BaseView implements OnInit {
     override dialogWidth = '400px';
-    readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly apiNameInput = input('', { alias: 'apiName' });
-    readonly dialogComponentInput = input<any>(undefined, { alias: 'dialogComponent' });
+    protected readonly tableNameInput      = input('',          { alias: 'tableName' });
+    protected readonly apiNameInput        = input('',          { alias: 'apiName' });
+    protected readonly dialogComponentInput = input<any>(undefined, { alias: 'dialogComponent' });
+
+    // linkedSignal: defaults to the consumer's input, but ngOnInit / route data
+    // can override with `.set()`. The `computation` preserves the last
+    // non-empty value when the input transiently becomes empty.
+    override readonly tableName       = linkedSignal<string, string>({ source: () => this.tableNameInput(),      computation: (v, p) => v || p?.value || '' });
+    override readonly apiName         = linkedSignal<string, string>({ source: () => this.apiNameInput(),        computation: (v, p) => v || p?.value || '' });
+    override readonly dialogComponent = linkedSignal<any, any>({       source: () => this.dialogComponentInput(), computation: (v, p) => v ?? p?.value });
 
     private readonly route = inject(ActivatedRoute);
-    private readonly backendService = inject(BackendService);
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly destroyRef = inject(DestroyRef);
-
-    constructor() {
-        super();
-        effect(() => { const v = this.tableNameInput();      if (v) this.tableName.set(v); });
-        effect(() => { const v = this.apiNameInput();        if (v) this.apiName.set(v); });
-        effect(() => { const v = this.dialogComponentInput();if (v) this.dialogComponent.set(v); });
-    }
 
     ngOnInit() {
         const data = this.route.snapshot.data;
@@ -43,10 +40,7 @@ export class TableList extends BaseView implements OnInit {
     }
 
     protected handleDelete(record: {[key: string]: any}): void {
-        if (!this.canDelete()) {
-            alert('Missing authorization to delete records');
-            return;
-        }
+        if (!this.requireAuth(() => this.canDelete(), 'delete')) return;
         if (confirm('Are you sure you want to delete this record?')) {
             const keyFilter = this.getKeyFilters(record);
             this.backendService.delete(this.apiName(), keyFilter).subscribe({
@@ -57,14 +51,7 @@ export class TableList extends BaseView implements OnInit {
     }
 
     protected handleUpdate(result: {[key: string]: any}, isNew: boolean, _original: {[key: string]: any}): void {
-        if (isNew && !this.canCreate()) {
-            alert('Missing authorization to create records');
-            return;
-        }
-        if (!isNew && !this.canUpdate()) {
-            alert('Missing authorization to update records');
-            return;
-        }
+        if (!this.requireAuth(() => isNew ? this.canCreate() : this.canUpdate(), isNew ? 'create' : 'update')) return;
         if (confirm('Are you sure you want to save this record?')) {
             this.backendService.post(this.apiName(), result).subscribe({
                 next: () => this.fetchRecords(),
@@ -74,10 +61,7 @@ export class TableList extends BaseView implements OnInit {
     }
 
     fetchRecords() {
-        if (!this.canRead()) {
-            alert('Missing authorization to read records');
-            return;
-        }
+        if (!this.requireAuth(() => this.canRead(), 'read')) return;
         this.backendService.list<{[key: string]: any}>(this.apiName(), this.searchTerms).subscribe({
             next: (records) => {
                 this.records = records;
@@ -88,27 +72,9 @@ export class TableList extends BaseView implements OnInit {
         });
     }
 
-    /**
-     * Fire a TableAction. For record-specific actions, `record` carries
-     * the row's primary key columns (lifted via BaseTable.primaryKeyValues).
-     * For table-level actions, `record` is undefined and the body is empty.
-     * Refreshes the row list on success — most actions mutate visible
-     * state (set_default flipping defaults, etc.).
-     */
-    executeAction(action: TableAction, record?: {[key: string]: unknown}): void {
-        if (!this.canExecuteAction(action)) {
-            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
-            return;
-        }
-        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
-        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
-        this.backendService.executeAction(action.method, body).subscribe({
-            next: () => this.fetchRecords(),
-            error: (err) => {
-                console.error(`Action ${action.action} failed`, err);
-                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
-            },
-        });
+    /** Refresh the row list on successful action — most actions mutate visible state (set_default flipping defaults, etc.). */
+    protected override onActionSuccess(): void {
+        this.fetchRecords();
     }
 
     handleQueryParams(params: Params) {

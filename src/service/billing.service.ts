@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RestURL } from './rest_url';
+import { BaseRestService } from './base_rest.service';
 import {
   CheckoutRequest,
   CheckoutResponse,
@@ -19,13 +19,7 @@ import {
  * keel/SHARED_PAYMENT.md for the backend contract.
  */
 @Injectable({ providedIn: 'root' })
-export class BillingService {
-  private readonly http = inject(HttpClient);
-
-  private url(path: string): string {
-    return RestURL.httpHost + path;
-  }
-
+export class BillingService extends BaseRestService {
   /** Public catalog — safe to call before login. */
   listPlans(): Observable<PublicPlan[]> {
     return this.http.get<PublicPlan[]>(this.url(RestURL.plansURL));

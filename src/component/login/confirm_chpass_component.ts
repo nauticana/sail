@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnInit, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,9 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
+import { BaseAsync } from '../abstract/base_async';
 
 @Component({
-  selector: 'app-confirm-chpass',
+  selector: 'sail-confirm-chpass',
   templateUrl: './confirm_chpass_component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
@@ -20,15 +21,12 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
     RouterLink,
   ],
 })
-export class ConfirmChpassComponent implements OnInit {
+export class ConfirmChpassComponent extends BaseAsync implements OnInit {
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
-
-  errorMessage = signal('');
-  successMessage = signal('');
 
   confirmForm = this.fb.group({
     username: ['', Validators.required],
@@ -45,9 +43,6 @@ export class ConfirmChpassComponent implements OnInit {
   }
 
   confirm(): void {
-    this.errorMessage.set('');
-    this.successMessage.set('');
-
     if (this.confirmForm.invalid) return;
 
     const { username, code, new_password, confirm_password } = this.confirmForm.value;
@@ -57,14 +52,13 @@ export class ConfirmChpassComponent implements OnInit {
       return;
     }
 
-    this.auth.confirmChpass(username!, code!, new_password!).subscribe({
-      next: () => {
+    this.run(
+      this.auth.confirmChpass(username!, code!, new_password!),
+      () => {
         this.successMessage.set('Password changed successfully. Redirecting to login...');
         this.router.navigate(['/login/local']);
       },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message ?? 'Confirmation failed. Please try again.');
-      },
-    });
+      'Confirmation failed. Please try again.',
+    );
   }
 }

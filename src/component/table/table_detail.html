@@ -26,14 +26,14 @@
     </thead>
     <tbody>
         @for (record of records; track $index) {
-            <tr [class.deleted-record]="record[config.opField] === 'D'" [class.updated-record]="record[config.opField] === 'U'" [class.new-record]="record[config.opField] === 'I'">
+            <tr [class.deleted-record]="isDeleted(record)" [class.updated-record]="isUpdated(record)" [class.new-record]="isInserted(record)">
                 @if (record == editingRecord) {
                     @for (col of displayedColumns; track col) {
                         <td>
                             @if (isReadOnly(col)) {
                                 {{ record[col] }}
                             } @else {
-                                <dynamic-field [tableName]="tableName()" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></dynamic-field>
+                                <sail-dynamic-field [tableName]="tableName()" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></sail-dynamic-field>
                             }
                         </td>
                     }
@@ -49,12 +49,12 @@
                         @if (canUpdate()) {
                             <button matIconButton (click)="editRow(record)" title="Edit"><mat-icon>edit</mat-icon></button>
                         }
-                        @if (record[config.opField] === 'D') {
+                        @if (isDeleted(record)) {
                             <button matIconButton (click)="unDeleteRow(record)" title="Undelete"><mat-icon>restore_from_trash</mat-icon></button>
                         } @else if (canDelete()) {
                             <button matIconButton (click)="deleteRow(record)" title="Delete"><mat-icon>delete</mat-icon></button>
                         }
-                        @if (record[config.opField] !== 'I') {
+                        @if (!isInserted(record)) {
                             @for (action of getActions(true); track action.action) {
                                 @if (canExecuteAction(action)) {
                                     <button matIconButton type="button"

@@ -7,7 +7,7 @@ import { PublicPlan } from '../../model/appdata';
  * The caller provides the plans and handles the selection event.
  */
 @Component({
-  selector: 'app-plan-selector',
+  selector: 'sail-plan-selector',
   templateUrl: './plan_selector.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

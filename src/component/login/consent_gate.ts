@@ -22,7 +22,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
  * See keel/README.md → "Consent Capture" for the backend-side contract.
  */
 @Component({
-  selector: 'app-consent-gate',
+  selector: 'sail-consent-gate',
   templateUrl: './consent_gate.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

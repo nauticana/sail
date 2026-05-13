@@ -14,7 +14,7 @@ interface TableFormDialogData {
 }
 
 @Component({
-    selector: 'table-form',
+    selector: 'sail-table-form',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
     templateUrl: './form_table.html',

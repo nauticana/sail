@@ -1,6 +1,6 @@
 {
   "name": "@nauticana/sail",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Metadata-driven Angular component library for CRUD admin frontends backed by the keel Go backend. Tables, forms, navigation, OTP/2FA/social auth, billing, payout onboarding.",
   "main": "src/index.ts",
   "files": [
@@ -53,6 +53,6 @@
     "@angular/router": "^21.2.8",
     "class-validator": "^0.15.1",
     "rxjs": "~7.8.0",
-    "typescript": "~6.0.3"
+    "typescript": "~5.9.3"
   }
 }

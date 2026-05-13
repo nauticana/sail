@@ -28,13 +28,23 @@
             @if (canDelete()) {
                 <button matButton class="warn" (click)="onDelete()">Delete</button>
             }
+            @for (action of getActions(true); track action.action) {
+                @if (canExecuteAction(action)) {
+                    <button matButton="outlined" type="button"
+                            [title]="action.caption"
+                            (click)="executeAction(action, record())">
+                        @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
+                        {{ action.caption }}
+                    </button>
+                }
+            }
         } @else {
             <button matButton="elevated" class="primary" (click)="onSave()">Save</button>
             <button matButton (click)="onCancel()">Cancel</button>
         }
     </div>
 
-    <record-form [tableName]="tableName()" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></record-form>
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></sail-record-form>
 
     @if (tabCount > 0) {
         <mat-tab-group>
@@ -42,13 +52,13 @@
             @if (cacheService.canRead(getTableName(key))) {
                 <mat-tab [label]="key">
                     <div class="tab-content">
-                        <table-detail
+                        <sail-table-detail
                            [records]="editableRecord[key]"
                            [tableName]="getTableName(key)"
                            [parentTableName]="tableName()"
                            [parentRecord]="editableRecord"
                            [parentReadOnly]="isReadOnlyMode">
-                        </table-detail>
+                        </sail-table-detail>
                     </div>
                 </mat-tab>
             }

@@ -20,9 +20,15 @@ export abstract class BaseAsync {
     this.successMessage.set('');
   }
 
-  /** Set errorMessage from an HTTP error object; falls back to `fallback`. */
+  /**
+   * Set errorMessage from an HTTP error object; falls back to `fallback`.
+   *
+   * Reads `err.error.detail` first (keel emits RFC 7807 ProblemDetail with
+   * `detail` as the human-readable field), then `err.error.message` for
+   * legacy / non-RFC-7807 endpoints, then the supplied fallback.
+   */
   protected setError(err: any, fallback: string): void {
-    this.errorMessage.set(err?.error?.message ?? fallback);
+    this.errorMessage.set(err?.error?.detail ?? err?.error?.message ?? fallback);
     this.loading.set(false);
   }
 

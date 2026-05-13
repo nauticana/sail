@@ -13,7 +13,7 @@ import { CheckoutMode } from '../../model/appdata';
  * rejected with 400.
  */
 @Component({
-  selector: 'app-checkout-button',
+  selector: 'sail-checkout-button',
   templateUrl: './checkout_button.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

@@ -10,7 +10,7 @@ import { LoginResponseSocial, SocialProvider } from '../../model/auth';
 import { SocialLoginComponent } from './social_login';
 
 @Component({
-  selector: 'app-login',
+  selector: 'sail-login',
   templateUrl: './login_component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

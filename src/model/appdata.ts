@@ -197,7 +197,7 @@ export interface PartnerRegistration {
 }
 
 // PublicPlan — shape returned by GET /public/plans. Used on the registration
-// page to render the plan picker and to drive `<app-checkout-button>` flows.
+// page to render the plan picker and to drive `<sail-checkout-button>` flows.
 export interface PublicPlan {
 	id:          string;
 	caption:     string;
@@ -206,7 +206,7 @@ export interface PublicPlan {
 	// Stripe price ID (or provider-equivalent). Optional because keel only
 	// populates it when a plan is wired to a billing provider; FREE plans and
 	// not-yet-priced tiers leave it empty. Pass straight to
-	// `<app-checkout-button [priceId]>` / `BillingService.createCheckout({ priceId })`.
+	// `<sail-checkout-button [priceId]>` / `BillingService.createCheckout({ priceId })`.
 	priceId?:    string;
 }
 

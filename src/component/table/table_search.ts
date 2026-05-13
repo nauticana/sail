@@ -1,15 +1,13 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, OnInit, signal, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { ActivatedRoute, Router } from "@angular/router";
 import { BaseForm } from "../abstract/base_form";
 import { RecordForm } from "../form/form_record";
 import { ApplicationMenu } from "../../model/common";
-import { TableAction } from "../../model/appdata";
-import { BackendService } from "../../service/rest_service";
 
 @Component({
-    selector: 'table-search',
+    selector: 'sail-table-search',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,
     templateUrl: './table_search.html',
@@ -20,44 +18,25 @@ import { BackendService } from "../../service/rest_service";
     ],
 })
 export class TableSearch extends BaseForm implements OnInit {
-    readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly apiNameInput = input('', { alias: 'apiName' });
-    readonly targetRouteInput = input('', { alias: 'targetRoute' });
-    readonly apiName = signal('');
-    readonly targetRoute = signal('');
-    searchColumns: string[] = [];
+    protected readonly tableNameInput   = input('', { alias: 'tableName' });
+    protected readonly apiNameInput     = input('', { alias: 'apiName' });
+    protected readonly targetRouteInput = input('', { alias: 'targetRoute' });
 
-    constructor() {
-        super();
-        effect(() => { const v = this.tableNameInput();  if (v) this.tableName.set(v); });
-        effect(() => { const v = this.apiNameInput();    if (v) this.apiName.set(v); });
-        effect(() => { const v = this.targetRouteInput();if (v) this.targetRoute.set(v); });
-    }
+    override readonly tableName  = linkedSignal<string, string>({ source: () => this.tableNameInput(),   computation: (v, p) => v || p?.value || '' });
+    readonly apiName              = linkedSignal<string, string>({ source: () => this.apiNameInput(),     computation: (v, p) => v || p?.value || '' });
+    readonly targetRoute          = linkedSignal<string, string>({ source: () => this.targetRouteInput(), computation: (v, p) => v || p?.value || '' });
+
+    searchColumns: string[] = [];
 
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly cdr = inject(ChangeDetectorRef);
-    private readonly backendService = inject(BackendService);
 
     /**
-     * Fire a table-level TableAction from the search-screen toolbar.
-     * Record-specific actions never show up here — search has no
-     * row context.
+     * Search screen surfaces only table-level actions; record-specific actions
+     * never appear here (no row context). `executeAction()` is inherited from
+     * BaseTable; no per-screen refresh needed since search has no row list.
      */
-    executeAction(action: TableAction): void {
-        if (!this.canExecuteAction(action)) {
-            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
-            return;
-        }
-        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
-        this.backendService.executeAction(action.method, {}).subscribe({
-            next: () => {/* no-op — search screen has no list to refresh */},
-            error: (err) => {
-                console.error(`Action ${action.action} failed`, err);
-                alert(err?.error?.detail ?? `Failed to ${action.caption}`);
-            },
-        });
-    }
 
     ngOnInit() {
         const data = this.route.snapshot.data;
@@ -130,10 +109,7 @@ export class TableSearch extends BaseForm implements OnInit {
     }
 
     onAddRecord() {
-        if (!this.canCreate()) {
-            alert('Missing authorization to create records');
-            return;
-        }
+        if (!this.requireAuth(() => this.canCreate(), 'create')) return;
         const targetRoute = this.targetRoute();
         if (!targetRoute) {
             alert('Navigation target not found for this table');

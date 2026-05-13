@@ -13,7 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
  * call verifyOtp / resendOtp. See README "Phone / email OTP login".
  */
 @Component({
-  selector: 'app-otp-input',
+  selector: 'sail-otp-input',
   templateUrl: './otp_input.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,

@@ -4,7 +4,7 @@ import { BaseAuthService } from "../../service/auth.service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
 
 @Component({
-    selector: 'record-form',
+    selector: 'sail-record-form',
     templateUrl: './form_record.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     encapsulation: ViewEncapsulation.None,

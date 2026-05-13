@@ -1,5 +1,5 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpParams } from '@angular/common/http';
 import { map, take, tap } from 'rxjs/operators';
 import { ApplicationData, AuthSummary, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
@@ -14,39 +14,39 @@ import { Observable, ReplaySubject } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
+import { BaseRestService } from './base_rest.service';
 
 @Injectable()
-export abstract class BaseAuthService {
-  private readonly http = inject(HttpClient);
+export abstract class BaseAuthService extends BaseRestService {
   protected readonly router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
   protected cache!: ApplicationData;
   private readonly appData$ = new ReplaySubject<ApplicationData>(1);
   private readonly authIndex = new Map<string, AuthSummary[]>();
 
-  protected get appdataUrl() { return RestURL.httpHost + RestURL.appdataURL; }
-  protected get loginUrl() { return RestURL.httpHost + RestURL.loginURL; }
-  protected get registerUrl() { return RestURL.httpHost + RestURL.registerURL; }
-  protected get chpassUrl() { return RestURL.httpHost + RestURL.chpassURL; }
-  protected get confirmRegisterUrl() { return RestURL.httpHost + RestURL.confirmRegisterURL; }
-  protected get confirmChpassUrl() { return RestURL.httpHost + RestURL.confirmChpassURL; }
-  protected get loginGoogleUrl() { return RestURL.httpHost + RestURL.loginGoogleURL; }
-  protected get twoFactorSetupUrl() { return RestURL.httpHost + RestURL.twoFactorSetupURL; }
-  protected get twoFactorVerifyUrl() { return RestURL.httpHost + RestURL.twoFactorVerifyURL; }
-  protected get twoFactorDisableUrl() { return RestURL.httpHost + RestURL.twoFactorDisableURL; }
-  protected get twoFactorLoginVerifyUrl() { return RestURL.httpHost + RestURL.twoFactorLoginVerifyURL; }
-  protected get twoFactorBackupVerifyUrl() { return RestURL.httpHost + RestURL.twoFactorBackupVerifyURL; }
-  protected get trustedDeviceListUrl() { return RestURL.httpHost + RestURL.trustedDeviceListURL; }
-  protected get trustedDeviceRegisterUrl() { return RestURL.httpHost + RestURL.trustedDeviceRegisterURL; }
-  protected get trustedDeviceRevokeUrl() { return RestURL.httpHost + RestURL.trustedDeviceRevokeURL; }
-  protected get otpSendUrl()          { return RestURL.httpHost + RestURL.otpSendURL; }
-  protected get otpVerifyUrl()        { return RestURL.httpHost + RestURL.otpVerifyURL; }
-  protected get otpResendUrl()        { return RestURL.httpHost + RestURL.otpResendURL; }
-  protected get loginSocialUrl()      { return RestURL.httpHost + RestURL.loginSocialURL; }
-  protected get logoutEverywhereUrl() { return RestURL.httpHost + RestURL.logoutEverywhereURL; }
-  protected get deleteAccountUrl()    { return RestURL.httpHost + RestURL.deleteAccountURL; }
-  protected get pushRegisterUrl()     { return RestURL.httpHost + RestURL.pushRegisterURL; }
-  protected get pushRevokeUrl()       { return RestURL.httpHost + RestURL.pushRevokeURL; }
+  protected readonly appdataUrl                = this.url(RestURL.appdataURL);
+  protected readonly loginUrl                  = this.url(RestURL.loginURL);
+  protected readonly registerUrl               = this.url(RestURL.registerURL);
+  protected readonly chpassUrl                 = this.url(RestURL.chpassURL);
+  protected readonly confirmRegisterUrl        = this.url(RestURL.confirmRegisterURL);
+  protected readonly confirmChpassUrl          = this.url(RestURL.confirmChpassURL);
+  protected readonly loginGoogleUrl            = this.url(RestURL.loginGoogleURL);
+  protected readonly twoFactorSetupUrl         = this.url(RestURL.twoFactorSetupURL);
+  protected readonly twoFactorVerifyUrl        = this.url(RestURL.twoFactorVerifyURL);
+  protected readonly twoFactorDisableUrl       = this.url(RestURL.twoFactorDisableURL);
+  protected readonly twoFactorLoginVerifyUrl   = this.url(RestURL.twoFactorLoginVerifyURL);
+  protected readonly twoFactorBackupVerifyUrl  = this.url(RestURL.twoFactorBackupVerifyURL);
+  protected readonly trustedDeviceListUrl      = this.url(RestURL.trustedDeviceListURL);
+  protected readonly trustedDeviceRegisterUrl  = this.url(RestURL.trustedDeviceRegisterURL);
+  protected readonly trustedDeviceRevokeUrl    = this.url(RestURL.trustedDeviceRevokeURL);
+  protected readonly otpSendUrl                = this.url(RestURL.otpSendURL);
+  protected readonly otpVerifyUrl              = this.url(RestURL.otpVerifyURL);
+  protected readonly otpResendUrl              = this.url(RestURL.otpResendURL);
+  protected readonly loginSocialUrl            = this.url(RestURL.loginSocialURL);
+  protected readonly logoutEverywhereUrl       = this.url(RestURL.logoutEverywhereURL);
+  protected readonly deleteAccountUrl          = this.url(RestURL.deleteAccountURL);
+  protected readonly pushRegisterUrl           = this.url(RestURL.pushRegisterURL);
+  protected readonly pushRevokeUrl             = this.url(RestURL.pushRevokeURL);
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
