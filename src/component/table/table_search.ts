@@ -18,9 +18,9 @@ import { ApplicationMenu } from "../../model/common";
     ],
 })
 export class TableSearch extends BaseForm implements OnInit {
-    protected readonly tableNameInput   = input('', { alias: 'tableName' });
-    protected readonly apiNameInput     = input('', { alias: 'apiName' });
-    protected readonly targetRouteInput = input('', { alias: 'targetRoute' });
+    readonly tableNameInput   = input('', { alias: 'tableName' });
+    readonly apiNameInput     = input('', { alias: 'apiName' });
+    readonly targetRouteInput = input('', { alias: 'targetRoute' });
 
     override readonly tableName  = linkedSignal<string, string>({ source: () => this.tableNameInput(),   computation: (v, p) => v || p?.value || '' });
     readonly apiName              = linkedSignal<string, string>({ source: () => this.apiNameInput(),     computation: (v, p) => v || p?.value || '' });

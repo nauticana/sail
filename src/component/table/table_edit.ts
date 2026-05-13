@@ -22,9 +22,9 @@ import { OpCode } from "../../model/common";
     ]
 })
 export class TableEdit extends BaseForm implements OnInit {
-    protected readonly recordInput    = input<any>({}, { alias: 'record' });
-    protected readonly tableNameInput = input('',      { alias: 'tableName' });
-    protected readonly apiNameInput   = input('',      { alias: 'apiName' });
+    readonly recordInput    = input<any>({}, { alias: 'record' });
+    readonly tableNameInput = input('',      { alias: 'tableName' });
+    readonly apiNameInput   = input('',      { alias: 'apiName' });
 
     readonly record              = linkedSignal<any, any>({       source: () => this.recordInput(),    computation: (v, p) => v ?? p?.value ?? {} });
     override readonly tableName  = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });

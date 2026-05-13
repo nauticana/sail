@@ -20,8 +20,8 @@ import { OpCode } from "../../model/common";
     ],
 })
 export class TableDetail extends BaseForm implements OnInit {
-    protected readonly tableNameInput = input('', { alias: 'tableName' });
-    protected readonly recordsInput   = input<any[]>([], { alias: 'records' });
+    readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly recordsInput   = input<any[]>([], { alias: 'records' });
     readonly parentTableName = input('');
     readonly parentRecord = input<any>({});
     /** When true, the parent view is in read-only mode — disable all child row editing. */

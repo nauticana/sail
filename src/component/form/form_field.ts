@@ -31,7 +31,7 @@ import { TableLookup } from "../table/table_lookup";
     ]
 })
 export class DynamicField extends BaseTable {
-    protected readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly tableNameInput = input('', { alias: 'tableName' });
     readonly value = input<any>(undefined);
     readonly valueChange = output<any>();
     readonly recordUpdate = output<{[key: string]: any}>();

@@ -1051,6 +1051,25 @@ protected onActionSuccess(action: TableAction, record?: Record<string, unknown>)
 
 If your downstream component extends `BaseTable` / `BaseView` and uses the alias-input pattern from v0.8.0 (`input + effect`), you can optionally migrate to `linkedSignal` — but the old pattern still compiles.
 
+```typescript
+import { input, linkedSignal } from '@angular/core';
+
+export class MyView extends BaseView {
+  // Aliased input MUST be public — Angular's strict template type-checker
+  // resolves `[tableName]="x"` from a parent template back to this field
+  // by name, and a `private` / `protected` modifier rejects the binding
+  // with TS2445. The override signal can be any visibility.
+  readonly tableNameInput = input('', { alias: 'tableName' });
+
+  override readonly tableName = linkedSignal<string, string>({
+    source: () => this.tableNameInput(),
+    computation: (v, prev) => v || prev?.value || '',  // preserve .set() when input goes empty
+  });
+}
+```
+
+The `computation` callback runs whenever the source changes. Returning `v || prev?.value` gives "use the bound value if provided, else keep the last non-empty value we had locally" — same semantics the v0.8.0 `effect()` carried.
+
 ### 5. Internal: `BaseTable.caption` is no longer memoised; `Navigation.allMenuItems` via `toSignal`
 
 `getCaption()` and `colCaption()` previously cached on first read, so `tableName` updates after first render returned stale captions. They now recompute each call (cost is negligible). `Navigation` reads `allMenuItems` via `toSignal(getMenus(), { initialValue: [] })` instead of a manual `subscribe` in `ngOnInit`.
@@ -1077,6 +1096,7 @@ Expected errors after the upgrade:
 - **`'app-*' is not a known element`** — selector rename, see step 1.
 - **`'@Output' is deprecated`** — leftover from the v0.8.0 migration; finish it.
 - **`peerinvalid` / `--legacy-peer-deps` prompts on `npm install`** — your project still has TS 6.x. Downgrade per step 6.
+- **`TS2445: Property 'xInput' is protected and only accessible within class …`** during `ng build` from a downstream project, pointing at sail's own `*.html` files (e.g. `[tableName]="..."` in `table_edit.html`) — upgrade to sail `v0.8.1` patch (published after the initial v0.8.1 cut) where the aliased input fields are public. The cause: Angular's strict template type-checker resolves the alias back to the declared field, so `input('', { alias: 'tableName' })` declared as `protected readonly tableNameInput` is unreachable from the parent template that binds `[tableName]=…`. The fix in your own subclasses, if you copied the v0.8.1 pattern: drop the `protected` / `private` modifier on any aliased `input()` field, leave it `readonly`.
 
 ### 8. Backend alignment
 
@@ -1097,7 +1117,7 @@ When you extend sail in your own app, apply the same patterns sail itself follow
 
 ### Components and directives
 
-- **Signal-based inputs/outputs.** `input()` / `output()` instead of `@Input()` / `@Output()`. Read as `this.x()` / `{{ x() }}`.
+- **Signal-based inputs/outputs.** `input()` / `output()` instead of `@Input()` / `@Output()`. Read as `this.x()` / `{{ x() }}`. **Keep `input()` / `output()` fields publicly accessible** (`readonly` without `private`/`protected`). Angular's strict template type-checker resolves an `{ alias: 'foo' }` back to the declared field name and rejects parent bindings against a non-public field with TS2445.
 - **`model()` for two-way bindings.** When the parent needs `[(value)]` binding semantics, declare `value = model('')` rather than rolling your own `@Output() valueChange`.
 - **`inject()` for dependencies.** No constructor parameter injection. Field-level `inject(Token)` keeps the constructor zero-arg and lets the class be subclassed without parameter forwarding.
 - **`ChangeDetectionStrategy.OnPush` on every component.** Signal-based code is fully compatible with OnPush; without it, change detection still runs needlessly.

@@ -16,9 +16,9 @@ import { MatIconModule } from "@angular/material/icon";
 })
 export class TableList extends BaseView implements OnInit {
     override dialogWidth = '400px';
-    protected readonly tableNameInput      = input('',          { alias: 'tableName' });
-    protected readonly apiNameInput        = input('',          { alias: 'apiName' });
-    protected readonly dialogComponentInput = input<any>(undefined, { alias: 'dialogComponent' });
+    readonly tableNameInput       = input('',          { alias: 'tableName' });
+    readonly apiNameInput          = input('',          { alias: 'apiName' });
+    readonly dialogComponentInput  = input<any>(undefined, { alias: 'dialogComponent' });
 
     // linkedSignal: defaults to the consumer's input, but ngOnInit / route data
     // can override with `.set()`. The `computation` preserves the last
