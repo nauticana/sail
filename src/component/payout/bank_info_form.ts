@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -40,67 +41,7 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
     ReactiveFormsModule, MatButtonModule, MatCheckboxModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
   ],
-  template: `
-    <div class="bank-info-form">
-      <h2 class="bank-info-form__title">{{ title }}</h2>
-
-      @if (intro) {
-        <p class="bank-info-form__intro">{{ intro }}</p>
-      }
-
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Country *</mat-label>
-          <mat-select formControlName="countryCode">
-            @for (c of countryProfiles; track c.code) {
-              <mat-option [value]="c.code">{{ c.label }} ({{ c.currency }})</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-        <p class="hint">Sets your tax ID format + payout currency</p>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Account holder name *</mat-label>
-          <input matInput formControlName="accountHolderName">
-        </mat-form-field>
-        <p class="hint">Legal name on the bank account (must match government ID)</p>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>{{ taxIdLabel() }} *</mat-label>
-          <input matInput formControlName="taxId" [placeholder]="taxIdPlaceholder()">
-        </mat-form-field>
-        <p class="hint">{{ taxIdHint() }}</p>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Billing address *</mat-label>
-          <input matInput formControlName="billingAddress">
-        </mat-form-field>
-        <p class="hint">Business or home address — used for tax correspondence</p>
-
-        <p class="provider-note">
-          Bank routing details (account number + institution / ABA /
-          IBAN) are collected by the payout provider in the next step;
-          this application does not store them.
-        </p>
-
-        <mat-checkbox formControlName="providerAgreement" class="agreement">
-          {{ agreementLabel }}
-        </mat-checkbox>
-
-        <div class="nav-buttons">
-          @if (showBack) {
-            <button mat-stroked-button class="pill-btn" type="button" (click)="back.emit()">
-              &lt; Back
-            </button>
-          }
-          <button mat-flat-button class="pill-btn primary-btn" type="submit"
-                  [disabled]="form.invalid">
-            {{ submitLabel }}
-          </button>
-        </div>
-      </form>
-    </div>
-  `,
+  templateUrl: './bank_info_form.html',
   styles: `
     .bank-info-form { display: flex; flex-direction: column; gap: 4px; padding: 0 24px 32px; }
     .bank-info-form__title { margin: 0 0 16px; }
@@ -116,24 +57,24 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
 })
 export class PayoutBankInfoFormComponent {
   /** Step title rendered above the form. */
-  @Input() title = 'Payment and Tax';
+  readonly title = input('Payment and Tax');
   /** Optional explainer rendered below the title. */
-  @Input() intro = 'Tax + payout details. Bank account itself is set up with the payout provider in a separate step — only tax-reporting and dispute-correspondence fields are collected here.';
+  readonly intro = input('Tax + payout details. Bank account itself is set up with the payout provider in a separate step — only tax-reporting and dispute-correspondence fields are collected here.');
   /** Override the list of supported countries — keep the default for most apps. */
-  @Input() countryProfiles: CountryProfile[] = DEFAULT_COUNTRY_PROFILES;
+  readonly countryProfiles = input<CountryProfile[]>(DEFAULT_COUNTRY_PROFILES);
   /** Provider code persisted on user_bank_info.provider. Default AW (Airwallex) matches keel's default --payout_provider. */
-  @Input() provider = 'AW';
+  readonly provider = input('AW');
   /** Wording on the provider-agreement checkbox. Override to name the live provider. */
-  @Input() agreementLabel = 'I agree to the payout provider account agreement';
+  readonly agreementLabel = input('I agree to the payout provider account agreement');
   /** Submit-button label — wizards usually use "Next >". */
-  @Input() submitLabel = 'Next >';
+  readonly submitLabel = input('Next >');
   /** When true, the back button renders alongside submit. */
-  @Input() showBack = true;
+  readonly showBack = input(true);
 
   /** Emitted on submit; payload maps 1:1 to basis user_bank_info columns. */
-  @Output() submitted = new EventEmitter<BankInfoFormValue>();
+  readonly submitted = output<BankInfoFormValue>();
   /** Emitted when the user clicks Back. */
-  @Output() back = new EventEmitter<void>();
+  readonly back = output<void>();
 
   private readonly fb = inject(FormBuilder);
 
@@ -145,17 +86,20 @@ export class PayoutBankInfoFormComponent {
     providerAgreement: [false, Validators.requiredTrue],
   });
 
-  private readonly selectedCountry = signal<CountryProfile>(this.countryProfiles[0]);
+  private readonly selectedCountry = signal<CountryProfile>(this.countryProfiles()[0]);
 
   readonly taxIdLabel       = computed(() => this.selectedCountry().taxIdLabel);
   readonly taxIdPlaceholder = computed(() => this.selectedCountry().taxIdPlaceholder);
   readonly taxIdHint        = computed(() => this.selectedCountry().taxIdHint);
 
   constructor() {
-    this.form.controls.countryCode.valueChanges.subscribe((code) => {
-      const profile = this.countryProfiles.find((c) => c.code === code) ?? this.countryProfiles[0];
-      this.selectedCountry.set(profile);
-    });
+    this.form.controls.countryCode.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((code) => {
+        const profiles = this.countryProfiles();
+        const profile = profiles.find((c) => c.code === code) ?? profiles[0];
+        this.selectedCountry.set(profile);
+      });
   }
 
   submit() {
@@ -169,7 +113,7 @@ export class PayoutBankInfoFormComponent {
       billingAddress:    v.billingAddress!,
       taxIdType:         country.taxIdType,
       taxId:             v.taxId!,
-      provider:          this.provider,
+      provider:          this.provider(),
       providerAgreement: v.providerAgreement!,
     });
   }

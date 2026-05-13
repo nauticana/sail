@@ -1,9 +1,9 @@
 <h2 mat-dialog-title>{{ getCaption() }} Search</h2>
 <div mat-dialog-content>
-    <record-form [tableName]="tableName" [record]="searchRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
+    <record-form [tableName]="tableName()" [record]="searchRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
     <div class="search-actions">
-        <button mat-raised-button class="primary" (click)="onSearch()">Search</button>
-        <button mat-button (click)="onClear()">Clear</button>
+        <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>
+        <button matButton (click)="onClear()">Clear</button>
     </div>
     @if (records.length > 0) {
         <table>
@@ -31,5 +31,5 @@
     }
 </div>
 <div mat-dialog-actions>
-    <button mat-button [mat-dialog-close]>Cancel</button>
+    <button matButton [mat-dialog-close]>Cancel</button>
 </div>

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, Input, input, output, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, input, output, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog } from "@angular/material/dialog";
@@ -31,8 +31,7 @@ import { TableLookup } from "../table/table_lookup";
     ]
 })
 export class DynamicField extends BaseTable {
-    // @Input() required — signal input not possible due to BaseTable inheritance chain
-    @Input() override tableName = '';
+    readonly tableNameInput = input('', { alias: 'tableName' });
     readonly value = input<any>(undefined);
     readonly valueChange = output<any>();
     readonly recordUpdate = output<{[key: string]: any}>();
@@ -43,6 +42,11 @@ export class DynamicField extends BaseTable {
     readonly appearance = input<'fill' | 'outline'>('outline');
 
     private readonly dialog = inject(MatDialog);
+
+    constructor() {
+        super();
+        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
+    }
 
     get col() {
         return this.getColumn(this.field());

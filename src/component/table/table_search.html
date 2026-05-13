@@ -6,17 +6,17 @@
     }
 </h1>
 <div class="page-container">
-    <record-form [tableName]="tableName" [record]="editableRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
+    <record-form [tableName]="tableName()" [record]="editableRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></record-form>
 </div>
 <div class="search-actions">
-    <button mat-raised-button class="primary" (click)="onSearch()">Search</button>
-    <button mat-button (click)="onClear()">Clear</button>
+    <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>
+    <button matButton (click)="onClear()">Clear</button>
     @if (canCreate()) {
-        <button mat-raised-button class="accent" (click)="onAddRecord()">New Record</button>
+        <button matButton="elevated" class="accent" (click)="onAddRecord()">New Record</button>
     }
     @for (action of getActions(false); track action.action) {
         @if (canExecuteAction(action)) {
-            <button mat-stroked-button type="button"
+            <button matButton="outlined" type="button"
                     [title]="action.caption"
                     (click)="executeAction(action)">
                 @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }

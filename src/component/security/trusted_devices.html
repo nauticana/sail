@@ -31,7 +31,7 @@
               <td>{{ formatDate(device.last_used_at) }}</td>
               <td>{{ formatDate(device.created_at) }}</td>
               <td>
-                <button mat-icon-button (click)="revokeDevice(device)" title="Revoke">
+                <button matIconButton (click)="revokeDevice(device)" title="Revoke">
                   <mat-icon>delete</mat-icon>
                 </button>
               </td>
@@ -58,15 +58,15 @@
           <input matInput type="password" formControlName="password" autocomplete="current-password" required>
         </mat-form-field>
         <div class="auth-actions">
-          <button mat-raised-button class="warn" type="submit" [disabled]="!logoutForm.valid || loading()">
+          <button matButton="elevated" class="warn" type="submit" [disabled]="!logoutForm.valid || loading()">
             Sign out everywhere
           </button>
-          <button mat-button type="button" (click)="logoutOpen.set(false)">Cancel</button>
+          <button matButton type="button" (click)="logoutOpen.set(false)">Cancel</button>
         </div>
       </form>
     } @else {
       <div class="auth-actions">
-        <button mat-button class="warn" type="button" (click)="logoutOpen.set(true)" [disabled]="loading()">
+        <button matButton class="warn" type="button" (click)="logoutOpen.set(true)" [disabled]="loading()">
           Sign out of all devices
         </button>
         <a routerLink="/dashboard">Back to Dashboard</a>

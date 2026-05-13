@@ -1,4 +1,4 @@
-import { inject } from "@angular/core";
+import { inject, signal, WritableSignal } from "@angular/core";
 import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
 import { ConstantValue } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
@@ -9,7 +9,7 @@ export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
     protected readonly config: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
     protected readonly dialogWidth: string = '400px';
-    tableName = '';
+    readonly tableName: WritableSignal<string> = signal('');
     caption = '';
     fieldOptions: {[key: string]: ConstantValue[]} = {};
     fieldLabels: {[key: string]: string} = {};
@@ -27,7 +27,7 @@ export abstract class BaseTable {
 
     getCaption() {
         if (!this.caption) {
-            this.caption = this.titleCase(this.tableName);
+            this.caption = this.titleCase(this.tableName());
         }
         return this.caption;
     }
@@ -41,19 +41,19 @@ export abstract class BaseTable {
     }
 
     canRead() {
-        return this.cacheService.canRead(this.tableName);
+        return this.cacheService.canRead(this.tableName());
     }
 
     canCreate() {
-        return this.cacheService.canCreate(this.tableName);
+        return this.cacheService.canCreate(this.tableName());
     }
 
     canUpdate() {
-        return this.cacheService.canUpdate(this.tableName);
+        return this.cacheService.canUpdate(this.tableName());
     }
 
     canDelete() {
-        return this.cacheService.canDelete(this.tableName);
+        return this.cacheService.canDelete(this.tableName());
     }
 
     /**
@@ -62,7 +62,7 @@ export abstract class BaseTable {
      * when the table has no custom actions.
      */
     getActions(recordSpecific?: boolean): TableAction[] {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         const actions = tableDef?.Actions ?? [];
         if (recordSpecific === undefined) return [...actions].sort(this.sortActions);
         return actions.filter((a) => a.recordSpecific === recordSpecific).sort(this.sortActions);
@@ -78,7 +78,7 @@ export abstract class BaseTable {
      * action button should render.
      */
     canExecuteAction(action: TableAction): boolean {
-        return this.cacheService.canExecute(action.authorityObject, action.authorityCheck, this.tableName);
+        return this.cacheService.canExecute(action.authorityObject, action.authorityCheck, this.tableName());
     }
 
     /**
@@ -89,7 +89,7 @@ export abstract class BaseTable {
      * does for get / delete.
      */
     primaryKeyValues(record: Record<string, unknown>): Record<string, unknown> {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         const pk: Record<string, unknown> = {};
         if (!tableDef?.Keys) return pk;
         for (const key of tableDef.Keys) {
@@ -100,8 +100,8 @@ export abstract class BaseTable {
 
     emptyRecord(): any {
         const record : any = {[this.config.opField]: 'I'}
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
-        const tableOverride = this.config.tableOverrides?.[this.tableName];
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
+        const tableOverride = this.config.tableOverrides?.[this.tableName()];
         const editableTimestamps = new Set(tableOverride?.editableTimestamps ?? []);
 
         if (tableDef) {
@@ -141,8 +141,8 @@ export abstract class BaseTable {
     }
 
     getDisplayedColumns(records: any[] = []): string[] {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
-        const tableOverride = this.config.tableOverrides?.[this.tableName];
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
+        const tableOverride = this.config.tableOverrides?.[this.tableName()];
         const hidden = new Set([
             ...this.config.hiddenFields,
             ...(tableOverride?.hiddenFields ?? []),
@@ -162,7 +162,7 @@ export abstract class BaseTable {
     }
 
     getColumn(fieldName: string): TableColumn | undefined {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         if (tableDef && tableDef.Columns) {
             return tableDef.Columns.find((field) => field.PascalName === fieldName);
         }
@@ -290,11 +290,11 @@ export abstract class BaseTable {
     }
 
     getDialogData(record: any, isNew: boolean, readOnlyColumns: string[] = []): any {
-        return {record, tableName: this.tableName, isNew, readOnlyColumns};
+        return {record, tableName: this.tableName(), isNew, readOnlyColumns};
     }
 
     getTableName(fieldName: string): string {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         if (!tableDef) return '';
         const fk = tableDef.Children?.find((c) => c.PascalName === fieldName);
         return fk ? fk.ChildTable : '';
@@ -315,7 +315,7 @@ export abstract class BaseTable {
     }
 
     getKeyFilters(record: any): {[key: string]: string} | undefined {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         if (!tableDef || !tableDef.Keys || tableDef.Keys.length === 0) {
             return undefined;
         }
@@ -328,7 +328,7 @@ export abstract class BaseTable {
 
     getForeignKeyConfig(parentTable: string): {fk: ForeignKey, parent: TableDefinition} | null{
         if (!parentTable) return null;
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         const parent = this.cacheService.getTableDefinition(parentTable);
         if (!tableDef || !tableDef.Keys || !tableDef.Parents || !parent) return null;
         const fk = tableDef.Parents.find((parent) => parent.ParentTable === parentTable);

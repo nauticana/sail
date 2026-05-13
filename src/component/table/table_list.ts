@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, inject, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, effect, inject, input, OnInit, ViewEncapsulation } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Params } from "@angular/router";
 import { BaseView } from "../abstract/base_view";
@@ -18,17 +18,27 @@ import { MatIconModule } from "@angular/material/icon";
 })
 export class TableList extends BaseView implements OnInit {
     override dialogWidth = '400px';
+    readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly apiNameInput = input('', { alias: 'apiName' });
+    readonly dialogComponentInput = input<any>(undefined, { alias: 'dialogComponent' });
 
     private readonly route = inject(ActivatedRoute);
     private readonly backendService = inject(BackendService);
     private readonly cdr = inject(ChangeDetectorRef);
     private readonly destroyRef = inject(DestroyRef);
 
+    constructor() {
+        super();
+        effect(() => { const v = this.tableNameInput();      if (v) this.tableName.set(v); });
+        effect(() => { const v = this.apiNameInput();        if (v) this.apiName.set(v); });
+        effect(() => { const v = this.dialogComponentInput();if (v) this.dialogComponent.set(v); });
+    }
+
     ngOnInit() {
         const data = this.route.snapshot.data;
-        if (!this.tableName && data['tableName']) this.tableName = data['tableName'];
-        if (!this.apiName && data['apiName']) this.apiName = data['apiName'];
-        if (!this.dialogComponent) this.dialogComponent = data['dialogComponent'] ?? TableEdit;
+        if (!this.tableName() && data['tableName']) this.tableName.set(data['tableName']);
+        if (!this.apiName() && data['apiName']) this.apiName.set(data['apiName']);
+        if (!this.dialogComponent()) this.dialogComponent.set(data['dialogComponent'] ?? TableEdit);
         this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.handleQueryParams(params));
     }
 
@@ -39,7 +49,7 @@ export class TableList extends BaseView implements OnInit {
         }
         if (confirm('Are you sure you want to delete this record?')) {
             const keyFilter = this.getKeyFilters(record);
-            this.backendService.delete(this.apiName, keyFilter).subscribe({
+            this.backendService.delete(this.apiName(), keyFilter).subscribe({
                 next: () => this.fetchRecords(),
                 error: (err) => console.error('Delete failed', err),
             });
@@ -56,7 +66,7 @@ export class TableList extends BaseView implements OnInit {
             return;
         }
         if (confirm('Are you sure you want to save this record?')) {
-            this.backendService.post(this.apiName, result).subscribe({
+            this.backendService.post(this.apiName(), result).subscribe({
                 next: () => this.fetchRecords(),
                 error: (err) => console.error('Save failed', err),
             });
@@ -68,7 +78,7 @@ export class TableList extends BaseView implements OnInit {
             alert('Missing authorization to read records');
             return;
         }
-        this.backendService.list<{[key: string]: any}>(this.apiName, this.searchTerms).subscribe({
+        this.backendService.list<{[key: string]: any}>(this.apiName(), this.searchTerms).subscribe({
             next: (records) => {
                 this.records = records;
                 this.updateDisplayedColumns(records);

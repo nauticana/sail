@@ -6,14 +6,14 @@
             {{ getCaption() }} Details
         }
     </span>
-    <button mat-icon-button type="button" (click)="onCancel()" aria-label="Close dialog" class="table-form-close">
+    <button matIconButton type="button" (click)="onCancel()" aria-label="Close dialog" class="table-form-close">
         <mat-icon>close</mat-icon>
     </button>
 </h1>
 <div mat-dialog-content>
-    <record-form [tableName]="tableName" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></record-form>
+    <record-form [tableName]="tableName()" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></record-form>
 </div>
 <div mat-dialog-actions align="end">
-    <button mat-raised-button class="primary" type="submit" (click)="onSave()">Save</button>
-    <button mat-button type="button" (click)="onCancel()">Cancel</button>
+    <button matButton="elevated" class="primary" type="submit" (click)="onSave()">Save</button>
+    <button matButton type="button" (click)="onCancel()">Cancel</button>
 </div>

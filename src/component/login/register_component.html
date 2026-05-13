@@ -120,7 +120,7 @@
         <div class="geocode-status geocode-error" role="alert">{{ registerError() }}</div>
       }
 
-      <button mat-raised-button class="primary" type="submit"
+      <button matButton="elevated" class="primary" type="submit"
         [disabled]="!registerForm.valid || geocodeStatus() !== 'success'">
         Create Account
       </button>

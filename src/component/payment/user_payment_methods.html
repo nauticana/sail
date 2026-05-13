@@ -1,0 +1,46 @@
+<div class="user-payment-methods">
+  <h2 class="user-payment-methods__title">{{ title() }}</h2>
+
+  @if (showAdd()) {
+    <button matButton="elevated"
+            class="user-payment-methods__add accent"
+            (click)="addClicked.emit()">
+      <mat-icon>add</mat-icon> {{ addLabel() }}
+    </button>
+  }
+
+  @if (methods().length === 0 && !loading()) {
+    <p class="user-payment-methods__empty">{{ emptyLabel() }}</p>
+  }
+
+  @for (m of methods(); track m.Id) {
+    <mat-card class="user-payment-methods__item">
+      <mat-card-content>
+        <div class="user-payment-methods__row">
+          <div class="user-payment-methods__info">
+            <mat-icon>{{ iconFor(m) }}</mat-icon>
+            <span class="user-payment-methods__brand">{{ m.Brand || m.MethodType }}</span>
+            @if (m.LastFour) {
+              <span class="user-payment-methods__last4">•••• {{ m.LastFour }}</span>
+            }
+            @if (m.IsDefault) {
+              <span class="user-payment-methods__default">Default</span>
+            }
+          </div>
+          <div class="user-payment-methods__actions">
+            @if (!m.IsDefault) {
+              <button matButton (click)="setDefault(m)">Set default</button>
+            }
+            <button matIconButton (click)="remove(m)" aria-label="Delete payment method">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (errorMsg()) {
+    <p class="user-payment-methods__error">{{ errorMsg() }}</p>
+  }
+</div>

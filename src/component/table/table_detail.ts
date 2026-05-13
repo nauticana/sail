@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, Input, input, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, input, OnInit, ViewEncapsulation } from "@angular/core";
 import { DynamicField } from "../form/form_field";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseForm } from "../abstract/base_form";
@@ -20,13 +20,14 @@ import { TableAction } from "../../model/appdata";
     ],
 })
 export class TableDetail extends BaseForm implements OnInit {
-    @Input() override tableName = '';
-    @Input() records: any[] = [];
+    readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly recordsInput = input<any[]>([], { alias: 'records' });
     readonly parentTableName = input('');
     readonly parentRecord = input<any>({});
     /** When true, the parent view is in read-only mode — disable all child row editing. */
     readonly parentReadOnly = input(false);
 
+    records: any[] = [];
     editingRecord: any = null;
     originalRecord: any = null;
     displayedColumns: string[] = [];
@@ -34,6 +35,12 @@ export class TableDetail extends BaseForm implements OnInit {
 
     private readonly dialog = inject(MatDialog);
     private readonly backendService = inject(BackendService);
+
+    constructor() {
+        super();
+        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
+        effect(() => { this.records = this.recordsInput(); });
+    }
 
     /**
      * Fire a TableAction. Per-row actions require the record to be

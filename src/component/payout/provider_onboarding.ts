@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,78 +26,7 @@ import { ReusableAccount } from '../../model/appdata';
   selector: 'sail-payout-provider-onboarding',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatButtonModule, MatCardModule, MatIconModule, MatRadioModule],
-  template: `
-    <div class="payout-onboarding">
-      <h2 class="payout-onboarding__title">{{ title }}</h2>
-
-      <p class="payout-onboarding__intro">
-        Bank routing details are collected by the payout provider, not
-        this application. After this step the provider will run KYC and
-        notify us when the account is ready for payouts.
-      </p>
-
-      @if (reusable().length > 0) {
-        <mat-card class="reuse-card">
-          <mat-card-header>
-            <mat-card-title>Reuse an existing account</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p class="hint">
-              You already have a payout account on
-              {{ reusable().length === 1 ? 'another partner' : 'other partners' }}.
-              You can reuse it here (no KYC redo) if the currency matches.
-            </p>
-            <mat-radio-group [value]="selectedAccountId()" (change)="selectAccount($any($event.value))">
-              @for (acc of reusable(); track acc.providerAccountId) {
-                <mat-radio-button [value]="acc.providerAccountId" class="reuse-option">
-                  <strong>{{ acc.partnerCaption }}</strong>
-                  — {{ acc.countryCode }} / {{ acc.currency }} ({{ acc.provider }})
-                </mat-radio-button>
-              }
-            </mat-radio-group>
-            <button mat-flat-button class="payout-onboarding__btn payout-onboarding__btn--primary"
-                    [disabled]="!selectedAccountId() || busy()"
-                    (click)="linkExisting()">
-              Use this account
-            </button>
-          </mat-card-content>
-        </mat-card>
-      }
-
-      <mat-card>
-        <mat-card-header>
-          <mat-card-title>Set up a new account</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p class="hint">
-            Opens the provider's secure onboarding page. You'll be asked
-            for bank routing details and government ID. The process
-            usually takes a few minutes.
-          </p>
-          @if (errorMsg()) {
-            <p class="payout-onboarding__error">{{ errorMsg() }}</p>
-          }
-          <button mat-flat-button class="payout-onboarding__btn payout-onboarding__btn--primary"
-                  [disabled]="busy()"
-                  (click)="startProviderKyc()">
-            <mat-icon>open_in_new</mat-icon>
-            Start onboarding
-          </button>
-        </mat-card-content>
-      </mat-card>
-
-      <div class="payout-onboarding__nav">
-        @if (showBack) {
-          <button mat-stroked-button class="payout-onboarding__btn" type="button" (click)="back.emit()">
-            &lt; Back
-          </button>
-        }
-        <button mat-stroked-button class="payout-onboarding__btn" type="button" (click)="skipped.emit()">
-          {{ skipLabel }}
-        </button>
-      </div>
-    </div>
-  `,
+  templateUrl: './provider_onboarding.html',
   styles: `
     .payout-onboarding { display: flex; flex-direction: column; gap: 16px; padding: 0 24px 32px; }
     .payout-onboarding__title { margin: 0; }
@@ -113,20 +42,20 @@ import { ReusableAccount } from '../../model/appdata';
 })
 export class PayoutProviderOnboardingComponent implements OnInit {
   /** Step title — defaults match the most common payout-step framing. */
-  @Input() title = 'Bank Account Setup';
+  readonly title = input('Bank Account Setup');
   /** Skip-button label — covers wizards where skipping returns to the parent flow. */
-  @Input() skipLabel = "I'll do this later";
+  readonly skipLabel = input("I'll do this later");
   /** When true, the back button renders alongside skip. */
-  @Input() showBack = true;
+  readonly showBack = input(true);
 
   /** Emitted after a successful reuse-link operation. */
-  @Output() linked = new EventEmitter<void>();
+  readonly linked = output<void>();
   /** Emitted when the user dismisses the step (skip). */
-  @Output() skipped = new EventEmitter<void>();
+  readonly skipped = output<void>();
   /** Emitted when the user clicks Back. */
-  @Output() back = new EventEmitter<void>();
+  readonly back = output<void>();
   /** Emitted after the hosted page is opened in a new tab. Consumers can route away or show a "waiting on provider" screen. */
-  @Output() started = new EventEmitter<void>();
+  readonly started = output<void>();
 
   private readonly payoutService = inject(PayoutService);
 

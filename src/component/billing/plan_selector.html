@@ -13,7 +13,7 @@
           }
         </ul>
       }
-      <button mat-raised-button class="primary" type="button" (click)="onSelect(plan.id)">
+      <button matButton="elevated" class="primary" type="button" (click)="onSelect(plan.id)">
         @if (plan.id === selected()) { Selected } @else { Choose }
       </button>
     </div>

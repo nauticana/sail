@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, Input, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, OnInit, signal, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { ActivatedRoute, Router } from "@angular/router";
@@ -20,10 +20,19 @@ import { BackendService } from "../../service/rest_service";
     ],
 })
 export class TableSearch extends BaseForm implements OnInit {
-    @Input() override tableName = '';
-    @Input() apiName: string = '';
-    @Input() targetRoute: string = '';
+    readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly apiNameInput = input('', { alias: 'apiName' });
+    readonly targetRouteInput = input('', { alias: 'targetRoute' });
+    readonly apiName = signal('');
+    readonly targetRoute = signal('');
     searchColumns: string[] = [];
+
+    constructor() {
+        super();
+        effect(() => { const v = this.tableNameInput();  if (v) this.tableName.set(v); });
+        effect(() => { const v = this.apiNameInput();    if (v) this.apiName.set(v); });
+        effect(() => { const v = this.targetRouteInput();if (v) this.targetRoute.set(v); });
+    }
 
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
@@ -52,21 +61,23 @@ export class TableSearch extends BaseForm implements OnInit {
 
     ngOnInit() {
         const data = this.route.snapshot.data;
-        if (!this.tableName && data['tableName']) this.tableName = data['tableName'];
-        if (!this.apiName && data['apiName']) this.apiName = data['apiName'];
-        if (!this.targetRoute && data['targetRoute']) this.targetRoute = data['targetRoute'];
+        if (!this.tableName() && data['tableName']) this.tableName.set(data['tableName']);
+        if (!this.apiName() && data['apiName']) this.apiName.set(data['apiName']);
+        if (!this.targetRoute() && data['targetRoute']) this.targetRoute.set(data['targetRoute']);
         this.title = this.getCaption() + ' Search';
-        if (!this.targetRoute && (this.apiName || this.tableName)) {
+        if (!this.targetRoute() && (this.apiName() || this.tableName())) {
             this.cacheService.getMenus().subscribe((menus: ApplicationMenu[]) => {
+                const apiName = this.apiName();
+                const tableName = this.tableName();
                 for (const menu of menus) {
                     for (const page of menu.ApplicationMenuItems!) {
-                        if (this.apiName.endsWith(page.RestUri!) ||
-                            (this.tableName && page.RestUri!.includes(this.tableName))
+                        if (apiName.endsWith(page.RestUri!) ||
+                            (tableName && page.RestUri!.includes(tableName))
                         ) {
                             if (page.FilterOnList) {
-                                this.targetRoute = '/' + menu.Id!.toLowerCase() + '/' + page.ItemId!;
+                                this.targetRoute.set('/' + menu.Id!.toLowerCase() + '/' + page.ItemId!);
                             } else {
-                                this.targetRoute = '/' + menu.Id!.toLowerCase() + '/' + page.ItemId! + '/list';
+                                this.targetRoute.set('/' + menu.Id!.toLowerCase() + '/' + page.ItemId! + '/list');
                             }
                             this.cdr.markForCheck();
                             return;
@@ -80,11 +91,12 @@ export class TableSearch extends BaseForm implements OnInit {
     }
 
     onSearch() {
-        if (!this.targetRoute) {
+        const targetRoute = this.targetRoute();
+        if (!targetRoute) {
             alert('Navigation target not found for this table');
             return;
         }
-        this.router.navigate([this.targetRoute], {queryParams: this.buildSearchTerms(this.editableRecord)});
+        this.router.navigate([targetRoute], {queryParams: this.buildSearchTerms(this.editableRecord)});
     }
 
     onClear() {
@@ -106,7 +118,7 @@ export class TableSearch extends BaseForm implements OnInit {
      */
     private emptySearchRecord(): any {
         const rec = this.emptyRecord();
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         if (tableDef?.Columns) {
             for (const col of tableDef.Columns) {
                 if (col.DataType === 'boolean') {
@@ -122,10 +134,11 @@ export class TableSearch extends BaseForm implements OnInit {
             alert('Missing authorization to create records');
             return;
         }
-        if (!this.targetRoute) {
+        const targetRoute = this.targetRoute();
+        if (!targetRoute) {
             alert('Navigation target not found for this table');
             return;
         }
-        this.router.navigate([this.targetRoute], {queryParams: {'_action': 'create'}});
+        this.router.navigate([targetRoute], {queryParams: {'_action': 'create'}});
     }
 }

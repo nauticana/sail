@@ -23,7 +23,7 @@
         <textarea matInput rows="3" formControlName="reason"></textarea>
       </mat-form-field>
 
-      <button mat-raised-button class="warn" type="submit" [disabled]="!canSubmit()">
+      <button matButton="elevated" class="warn" type="submit" [disabled]="!canSubmit()">
         @if (loading()) { Deleting… } @else { Permanently delete account }
       </button>
 

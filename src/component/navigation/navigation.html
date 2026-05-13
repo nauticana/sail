@@ -29,7 +29,7 @@
     <mat-sidenav-content>
         <mat-toolbar class="primary">
             @if (isHandset()) {
-                <button type="button" aria-label="Toggle sidenav" mat-icon-button (click)="sidenav.toggle()">
+                <button type="button" aria-label="Toggle sidenav" matIconButton (click)="sidenav.toggle()">
                     <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
                 </button>
             }
@@ -37,10 +37,10 @@
             <span class="toolbar-spacer"></span>
             <ng-content select="[toolbar-actions]"></ng-content>
             @if (isLoggedIn()) {
-                <button mat-button (click)="logout()">Logout</button>
+                <button matButton (click)="logout()">Logout</button>
             } @else if (guiConfig.publicRouteLinks) {
                 @for (link of guiConfig.publicRouteLinks; track link.routerLink) {
-                    <a mat-button [routerLink]="link.routerLink">{{ link.label }}</a>
+                    <a matButton [routerLink]="link.routerLink">{{ link.label }}</a>
                 }
             }
         </mat-toolbar>

@@ -2,11 +2,11 @@
 
 <div class="table-list__toolbar">
     @if (canCreate()) {
-        <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
+        <button matButton="elevated" class="accent" (click)="addRecord()">New Record</button>
     }
     @for (action of getActions(false); track action.action) {
         @if (canExecuteAction(action)) {
-            <button mat-stroked-button type="button"
+            <button matButton="outlined" type="button"
                     [title]="action.caption"
                     (click)="executeAction(action)">
                 @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
@@ -37,11 +37,11 @@
             } @else if (column !== 'actions') {
                 {{ displayValue(column, record[column]) }}
             } @else {
-                <button mat-icon-button type="button" (click)="editRecord(record)" title="Edit"><mat-icon>edit</mat-icon></button>
-                <button mat-icon-button type="button" (click)="deleteRecord(record)" title="Delete"><mat-icon>delete</mat-icon></button>
+                <button matIconButton type="button" (click)="editRecord(record)" title="Edit"><mat-icon>edit</mat-icon></button>
+                <button matIconButton type="button" (click)="deleteRecord(record)" title="Delete"><mat-icon>delete</mat-icon></button>
                 @for (action of getActions(true); track action.action) {
                     @if (canExecuteAction(action)) {
-                        <button mat-icon-button type="button"
+                        <button matIconButton type="button"
                                 [title]="action.caption"
                                 (click)="executeAction(action, record)">
                             <mat-icon>{{ action.icon || 'play_arrow' }}</mat-icon>

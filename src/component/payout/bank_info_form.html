@@ -1,0 +1,59 @@
+<div class="bank-info-form">
+  <h2 class="bank-info-form__title">{{ title() }}</h2>
+
+  @if (intro()) {
+    <p class="bank-info-form__intro">{{ intro() }}</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Country *</mat-label>
+      <mat-select formControlName="countryCode">
+        @for (c of countryProfiles(); track c.code) {
+          <mat-option [value]="c.code">{{ c.label }} ({{ c.currency }})</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <p class="hint">Sets your tax ID format + payout currency</p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Account holder name *</mat-label>
+      <input matInput formControlName="accountHolderName">
+    </mat-form-field>
+    <p class="hint">Legal name on the bank account (must match government ID)</p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ taxIdLabel() }} *</mat-label>
+      <input matInput formControlName="taxId" [placeholder]="taxIdPlaceholder()">
+    </mat-form-field>
+    <p class="hint">{{ taxIdHint() }}</p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Billing address *</mat-label>
+      <input matInput formControlName="billingAddress">
+    </mat-form-field>
+    <p class="hint">Business or home address — used for tax correspondence</p>
+
+    <p class="provider-note">
+      Bank routing details (account number + institution / ABA /
+      IBAN) are collected by the payout provider in the next step;
+      this application does not store them.
+    </p>
+
+    <mat-checkbox formControlName="providerAgreement" class="agreement">
+      {{ agreementLabel() }}
+    </mat-checkbox>
+
+    <div class="nav-buttons">
+      @if (showBack()) {
+        <button matButton="outlined" class="pill-btn" type="button" (click)="back.emit()">
+          &lt; Back
+        </button>
+      }
+      <button matButton="filled" class="pill-btn primary-btn" type="submit"
+              [disabled]="form.invalid">
+        {{ submitLabel() }}
+      </button>
+    </div>
+  </form>
+</div>

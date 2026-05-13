@@ -1,0 +1,70 @@
+<div class="payout-onboarding">
+  <h2 class="payout-onboarding__title">{{ title() }}</h2>
+
+  <p class="payout-onboarding__intro">
+    Bank routing details are collected by the payout provider, not
+    this application. After this step the provider will run KYC and
+    notify us when the account is ready for payouts.
+  </p>
+
+  @if (reusable().length > 0) {
+    <mat-card class="reuse-card">
+      <mat-card-header>
+        <mat-card-title>Reuse an existing account</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p class="hint">
+          You already have a payout account on
+          {{ reusable().length === 1 ? 'another partner' : 'other partners' }}.
+          You can reuse it here (no KYC redo) if the currency matches.
+        </p>
+        <mat-radio-group [value]="selectedAccountId()" (change)="selectAccount($any($event.value))">
+          @for (acc of reusable(); track acc.providerAccountId) {
+            <mat-radio-button [value]="acc.providerAccountId" class="reuse-option">
+              <strong>{{ acc.partnerCaption }}</strong>
+              — {{ acc.countryCode }} / {{ acc.currency }} ({{ acc.provider }})
+            </mat-radio-button>
+          }
+        </mat-radio-group>
+        <button matButton="filled" class="payout-onboarding__btn payout-onboarding__btn--primary"
+                [disabled]="!selectedAccountId() || busy()"
+                (click)="linkExisting()">
+          Use this account
+        </button>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Set up a new account</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="hint">
+        Opens the provider's secure onboarding page. You'll be asked
+        for bank routing details and government ID. The process
+        usually takes a few minutes.
+      </p>
+      @if (errorMsg()) {
+        <p class="payout-onboarding__error">{{ errorMsg() }}</p>
+      }
+      <button matButton="filled" class="payout-onboarding__btn payout-onboarding__btn--primary"
+              [disabled]="busy()"
+              (click)="startProviderKyc()">
+        <mat-icon>open_in_new</mat-icon>
+        Start onboarding
+      </button>
+    </mat-card-content>
+  </mat-card>
+
+  <div class="payout-onboarding__nav">
+    @if (showBack()) {
+      <button matButton="outlined" class="payout-onboarding__btn" type="button" (click)="back.emit()">
+        &lt; Back
+      </button>
+    }
+    <button matButton="outlined" class="payout-onboarding__btn" type="button" (click)="skipped.emit()">
+      {{ skipLabel() }}
+    </button>
+  </div>
+</div>

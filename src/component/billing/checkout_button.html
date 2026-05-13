@@ -1,5 +1,5 @@
 <div class="checkout-button">
-  <button mat-raised-button class="primary" type="button"
+  <button matButton="elevated" class="primary" type="button"
           [disabled]="loading()"
           (click)="startCheckout()">
     @if (loading()) { Starting checkout… } @else { {{ label() }} }

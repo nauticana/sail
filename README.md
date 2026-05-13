@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail **v0.5.x** targets keel **v0.5.x**. The two libraries are versioned in lock-step.
+> **Compatibility:** sail and keel are versioned in lock-step. Use **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400.
 
 ## What it provides
 
@@ -739,3 +739,302 @@ Type errors after upgrade fall into two buckets:
 ### 8. Backend alignment
 
 This library only talks to keel **v0.5.x**. Older keel servers will reject the `otpToken` field on verify with HTTP 400. Upgrade keel and sail together. See [keel/README.md → Migration Guide](https://github.com/nauticana/keel/blob/main/README.md) for the matching backend changes.
+
+## Migrating to v0.7.0 — payout, user payment methods, table actions
+
+The v0.6 / v0.7 line introduced three additive feature groups against keel v0.7.x. All net-new exports; no breaking changes from v0.5.x. Pull what you need.
+
+| Version | Surface |
+|---|---|
+| **v0.6.0** | Payout onboarding (KYC) + multi-partner account reuse |
+| **v0.6.1** | End-user saved payment methods (cards / wallets) |
+| **v0.7.0** | `TableAction` — backend-defined custom buttons on table screens |
+
+### 1. New exports
+
+| From | Export | Purpose |
+|---|---|---|
+| `@nauticana/sail` | `PayoutService` | keel/payout API client — hosted-KYC launch, reuse flow, status |
+| `@nauticana/sail` | `PayoutProviderOnboardingComponent` (`<sail-payout-provider-onboarding>`) | Drop-in onboarding step with reuse picker + hosted-KYC launcher |
+| `@nauticana/sail` | `PayoutBankInfoFormComponent` (`<sail-payout-bank-info-form>`) | Tax + payout details form (country / currency / tax ID / billing address / agreement) |
+| `@nauticana/sail` | `UserPaymentMethodService` | Saved-card list / delete / set-default API client |
+| `@nauticana/sail` | `UserPaymentMethodsComponent` (`<sail-user-payment-methods>`) | List of saved cards/wallets with set-default + delete |
+| `@nauticana/sail` | `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `UserPaymentMethod`, `DEFAULT_COUNTRY_PROFILES` | Model types / defaults |
+
+### 2. New keel endpoints
+
+Make sure your keel deployment exposes these — they're all under `/api/v1/`:
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/v1/payout/onboard/start` | POST | Open hosted-KYC; returns `{ url, externalAccountId, expiresAt }` |
+| `/api/v1/payout/reusable` | POST | List provider accounts the user has on other partners |
+| `/api/v1/payout/reusable/link` | POST | Copy a `providerAccountId` onto the active partner's `user_bank_info` row |
+| `/api/v1/payout/status` | POST | `{ complete: true }` once the active partner's row has a `providerAccountId` |
+| `/api/v1/payment-methods/set-default` | POST | Atomic multi-row UPDATE — sets one row as default, clears the rest |
+| `/api/v1/{table}/{action_name}` | POST | Per-table custom actions resolved from `basis.table_action` |
+
+`list` / `delete` for the `user_payment_method` table go through keel's generic REST CRUD (`/api/v1/user_payment_method/list|delete`) — `user_payment_method` is a UserSpecific basis table, so keel auto-scopes reads to the caller and owner-locks DELETE. No custom endpoint needed for those two.
+
+### 3. Payout onboarding wiring
+
+Drop the two components into a wizard step. Routing between them stays in the consumer app — sail emits events, doesn't navigate.
+
+```html
+@switch (step()) {
+  @case ('bank') {
+    <sail-payout-bank-info-form
+        (submitted)="onBankInfo($event)"
+        (back)="step.set('plan')">
+    </sail-payout-bank-info-form>
+  }
+  @case ('provider') {
+    <sail-payout-provider-onboarding
+        (linked)="step.set('done')"
+        (started)="step.set('waiting')"
+        (skipped)="step.set('done')"
+        (back)="step.set('bank')">
+    </sail-payout-provider-onboarding>
+  }
+}
+```
+
+`BankInfoFormValue` maps 1:1 to `basis.user_bank_info` columns. The consumer decides where to POST it — typically a direct generic-CRUD insert against `/api/v1/user_bank_info`. The provider account itself is created by `<sail-payout-provider-onboarding>` via `PayoutService.startOnboarding()` → hosted KYC → webhook back to keel.
+
+For apps that operate on a single keel partner, the reuse picker stays empty and only the "Start onboarding" CTA renders. Multi-partner apps get the picker for free.
+
+### 4. Saved payment methods wiring
+
+```html
+<sail-user-payment-methods
+    [title]="'Payment Methods'"
+    (addClicked)="goToSetupIntent()"
+    (defaultChanged)="onDefaultChanged($event)"
+    (deleted)="onDeleted($event)">
+</sail-user-payment-methods>
+```
+
+`(addClicked)` is the only event you must wire — sail intentionally does **not** ship a SetupIntent UI (providers differ too much; consumer flows them through Stripe Elements / Apple Pay / Google Pay / etc.). Listen for the event and route to your own SetupIntent screen.
+
+### 5. TableAction — backend-defined per-table actions
+
+v0.7.0 surfaces a new `TableAction` channel: keel's REST engine ships per-table action buttons from `basis.table_action`. The shipped `TableList`, `TableSearch`, `TableEdit`, and `TableDetail` templates render these automatically (toolbar for table-level actions, per-row icon buttons for record-specific ones). Authorization gating mirrors `canRead`/`canCreate` etc. — `canExecuteAction(action)` is checked against `(authorityObject, authorityCheck, table_name)`.
+
+For your own components that subclass `BaseView` / `BaseForm`, expose the same buttons in your templates:
+
+```html
+@for (action of getActions(false); track action.action) {
+  @if (canExecuteAction(action)) {
+    <button matButton="outlined" type="button"
+            [title]="action.caption"
+            (click)="executeAction(action)">
+      @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
+      {{ action.caption }}
+    </button>
+  }
+}
+
+@for (action of getActions(true); track action.action) {
+  @if (canExecuteAction(action)) {
+    <button matIconButton type="button"
+            [title]="action.caption"
+            (click)="executeAction(action, record)">
+      <mat-icon>{{ action.icon || 'play_arrow' }}</mat-icon>
+    </button>
+  }
+}
+```
+
+`executeAction()` is provided by sail's table components (it POSTs the row's primary-key columns to `action.method`). If you wrote your own subclass and want the same behaviour, inject `BackendService` and call `backendService.executeAction(action.method, body)`. The `body` is `{}` for table-level actions and the row PK (via `primaryKeyValues(record)`) for record-specific ones.
+
+### 6. Backend alignment
+
+v0.6 / v0.7 require keel **v0.7.x**. The earlier `keel v0.5.x` server doesn't expose `/api/v1/payout/*`, `/api/v1/payment-methods/set-default`, or the `basis.table_action` seed data. Upgrade keel and sail together.
+
+## Migrating to v0.8.0 — signal-driven modernization
+
+v0.8.0 finishes the Angular-signals migration that v0.5–v0.7 started incrementally. Every `@Input()` / `@Output()` decorator, `EventEmitter`, plain-field-on-`BaseTable` access, and legacy Material M2 button selector is gone. Downstream code that extends sail's abstract classes or copies its template patterns will need the steps below — there is no shim.
+
+The TS-side core peer requirements bump with this release:
+
+| | v0.7.x | v0.8.x |
+|---|---|---|
+| Angular | `^21.0.0` | `^21.2.0` |
+| TypeScript | `~5.9.2` | `~6.0.3` |
+
+### 1. `BaseTable.tableName` is now a `WritableSignal<string>`
+
+The single highest-impact change. Before:
+
+```typescript
+// BaseTable
+tableName = '';
+
+// Subclass
+@Input() override tableName = '';
+
+// In your code
+if (this.tableName === 'orders') { ... }
+this.tableName = 'orders';
+
+// In your template
+[tableName]="tableName"
+{{ tableName }}
+```
+
+After:
+
+```typescript
+// BaseTable
+readonly tableName: WritableSignal<string> = signal('');
+
+// In your code
+if (this.tableName() === 'orders') { ... }
+this.tableName.set('orders');
+
+// In your template
+[tableName]="tableName()"
+{{ tableName() }}
+```
+
+If your subclass exposes `tableName` as a route/parent input, declare an aliased `input()` and sync it into the inherited signal in the constructor:
+
+```typescript
+import { effect, input } from '@angular/core';
+
+export class YourTableComponent extends BaseForm {
+  readonly tableNameInput = input('', { alias: 'tableName' });
+
+  constructor() {
+    super();
+    effect(() => {
+      const v = this.tableNameInput();
+      if (v) this.tableName.set(v);
+    });
+  }
+
+  ngOnInit() {
+    // Route-data fallback now uses .set(), not assignment:
+    if (!this.tableName() && data['tableName']) this.tableName.set(data['tableName']);
+  }
+}
+```
+
+### 2. `BaseView.apiName` and `BaseView.dialogComponent` are signals too
+
+Same migration path as `tableName`. The TableList/TableLookup pattern in v0.5–v0.7 read these as plain strings and assigned in `ngOnInit`; they are now `WritableSignal<string>` / `WritableSignal<any>`. Update subclass code:
+
+```diff
+- if (!this.apiName && data['apiName']) this.apiName = data['apiName'];
+- this.backendService.list<MyRow>(this.apiName, terms).subscribe(...);
++ if (!this.apiName() && data['apiName']) this.apiName.set(data['apiName']);
++ this.backendService.list<MyRow>(this.apiName(), terms).subscribe(...);
+```
+
+If you bind `[apiName]` / `[dialogComponent]` on a sail subclass from a parent template, declare aliased inputs and sync via `effect()`, exactly like `tableNameInput` above.
+
+### 3. `@Input()` / `@Output()` → `input()` / `output()`
+
+Every decorator-based input/output across sail is now signal-based. Update your own components to match. The signal-input requires calling the field as a function inside the class and in templates.
+
+```diff
+- @Input() title = 'Payments';
+- @Output() saved = new EventEmitter<Payment>();
++ readonly title = input('Payments');
++ readonly saved = output<Payment>();
+
+  // class body
+- this.title           // string
+- this.saved.emit(p);
++ this.title()         // string (signal read)
++ this.saved.emit(p);  // unchanged
+
+  // template
+- {{ title }}
++ {{ title() }}
+```
+
+`EventEmitter` is no longer imported from `@angular/core` in sail; outputs created with `output<T>()` are returned as `OutputEmitterRef<T>` with the same `.emit(v)` API.
+
+For inputs whose **parent value can change at runtime** and you also want a local writable copy (the old "default value, then override in `ngOnInit`" pattern), use the alias + effect template above. If you only need the parent value reactively, just call `this.foo()` everywhere.
+
+### 4. Inline component templates moved to sibling `.html`
+
+`UserPaymentMethodsComponent`, `PayoutBankInfoFormComponent`, and `PayoutProviderOnboardingComponent` no longer ship inline `template:` strings — they reference `templateUrl: './*.html'` in the same folder. The compiled output is identical; downstream consumers that just import the component classes need no change. If you have a fork that edits these templates inline, port your edits into the new `.html` files.
+
+### 5. Clean install + recompile
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+ng build
+```
+
+Type errors after the upgrade fall into four buckets:
+
+- **`This expression is not callable. Type 'String' has no call signatures.`** — a template still reads `tableName` / `apiName` as a plain field. Add `()`. See step 1.
+- **`Cannot assign to 'tableName' because it is a read-only property.`** — a subclass declared `readonly tableName = input('')`, conflicting with the inherited writable signal. Use the `tableNameInput = input('', { alias: 'tableName' })` + `effect()` pattern from step 1 instead.
+- **`Property 'X' does not exist on type 'EventEmitter<T>'.`** — you still import `EventEmitter`. Replace the field with `output<T>()` per step 3.
+- **`'@Input' is deprecated`** / Angular language-service squiggles on decorators — step 3.
+
+## Modernization items
+
+When you extend sail in your own app, apply the same patterns sail itself follows. Downstream projects that copied templates or scaffolding from earlier sail versions will benefit from the same sweep. This list is a checklist — none are sail-specific.
+
+### Templates
+
+- **Native control flow.** Use `@if` / `@for` / `@switch` / `@let` blocks. `*ngIf`, `*ngFor`, `*ngSwitch` are legacy.
+- **Bindings, not directives, for class / style.** `[class.foo]="cond"`, `[style.width.px]="n"` — don't use `ngClass` / `ngStyle`.
+- **Material 21 M3 button selectors.** See step 5 above. `mat-raised-button` / `mat-stroked-button` etc. work but are not the current API.
+- **No `color="primary|accent|warn"` on Material components.** Use the `.primary` / `.accent` / `.warn` global CSS classes.
+- **Template spread inside expressions** (Angular 21). When you have a TS helper that only exists to merge objects for a binding, fold it into the template: `[config]="{ ...base, label: 'Override' }"`, `[items]="[...defaults, ...extra]"`, `[out]="fn(...args)"`. (Note: only valid inside array literals, object literals, or call expressions — there is no JSX-style host-attribute spread.)
+- **No structural directive on the same element as a component selector.** Already enforced by native control flow.
+
+### Components and directives
+
+- **Signal-based inputs/outputs.** `input()` / `output()` instead of `@Input()` / `@Output()`. Read as `this.x()` / `{{ x() }}`.
+- **`model()` for two-way bindings.** When the parent needs `[(value)]` binding semantics, declare `value = model('')` rather than rolling your own `@Output() valueChange`.
+- **`inject()` for dependencies.** No constructor parameter injection. Field-level `inject(Token)` keeps the constructor zero-arg and lets the class be subclassed without parameter forwarding.
+- **`ChangeDetectionStrategy.OnPush` on every component.** Signal-based code is fully compatible with OnPush; without it, change detection still runs needlessly.
+- **`host: { ... }` metadata, not `@HostBinding` / `@HostListener`.** Same effect, no decorators.
+- **Omit `standalone: true`.** It's the default in Angular v20+. Setting it explicitly is noise.
+- **Move HTML and styles to sibling files** when they grow past a few lines (`templateUrl: './*.html'`, `styleUrl: './*.scss'` or `styles: '...'`).
+
+### State and reactivity
+
+- **`signal()` for component state**, `computed()` for derived state, `effect()` for side effects that depend on signals. Don't roll your own `BehaviorSubject` for local UI state.
+- **`linkedSignal()`** for "use this input value by default, but allow local override" patterns.
+- **`takeUntilDestroyed()`** on long-lived observables (`valueChanges`, `route.queryParams`, `route.paramMap`, custom intervals). One-shot HTTP requests can skip it, but `valueChanges` and route streams must have it. Call it in a constructor or other injection context.
+- **`toSignal()`** for converting an `Observable<T>` into a signal at component boundaries — useful for `BillingService.listPlans()` and similar one-shots you read in templates.
+- **No `mutate()` on signals** — it was removed. Use `update(fn)` or `set(newValue)`.
+
+### Router
+
+- **Standalone `isActive(url, router, options?)` function** from `@angular/router`. Returns `Signal<boolean>`. `Router.prototype.isActive(...)` was `@deprecated` in Angular 21.1.
+- **`provideRouter([...])` for bootstrap.** No `RouterModule.forRoot`.
+- **Component input binding** for route params: enable `withComponentInputBinding()` and declare `id = input.required<string>()` on the routed component — drops the `ActivatedRoute` injection.
+
+### HTTP
+
+- **`provideHttpClient(withInterceptors([...]))`.** No `HttpClientModule`.
+- **Functional interceptors**, not class-based — sail's `authInterceptor` and `apiResponseInterceptor` are already functional; follow the same shape for your own.
+
+### Forms
+
+- **Reactive forms over template-driven.** sail uses `FormGroup` / `FormBuilder` throughout.
+- **`fb.nonNullable.group({...})`** for strict typing. Avoids `string | null` everywhere.
+
+### Bootstrap
+
+- **`bootstrapApplication()` with standalone components.** No `@NgModule`, no `AppModule`.
+- **`provideZonelessChangeDetection()`** — Angular 21's default. sail's components are signal-based and zoneless-safe.
+
+### Images
+
+- **`NgOptimizedImage`** for static `<img>` with known dimensions. **Exception:** base64 / data URIs aren't supported by `NgOptimizedImage` — use a plain `<img>` for those (the 2FA QR code in `TwoFactorSetupComponent` is the canonical case).
+
+### Tooling
+
+- **TypeScript `~6.0.3`** — within Angular 21.2's `>=5.9 <6.1` peer range. Bump from `~5.9.x`.
+- **`@angular/*` `^21.2.0`** for the matching set: core, common, compiler, forms, router, cdk, material.
+- **`npm update`** periodically to pull patch releases within the caret range.

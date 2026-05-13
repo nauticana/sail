@@ -1,13 +1,12 @@
-import { Directive, inject, Input } from "@angular/core";
+import { Directive, inject, signal, WritableSignal } from "@angular/core";
 import { BaseTable } from "./base_table";
 import { MatDialog } from "@angular/material/dialog";
 
 @Directive()
 export abstract class BaseView extends BaseTable {
     protected readonly dialog = inject(MatDialog);
-    @Input() override tableName = '';
-    @Input() apiName = '';
-    @Input() dialogComponent: any;
+    readonly apiName: WritableSignal<string> = signal('');
+    readonly dialogComponent: WritableSignal<any> = signal(undefined);
     records: Array<{[key: string]: any}> = [];
     displayedColumns: string[] = [];
     searchTerms: {[key: string]: string} = {};
@@ -31,7 +30,7 @@ export abstract class BaseView extends BaseTable {
     }
 
     trackByRecord(index: number, record: {[key: string]: any}): any {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName);
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
         if (!tableDef || !tableDef.Keys || tableDef.Keys.length === 0) return index;
         return tableDef.Keys.map((key) => record[key.PascalName]).join('_');
     }
@@ -49,7 +48,7 @@ export abstract class BaseView extends BaseTable {
             });
         }
 
-        const dialogRef = this.dialog.open(this.dialogComponent, {
+        const dialogRef = this.dialog.open(this.dialogComponent(), {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',
@@ -75,10 +74,11 @@ export abstract class BaseView extends BaseTable {
             return;
         }
         const dialogData = this.getDialogData(record, false);
-        if (this.apiName) {
-            dialogData['apiName'] = this.apiName;
+        const apiName = this.apiName();
+        if (apiName) {
+            dialogData['apiName'] = apiName;
         }
-        const dialogRef = this.dialog.open(this.dialogComponent, {
+        const dialogRef = this.dialog.open(this.dialogComponent(), {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',

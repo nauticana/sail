@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, Input, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, OnInit, signal, ViewEncapsulation } from "@angular/core";
 import { BaseForm } from "../abstract/base_form";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatTabsModule } from "@angular/material/tabs";
@@ -22,9 +22,11 @@ import { MatIconModule } from "@angular/material/icon";
     ]
 })
 export class TableEdit extends BaseForm implements OnInit {
-    @Input() record: any = {};
-    @Input() override tableName = '';
-    @Input() apiName = '';
+    readonly recordInput = input<any>({}, { alias: 'record' });
+    readonly tableNameInput = input('', { alias: 'tableName' });
+    readonly apiNameInput = input('', { alias: 'apiName' });
+    readonly record = signal<any>({});
+    readonly apiName = signal('');
     isReadOnlyMode = true;
     private readonly backendService = inject(BackendService);
     private readonly dialogRef = inject(MatDialogRef<TableEdit>, {optional: true});
@@ -37,11 +39,18 @@ export class TableEdit extends BaseForm implements OnInit {
     /** Snapshot taken when the user enters edit mode; used for dirty-tracking on save. */
     private originalSnapshot: any = null;
 
+    constructor() {
+        super();
+        effect(() => { const v = this.recordInput();    if (v) this.record.set(v); });
+        effect(() => { const v = this.tableNameInput(); if (v) this.tableName.set(v); });
+        effect(() => { const v = this.apiNameInput();   if (v) this.apiName.set(v); });
+    }
+
     ngOnInit(): void {
         if (this.dialogData) {
-            this.record = this.dialogData.record ?? {};
-            this.tableName = this.dialogData.tableName ?? '';
-            this.apiName = this.dialogData.apiName ?? '';
+            this.record.set(this.dialogData.record ?? {});
+            this.tableName.set(this.dialogData.tableName ?? '');
+            this.apiName.set(this.dialogData.apiName ?? '');
             this.isNew = this.dialogData.isNew ?? false;
             this.isReadOnlyMode = !this.isNew;
         }
@@ -55,7 +64,8 @@ export class TableEdit extends BaseForm implements OnInit {
 
     private initializeNewRecord() {
         this.editableRecord = this.emptyRecord();
-        if (this.record) Object.assign(this.editableRecord, this.record);
+        const rec = this.record();
+        if (rec) Object.assign(this.editableRecord, rec);
     }
 
     private buildTabs() {
@@ -70,16 +80,17 @@ export class TableEdit extends BaseForm implements OnInit {
     }
 
     private fetchFullRecord() {
-        this.editableRecord = {...this.record};
+        const rec = this.record();
+        this.editableRecord = {...rec};
         this.formatRecordTimeStamp(this.editableRecord);
 
-        const filter = this.getKeyFilters(this.record);
+        const filter = this.getKeyFilters(rec);
         if (!filter) {
             console.warn('Key definition could not be found');
             return;
         }
 
-        this.backendService.get<any>(this.apiName, filter).subscribe({
+        this.backendService.get<any>(this.apiName(), filter).subscribe({
             next: (record) => {
                 if (!record) {
                     console.error('failed to read single record from the backend');
@@ -123,7 +134,7 @@ export class TableEdit extends BaseForm implements OnInit {
         if (this.dialogRef) {
             this.dialogRef.close(result);
         } else {
-            this.backendService.post(this.apiName, result).subscribe({
+            this.backendService.post(this.apiName(), result).subscribe({
                 next: () => {
                     this.isReadOnlyMode = true;
                     this.isNew = false;
@@ -139,7 +150,7 @@ export class TableEdit extends BaseForm implements OnInit {
         if (confirm('Are you sure you want to delete this record?')) {
             const result = {...this.editableRecord};
             result[this.config.opField] = 'D';
-            this.backendService.post(this.apiName, result).subscribe({
+            this.backendService.post(this.apiName(), result).subscribe({
                 next: () => {
                     this.isReadOnlyMode = true;
                     this.isReadOnlyBound = this.isReadOnly.bind(this);
@@ -156,7 +167,7 @@ export class TableEdit extends BaseForm implements OnInit {
             return;
         }
         this.isReadOnlyMode = true;
-        this.editableRecord = {...this.record};
+        this.editableRecord = {...this.record()};
         this.isNew = false;
         this.isReadOnlyBound = this.isReadOnly.bind(this);
     }

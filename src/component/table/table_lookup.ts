@@ -22,7 +22,6 @@ import { BackendService } from "../../service/rest_service";
     ],
 })
 export class TableLookup extends BaseView implements OnInit {
-    override apiName = '';
     searchRecord: any = {};
     searchColumns: string[] = [];
 
@@ -33,8 +32,8 @@ export class TableLookup extends BaseView implements OnInit {
 
     ngOnInit() {
         if (this.data) {
-            this.tableName = this.data.tableName ?? '';
-            this.apiName   = this.data.apiName   ?? '';
+            this.tableName.set(this.data.tableName ?? '');
+            this.apiName.set(this.data.apiName   ?? '');
         }
         this.searchColumns = this.getDisplayedColumns();
         this.searchRecord  = this.emptyRecord();
@@ -42,13 +41,14 @@ export class TableLookup extends BaseView implements OnInit {
     }
 
     private resolveApi() {
-        if (!this.apiName && this.tableName) {
+        const tableName = this.tableName();
+        if (!this.apiName() && tableName) {
             this.cacheService.getAppData().subscribe((data) => {
                 if (data.Apis) {
                     for (const api in data.Apis) {
                         const entry = data.Apis[api];
-                        if (entry.Table.TableName === this.tableName) {
-                            this.apiName = entry.Version ? entry.Version + '/' + api : api;
+                        if (entry.Table.TableName === tableName) {
+                            this.apiName.set(entry.Version ? entry.Version + '/' + api : api);
                             break;
                         }
                     }
@@ -59,11 +59,12 @@ export class TableLookup extends BaseView implements OnInit {
 
     onSearch() {
         this.resolveApi();
-        if (!this.apiName) {
-            console.error('API name not found for table ' + this.tableName);
+        const apiName = this.apiName();
+        if (!apiName) {
+            console.error('API name not found for table ' + this.tableName());
             return;
         }
-        this.backendService.list<{[key: string]: any}>(this.apiName, this.buildSearchTerms(this.searchRecord)).subscribe({
+        this.backendService.list<{[key: string]: any}>(apiName, this.buildSearchTerms(this.searchRecord)).subscribe({
             next: (records) => {
                 this.records = records;
                 this.updateDisplayedColumns(records);

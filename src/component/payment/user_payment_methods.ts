@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, ViewEncapsulation, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,55 +22,8 @@ import { UserPaymentMethod } from '../../model/appdata';
   selector: 'sail-user-payment-methods',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule],
-  template: `
-    <div class="user-payment-methods">
-      <h2 class="user-payment-methods__title">{{ title }}</h2>
-
-      @if (showAdd) {
-        <button mat-raised-button color="accent"
-                class="user-payment-methods__add"
-                (click)="addClicked.emit()">
-          <mat-icon>add</mat-icon> {{ addLabel }}
-        </button>
-      }
-
-      @if (methods().length === 0 && !loading()) {
-        <p class="user-payment-methods__empty">{{ emptyLabel }}</p>
-      }
-
-      @for (m of methods(); track m.Id) {
-        <mat-card class="user-payment-methods__item">
-          <mat-card-content>
-            <div class="user-payment-methods__row">
-              <div class="user-payment-methods__info">
-                <mat-icon>{{ iconFor(m) }}</mat-icon>
-                <span class="user-payment-methods__brand">{{ m.Brand || m.MethodType }}</span>
-                @if (m.LastFour) {
-                  <span class="user-payment-methods__last4">•••• {{ m.LastFour }}</span>
-                }
-                @if (m.IsDefault) {
-                  <span class="user-payment-methods__default">Default</span>
-                }
-              </div>
-              <div class="user-payment-methods__actions">
-                @if (!m.IsDefault) {
-                  <button mat-button (click)="setDefault(m)">Set default</button>
-                }
-                <button mat-icon-button (click)="remove(m)" aria-label="Delete payment method">
-                  <mat-icon>delete</mat-icon>
-                </button>
-              </div>
-            </div>
-          </mat-card-content>
-        </mat-card>
-      }
-
-      @if (errorMsg()) {
-        <p class="user-payment-methods__error">{{ errorMsg() }}</p>
-      }
-    </div>
-  `,
+  imports: [MatButtonModule, MatCardModule, MatIconModule],
+  templateUrl: './user_payment_methods.html',
   styles: `
     .user-payment-methods { display: flex; flex-direction: column; gap: 12px; }
     .user-payment-methods__title { margin: 0; }
@@ -88,17 +40,17 @@ import { UserPaymentMethod } from '../../model/appdata';
   `,
 })
 export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
-  @Input() title = 'Payment Methods';
-  @Input() addLabel = 'Add Payment Method';
-  @Input() emptyLabel = 'No saved payment methods yet.';
-  @Input() showAdd = true;
+  readonly title = input('Payment Methods');
+  readonly addLabel = input('Add Payment Method');
+  readonly emptyLabel = input('No saved payment methods yet.');
+  readonly showAdd = input(true);
 
   /** Emitted when the "Add" button is tapped. Consumer routes to its SetupIntent flow. */
-  @Output() addClicked = new EventEmitter<void>();
+  readonly addClicked = output<void>();
   /** Emitted after a successful set-default flip. */
-  @Output() defaultChanged = new EventEmitter<UserPaymentMethod>();
+  readonly defaultChanged = output<UserPaymentMethod>();
   /** Emitted after a successful delete. */
-  @Output() deleted = new EventEmitter<UserPaymentMethod>();
+  readonly deleted = output<UserPaymentMethod>();
 
   private readonly service = inject(UserPaymentMethodService);
 

@@ -2,11 +2,11 @@
 <div class="child-table-header">
     <h3>{{ getCaption() }}</h3>
     @if (canCreate()) {
-        <button mat-raised-button class="accent" (click)="addRecord()">New Record</button>
+        <button matButton="elevated" class="accent" (click)="addRecord()">New Record</button>
     }
     @for (action of getActions(false); track action.action) {
         @if (canExecuteAction(action)) {
-            <button mat-stroked-button type="button"
+            <button matButton="outlined" type="button"
                     [title]="action.caption"
                     (click)="executeAction(action)">
                 @if (action.icon) { <mat-icon>{{ action.icon }}</mat-icon> }
@@ -33,13 +33,13 @@
                             @if (isReadOnly(col)) {
                                 {{ record[col] }}
                             } @else {
-                                <dynamic-field [tableName]="tableName" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></dynamic-field>
+                                <dynamic-field [tableName]="tableName()" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></dynamic-field>
                             }
                         </td>
                     }
                     <td>
-                        <button mat-icon-button (click)="saveRow()" title="Save"><mat-icon>save</mat-icon></button>
-                        <button mat-icon-button (click)="cancelRow(record)" title="Cancel"><mat-icon>cancel</mat-icon></button>
+                        <button matIconButton (click)="saveRow()" title="Save"><mat-icon>save</mat-icon></button>
+                        <button matIconButton (click)="cancelRow(record)" title="Cancel"><mat-icon>cancel</mat-icon></button>
                     </td>
                 } @else {
                     @for (col of displayedColumns; track col) {
@@ -47,17 +47,17 @@
                     }
                     <td>
                         @if (canUpdate()) {
-                            <button mat-icon-button (click)="editRow(record)" title="Edit"><mat-icon>edit</mat-icon></button>
+                            <button matIconButton (click)="editRow(record)" title="Edit"><mat-icon>edit</mat-icon></button>
                         }
                         @if (record[config.opField] === 'D') {
-                            <button mat-icon-button (click)="unDeleteRow(record)" title="Undelete"><mat-icon>restore_from_trash</mat-icon></button>
+                            <button matIconButton (click)="unDeleteRow(record)" title="Undelete"><mat-icon>restore_from_trash</mat-icon></button>
                         } @else if (canDelete()) {
-                            <button mat-icon-button (click)="deleteRow(record)" title="Delete"><mat-icon>delete</mat-icon></button>
+                            <button matIconButton (click)="deleteRow(record)" title="Delete"><mat-icon>delete</mat-icon></button>
                         }
                         @if (record[config.opField] !== 'I') {
                             @for (action of getActions(true); track action.action) {
                                 @if (canExecuteAction(action)) {
-                                    <button mat-icon-button type="button"
+                                    <button matIconButton type="button"
                                             [title]="action.caption"
                                             (click)="executeAction(action, record)">
                                         <mat-icon>{{ action.icon || 'play_arrow' }}</mat-icon>

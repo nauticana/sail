@@ -10,7 +10,7 @@
             <mat-label>Confirm your password</mat-label>
             <input matInput type="password" formControlName="password" autocomplete="current-password" required>
           </mat-form-field>
-          <button mat-raised-button class="primary" type="submit" [disabled]="!initForm.valid">Enable 2FA</button>
+          <button matButton="elevated" class="primary" type="submit" [disabled]="!initForm.valid">Enable 2FA</button>
         </form>
       }
       @case ('qr') {
@@ -32,7 +32,7 @@
           </div>
         }
 
-        <button mat-raised-button class="primary" (click)="proceedToVerify()">I've saved my backup codes</button>
+        <button matButton="elevated" class="primary" (click)="proceedToVerify()">I've saved my backup codes</button>
       }
       @case ('verify') {
         <p class="auth-instructions">Enter the 6-digit code from your authenticator app to confirm setup.</p>
@@ -42,7 +42,7 @@
             <input matInput type="text" formControlName="code" maxlength="6" autocomplete="one-time-code" required>
           </mat-form-field>
 
-          <button mat-raised-button class="primary" type="submit" [disabled]="!verifyForm.valid">
+          <button matButton="elevated" class="primary" type="submit" [disabled]="!verifyForm.valid">
             Verify and Enable
           </button>
         </form>
@@ -59,7 +59,7 @@
             <mat-label>Current 6-digit code</mat-label>
             <input matInput type="text" formControlName="code" maxlength="6" autocomplete="one-time-code" required>
           </mat-form-field>
-          <button mat-button class="warn" type="submit" [disabled]="!disableForm.valid">Disable 2FA</button>
+          <button matButton class="warn" type="submit" [disabled]="!disableForm.valid">Disable 2FA</button>
         </form>
       }
     }

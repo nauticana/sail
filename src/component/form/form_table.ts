@@ -36,7 +36,7 @@ export class TableForm extends BaseForm {
     constructor() {
         super();
         this.editableRecord = {...this.data.record};
-        this.tableName = this.data.tableName;
+        this.tableName.set(this.data.tableName);
         this.isNew = !!this.data.isNew;
         this.readOnlyColumns = this.data.readOnlyColumns ?? [];
     }

@@ -2,7 +2,7 @@
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <input matInput [value]="readonlyField() ? displayCaption : value()" [required]="required" [readonly]="readonlyField()">
-        <button mat-icon-button matSuffix (click)="openLookup()" [disabled]="readonlyField()">
+        <button matIconButton matSuffix (click)="openLookup()" [disabled]="readonlyField()">
             <mat-icon>search</mat-icon>
         </button>
     </mat-form-field>

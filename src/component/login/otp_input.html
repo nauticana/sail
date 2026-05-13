@@ -16,7 +16,7 @@
 
   <p class="otp-resend">
     @if (canResend()) {
-      <button mat-button class="resend-btn" type="button" (click)="onResend()">Resend code</button>
+      <button matButton class="resend-btn" type="button" (click)="onResend()">Resend code</button>
     } @else {
       Resend code in {{ countdown() }}s
     }
@@ -27,11 +27,11 @@
       @if (key === '') {
         <div class="keypad-spacer"></div>
       } @else if (key === 'back') {
-        <button mat-button class="keypad-key" type="button" (click)="onBackspace()" aria-label="Backspace" [disabled]="disabled()">
+        <button matButton class="keypad-key" type="button" (click)="onBackspace()" aria-label="Backspace" [disabled]="disabled()">
           <mat-icon>backspace</mat-icon>
         </button>
       } @else {
-        <button mat-button class="keypad-key" type="button" (click)="onKeyPress(key)" [disabled]="disabled()">{{ key }}</button>
+        <button matButton class="keypad-key" type="button" (click)="onKeyPress(key)" [disabled]="disabled()">{{ key }}</button>
       }
     }
   </div>
