@@ -80,6 +80,10 @@ export interface OtpRequest {
 // wrong code.
 export interface OtpResponse {
   otpToken: string;
+  // Seconds the client should wait before allowing a resend; mirrors
+  // the server's --otp_ttl_seconds. Optional for back-compat with
+  // older keel versions that didn't return it.
+  resendCountdownSec?: number;
 }
 
 export interface OtpVerifyRequest {

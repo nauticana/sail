@@ -24,7 +24,13 @@ export class OtpInputComponent implements OnInit {
 
   readonly length = input(6);
   readonly contact = input('');
-  readonly resendCountdownSec = input(30);
+  // Fallback only. Consumers should pass the value returned by
+  // /public/otp/send in `resendCountdownSec` on the response — that is
+  // the authoritative value (sourced from the keel server's
+  // --otp_token_ttl_seconds flag and matches the lifetime of the OTP
+  // code itself). 300s is the legacy default, kept so existing callers
+  // without the new field don't break.
+  readonly resendCountdownSec = input(300);
   readonly disabled = input(false);
 
   readonly codeComplete = output<string>();

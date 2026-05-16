@@ -1102,6 +1102,78 @@ Expected errors after the upgrade:
 
 v0.8.1 targets **keel v0.8.3**. The shared keel API surface didn't grow in this release; the version pin tracks keel's matching v0.8.x line. See [keel/README.md → Migration Guide](https://github.com/nauticana/keel/blob/main/README.md) for the matching backend changes.
 
+## Migrating to v0.8.2 — server-driven OTP resend cooldown
+
+Additive change. v0.8.1 consumers keep compiling.
+
+### What changed
+
+`OtpResponse` (model/auth.ts) gained an optional `resendCountdownSec?: number` field. keel v0.8.4 populates it from `--otp_ttl_seconds` so the resend timer in `OtpInputComponent` can match the OTP code's actual server-side lifetime instead of relying on the client-side fallback (still 30s for back-compat with older keel deployments / dev mocks that don't return the field).
+
+```ts
+export interface OtpResponse {
+  otpToken: string;
+  resendCountdownSec?: number;   // NEW — present when keel >= v0.8.4
+}
+```
+
+`OtpInputComponent.resendCountdownSec` (input, default 30) is **unchanged**. The recommended pattern is for the page that calls `sendOtp` to capture `res.resendCountdownSec` from the response and pass it to the input so the timer reflects server intent.
+
+### Adoption
+
+Two-step plumbing on the page that owns the OTP screen:
+
+1. **Capture from the send response.** After `auth.sendOtp({...}).subscribe(...)`, store `res.resendCountdownSec` in component state and forward it via router state when navigating to the confirm screen.
+
+   ```ts
+   this.auth.sendOtp({ contact, contactType, purpose: 'login' }).subscribe({
+     next: (res) => {
+       this.router.navigate(['/login/confirm'], {
+         state: {
+           otpToken: res.otpToken,
+           contact,
+           resendCountdownSec: res.resendCountdownSec,   // forward server value
+         },
+       });
+     },
+   });
+   ```
+
+2. **Read on the confirm screen + bind to the input.** Default a local signal to 30 (the legacy fallback) so older keels and the dev OTP mock keep working, then overwrite from router state and from `onResend` responses.
+
+   ```ts
+   readonly resendCountdownSec = signal(30);
+
+   constructor() {
+     const state = this.router.getCurrentNavigation()?.extras.state;
+     if (state && typeof state['resendCountdownSec'] === 'number') {
+       this.resendCountdownSec.set(state['resendCountdownSec']);
+     }
+   }
+
+   onResend() {
+     this.auth.sendOtp({...}).subscribe({
+       next: (res) => {
+         if (typeof res.resendCountdownSec === 'number') {
+           this.resendCountdownSec.set(res.resendCountdownSec);
+         }
+       },
+     });
+   }
+   ```
+
+   ```html
+   <sail-otp-input
+     [contact]="contact()"
+     [resendCountdownSec]="resendCountdownSec()"
+     (codeComplete)="verifyOtp($event)"
+     (resend)="onResend()" />
+   ```
+
+### Backend alignment
+
+v0.8.2 targets **keel v0.8.4**. The new `resendCountdownSec` response field is documented in [keel/README.md → Migration Guide (v0.8.4)](https://github.com/nauticana/keel/blob/main/README.md). Sail will tolerate older keels that don't return the field — the input falls back to its 30s default.
+
 ## Modernization items
 
 When you extend sail in your own app, apply the same patterns sail itself follows. Downstream projects that copied templates or scaffolding from earlier sail versions will benefit from the same sweep. This list is a checklist — none are sail-specific.
