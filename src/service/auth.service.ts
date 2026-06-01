@@ -104,8 +104,11 @@ export abstract class BaseAuthService extends BaseRestService {
     this.initRoutes();
   }
 
-  login(username: string, password: string, deviceFingerprint?: string) {
-    this.http.post<LoginResponse2FA>(this.loginUrl, { username, password, deviceFingerprint }).subscribe({
+  login(username: string, password: string) {
+    // withCredentials so the browser sends the server-set `keel_td` cookie
+    // (keel v0.9 trusted-device secret). When it maps to a trusted row, keel
+    // skips 2FA. The old client-supplied `deviceFingerprint` field is gone.
+    this.http.post<LoginResponse2FA>(this.loginUrl, { username, password }, { withCredentials: true }).subscribe({
         next: (res) => {
             if (res.twoFactorRequired && res.loginToken) {
                 localStorage.setItem('loginToken', res.loginToken);
@@ -121,7 +124,7 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   loginWithGoogle(code: string, redirectUri?: string) {
-    this.http.post<LoginResponse2FA>(this.loginGoogleUrl, { code, redirectUri }).subscribe({
+    this.http.post<LoginResponse2FA>(this.loginGoogleUrl, { code, redirectUri }, { withCredentials: true }).subscribe({
         next: (res) => {
             if (res.twoFactorRequired && res.loginToken) {
                 localStorage.setItem('loginToken', res.loginToken);
@@ -156,7 +159,7 @@ export abstract class BaseAuthService extends BaseRestService {
   /**
    * Verify a TOTP code during the LOGIN flow (public endpoint). Uses `/public/2fa/verify`
    */
-  verify2FALogin(code: string, trustDevice = false, deviceFingerprint?: string, deviceName?: string) {
+  verify2FALogin(code: string, trustDevice = false, deviceName?: string) {
     const loginToken = localStorage.getItem('loginToken');
     if (!loginToken) {
         console.error('No login token found');
@@ -166,10 +169,11 @@ export abstract class BaseAuthService extends BaseRestService {
         code,
         loginToken,
         trustDevice,
-        deviceFingerprint,
         deviceName,
     };
-    this.http.post<TwoFactorVerifyResponse>(this.twoFactorLoginVerifyUrl, request).subscribe({
+    // withCredentials so the browser stores the `keel_td` cookie keel sets on
+    // a `trustDevice:true` verify — that cookie is what skips 2FA next login.
+    this.http.post<TwoFactorVerifyResponse>(this.twoFactorLoginVerifyUrl, request, { withCredentials: true }).subscribe({
         next: (res) => {
             if (res.valid && res.token) {
                 localStorage.removeItem('loginToken');
@@ -185,7 +189,7 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Verify a single-use backup code during the LOGIN flow (public endpoint). */
   verifyBackupCode(code: string) {
     const loginToken = localStorage.getItem('loginToken');
-    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken });
+    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken }, { withCredentials: true });
   }
 
   /**

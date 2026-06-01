@@ -80,11 +80,6 @@ export class TrustedDevicesComponent extends BaseAsync implements OnInit {
     );
   }
 
-  isCurrentDevice(device: TrustedDevice): boolean {
-    const fp = localStorage.getItem('deviceFingerprint');
-    return !!fp && device.fingerprint === fp;
-  }
-
   formatDate(dateStr: string): string {
     if (!dateStr) return '';
     return dateStr.slice(0, 16).replace('T', ' ');

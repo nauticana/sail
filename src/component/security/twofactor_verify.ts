@@ -67,19 +67,9 @@ export class TwoFactorVerifyComponent extends BaseAsync {
       this.auth.verify2FALogin(
         code!,
         trustDevice ?? false,
-        this.getDeviceFingerprint(),
         this.getDeviceName(),
       );
     }
-  }
-
-  private getDeviceFingerprint(): string {
-    let fp = localStorage.getItem('deviceFingerprint');
-    if (!fp) {
-      fp = crypto.randomUUID();
-      localStorage.setItem('deviceFingerprint', fp);
-    }
-    return fp;
   }
 
   private getDeviceName(): string {

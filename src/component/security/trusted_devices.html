@@ -24,9 +24,6 @@
             <tr>
               <td>
                 {{ device.name }}
-                @if (isCurrentDevice(device)) {
-                  <span class="current-device-badge">(this device)</span>
-                }
               </td>
               <td>{{ formatDate(device.last_used_at) }}</td>
               <td>{{ formatDate(device.created_at) }}</td>

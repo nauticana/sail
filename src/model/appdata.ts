@@ -160,7 +160,6 @@ export interface TwoFactorVerifyRequest {
   code:             string;
   loginToken?:      string;
   trustDevice?:     boolean;
-  deviceFingerprint?: string;
   deviceName?:      string;
 }
 
@@ -172,7 +171,6 @@ export interface TwoFactorVerifyResponse {
 export interface TrustedDevice {
   id:         number;
   name:       string;
-  fingerprint: string;
   last_used_at: string;
   created_at:   string;
 }

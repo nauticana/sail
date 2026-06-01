@@ -279,7 +279,7 @@ interface SailGuiConfig {
 | `GET /api/billing/invoices` | Invoice history |
 | `GET /api/billing/payment-methods` | Saved payment methods |
 
-Device registration happens within `/public/2fa/verify` when `trustDevice=true`.
+Device registration happens within `/public/2fa/verify` when `trustDevice=true`. Since **keel v0.9 / sail v0.9.0**, the trusted-device credential is a server-minted `keel_td` cookie (HttpOnly + Secure + SameSite=Strict) — not a client-supplied fingerprint. sail sets `withCredentials: true` on the login and 2FA-verify calls so the cookie round-trips; see [Enabling 2FA → Cross-origin cookie requirement](#cross-origin-cookie-requirement) below.
 
 ## Enabling 2FA in your project
 
@@ -296,6 +296,22 @@ import { TwoFactorVerifyComponent, TwoFactorSetupComponent, TrustedDevicesCompon
 ```
 
 The login flow handles 2FA automatically: when the backend returns `twoFactorRequired: true`, sail redirects to `/login/2fa`. No other code changes needed.
+
+### Cross-origin cookie requirement
+
+The "trust this device" feature (keel v0.9+) is backed by a server-set HttpOnly cookie named `keel_td`. The lifecycle is entirely server-driven:
+
+1. On `POST /public/2fa/verify` with `trustDevice: true`, keel mints a 32-byte secret, stores its SHA-256, and returns the raw secret to the browser **only** as a `Set-Cookie: keel_td=…` header (never in the JSON body).
+2. On the next `POST /public/login/local` (or `/public/login/gmail`), the browser sends the `keel_td` cookie back, keel hashes it, finds the matching row, and **skips the 2FA prompt**.
+
+For the browser to store and resend that cookie, the requests must be credentialed. sail already sets `withCredentials: true` on `login()`, `loginWithGoogle()`, `verify2FALogin()`, and `verifyBackupCode()` — **you do not add this in your app code**. But the keel backend must permit credentialed CORS, or the browser drops the cookie and every login re-prompts for 2FA:
+
+- **Same-origin** deployments (SPA served from the same host as the API) work with no extra config — credentialed same-origin requests are always allowed.
+- **Cross-origin** deployments (SPA on a different host/port than the API) require the keel `HttpBackend` to set:
+  - `AllowCredentials: true` → emits `Access-Control-Allow-Credentials: true`
+  - `Origin` = the **exact** SPA origin (e.g. `https://app.example.com`). A wildcard `*` is rejected by the browser for credentialed responses — keel's CORS layer enforces this.
+
+If "trust this device" appears to do nothing (user is 2FA-prompted on every login despite checking the box), the cause is almost always a missing `AllowCredentials` / wildcard-origin on the backend — open devtools and confirm the `keel_td` cookie is actually set after a successful verify.
 
 ## Billing
 
@@ -532,6 +548,81 @@ Under the hood, the component calls `BaseAuthService.loginSocial(provider, idTok
 
 For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWithGoogle(code)` (hits `/public/login/google`) is still supported; prefer `loginSocial` for new code.
 
+## Adding a new domain table
+
+When your project owns a table that isn't part of basis (e.g. `favorite_location`, `support_ticket`, `vehicle`), follow the pattern below so the row plays nicely with keel's generic CRUD endpoints and the sail `<table-edit>` / `<table-list>` components.
+
+### 1. Backend: register the route
+
+Add a `rest_api_header` seed row so keel mounts the CRUD endpoints at boot:
+
+```sql
+INSERT INTO rest_api_header (id, master_table)
+VALUES ('favorite_location', 'favorite_location');
+```
+
+This exposes `GET/POST /api/v1/favorite_location/list,get,post,delete`. The binary reads `rest_api_header` once at startup, so restart `httpsrv` after seeding.
+
+### 2. Frontend: model class extends `SiudAction`
+
+Every row submitted through keel's bulk-POST endpoint is dispatched by an `op_code` field — `I` insert, `U` update, `D` delete, `R` recurse-children, `S` select-only (no-op). Rows without `op_code` are **silently skipped**: the handler still returns 201, but no SQL runs. The way to stay safe is to extend `SiudAction` (which carries `op_code: OpCodeValue` defaulted to `'S'`) rather than declaring a plain interface.
+
+```ts
+import { SiudAction } from '@nauticana/sail';
+
+export class FavoriteLocation extends SiudAction {
+  Id?: number;
+  UserId?: number;
+  Label?: string;
+  Address?: string;
+  Lat?: number;
+  Lng?: number;
+  SortOrder?: number;
+}
+```
+
+Field names are **PascalCase** — keel marshals SQL columns to `column.pascal_name` (i.e. `user_id` → `UserId`) for the wire format, and the `<table-edit>` component generator follows the same convention. Snake_case fields will round-trip in some paths but break others (e.g. `<table-edit>` form binding); pick PascalCase up front.
+
+### 3. Frontend: flip op_code before save
+
+When the row leaves the UI, set `op_code` to the operation you actually want:
+
+```ts
+import { OpCode } from '@nauticana/sail';
+import { BackendService } from 'service/rest_service';
+import { FavoriteLocation } from 'model/tripdb';
+
+const backend = inject(BackendService);
+
+const row = new FavoriteLocation();
+row.op_code = existing?.Id ? OpCode.Update : OpCode.Insert;
+row.Id = existing?.Id;
+row.Label = 'Home';
+row.Address = '...';
+
+backend.post<FavoriteLocation>('v1/favorite_location', [row]).subscribe();
+```
+
+The `<table-edit>` and `<table-list>` components handle this automatically — they tag fetched rows `'S'`, flip to `'U'` on dirty-edit, `'I'` for new rows, and `'D'` when the user deletes. You only need to set `op_code` manually when bypassing those components (custom save flows, bulk imports, etc.).
+
+### 4. Backend permissions
+
+Grant `TABLE SELECT/INSERT/UPDATE/DELETE` to the relevant roles in `authorization_role_permission`. For owner-scoped tables (rows have a `user_id` FK to `user_account`), keel auto-detects `UserSpecific` from the FK + column-name combination and pins the session's user id on insert + filters list/get to the owner automatically — no extra wiring needed.
+
+```sql
+INSERT INTO authorization_role_permission (role_id, authorization_object_id, action, low_limit) VALUES
+  ('RIDER', 'TABLE', 'INSERT', 'favorite_location'),
+  ('RIDER', 'TABLE', 'UPDATE', 'favorite_location'),
+  ('RIDER', 'TABLE', 'DELETE', 'favorite_location');
+-- SELECT is granted via the wildcard ('RIDER', 'TABLE', 'SELECT', '*') if you have one.
+```
+
+### Footguns
+
+- **Plain interfaces instead of `extends SiudAction`** — `op_code` field never exists, every row in a bulk POST is silently skipped, handler returns 201, table stays empty. Symptom: "saving says success but the list comes back empty."
+- **Snake_case fields** — keel marshals PascalCase, so a snake_case `address` field on the wire serializes as `Address` from keel but your client TS expects `address`. Mixed payloads break in subtle ways (read paths show data, write paths look like no-ops).
+- **Forgetting to restart httpsrv after seeding `rest_api_header`** — the route table is built once at startup. New rows = 404 until restart.
+
 ## Account deletion / logout everywhere / push tokens
 
 These are App Store / Play Store compliance primitives from keel. All are opt-in.
@@ -632,7 +723,7 @@ npm update @nauticana/sail
 Or to install a specific version:
 
 ```bash
-npm install @nauticana/sail@0.5.0
+npm install @nauticana/sail@0.9.0
 ```
 
 ## Migrating to v0.5.0
@@ -1173,6 +1264,55 @@ Two-step plumbing on the page that owns the OTP screen:
 ### Backend alignment
 
 v0.8.2 targets **keel v0.8.4**. The new `resendCountdownSec` response field is documented in [keel/README.md → Migration Guide (v0.8.4)](https://github.com/nauticana/keel/blob/main/README.md). Sail will tolerate older keels that don't return the field — the input falls back to its 30s default.
+
+## Migrating to v0.9.0 — server-set trusted-device cookie
+
+**Breaking change.** v0.9.0 adopts keel's v0.9 trusted-device model: the "trust this device" credential moves from a client-supplied `deviceFingerprint` string to a server-minted, HttpOnly `keel_td` cookie. This closes two weaknesses in the old scheme — the client picked the fingerprint value (so a malicious client could replay a known fingerprint across users), and keel stored it in plaintext (so a DB leak handed an attacker direct 2FA-bypass material). The new secret is server-generated, returned only via `Set-Cookie`, and stored as a SHA-256 hash.
+
+This release targets **keel v0.9** (the "bdsmail upstream" trusted-device rework). It will **not** interoperate correctly with keel < v0.9 — older keels expect the `deviceFingerprint` field that sail no longer sends, so "trust this device" silently fails. Upgrade the backend in lockstep.
+
+### What changed in the public API
+
+| Symbol | Before (v0.8.x) | After (v0.9.0) |
+|---|---|---|
+| `BaseAuthService.login()` | `login(username, password, deviceFingerprint?)` | `login(username, password)` |
+| `BaseAuthService.verify2FALogin()` | `verify2FALogin(code, trustDevice?, deviceFingerprint?, deviceName?)` | `verify2FALogin(code, trustDevice?, deviceName?)` |
+| `TwoFactorVerifyRequest` (model) | had `deviceFingerprint?: string` | field removed |
+| `TrustedDevice` (model) | had `fingerprint: string` | field removed (keel no longer returns it — it was the bypass credential) |
+
+`trustDevice` and `deviceName` are unchanged — `deviceName` is still a real field keel records as the human-readable label in the trusted-device list.
+
+### Migration steps
+
+Most consumers use sail's bundled `LoginComponent` / `TwoFactorVerifyComponent` and **need no code changes** — those components were updated internally. Steps below apply only if you call the auth API directly or wrap these components.
+
+1. **Drop the `deviceFingerprint` argument** from any direct call to `login()` or `verify2FALogin()`:
+
+   ```diff
+   - this.auth.login(username, password, this.getDeviceFingerprint());
+   + this.auth.login(username, password);
+
+   - this.auth.verify2FALogin(code, trustDevice, this.getDeviceFingerprint(), deviceName);
+   + this.auth.verify2FALogin(code, trustDevice, deviceName);
+   ```
+
+2. **Delete any client-side fingerprint generation.** The old `crypto.randomUUID()` → `localStorage['deviceFingerprint']` pattern is dead — the server owns the credential now. You can also clear the stale key:
+
+   ```ts
+   localStorage.removeItem('deviceFingerprint');
+   ```
+
+3. **Stop reading `TrustedDevice.fingerprint`.** It no longer exists on the type. If you rendered a "this device" badge by comparing it to a stored fingerprint, **remove that** — the credential is an HttpOnly cookie, so JavaScript cannot read it and the current device is no longer identifiable client-side. sail removed the badge from its own `TrustedDevicesComponent`.
+
+4. **Confirm credentialed CORS on the backend.** This is the one operational step that is easy to miss. The `keel_td` cookie only round-trips on credentialed requests. sail sends `withCredentials: true` automatically, but the keel `HttpBackend` must cooperate — see [Enabling 2FA → Cross-origin cookie requirement](#cross-origin-cookie-requirement). Same-origin deployments need nothing; cross-origin deployments need `AllowCredentials: true` and an exact (non-wildcard) `Origin`.
+
+### Existing trusted-device rows
+
+No data migration needed. Rows written under the old plaintext-fingerprint scheme will never match the new hashed lookup and expire naturally via their 30-day `expires_at`. Affected users are prompted for 2FA on their next login and can re-opt into "trust this device". (Backends that want to clean up early: `DELETE FROM user_trusted_device WHERE LENGTH(device_fingerprint) <> 64` — new hashes are exactly 64 hex chars.)
+
+### Backend alignment
+
+v0.9.0 targets **keel v0.9**. The full backend contract is documented in [keel/README.md → Trusted-device model (v0.9) and Migration from v0.8 trusted-device API](https://github.com/nauticana/keel/blob/main/README.md). Verify your backend sets `AllowCredentials` (cross-origin only) before rolling out.
 
 ## Modernization items
 
