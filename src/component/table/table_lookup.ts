@@ -46,7 +46,7 @@ export class TableLookup extends BaseView implements OnInit {
                     for (const api in data.Apis) {
                         const entry = data.Apis[api];
                         if (entry.Table.TableName === tableName) {
-                            this.apiName.set(entry.Version ? entry.Version + '/' + api : api);
+                            this.apiName.set(api); // bare RestUri; BackendService.crudUrl resolves the version
                             break;
                         }
                     }

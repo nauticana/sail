@@ -557,7 +557,7 @@ export abstract class BaseAuthService extends BaseRestService {
                     if (!page.ItemId) continue;
                     const restUri = page.RestUri ?? '';
                     const api = apis?.[restUri];
-                    const apiName = api?.Version ? api.Version + '/' + restUri : restUri;
+                    const apiName = restUri; // bare RestUri; BackendService.crudUrl resolves the version
                     const tableName = api?.Table?.TableName ?? restUri;
 
                     const overrideComponent = this.getRouteOverride(restUri);

@@ -1,6 +1,6 @@
 {
   "name": "@nauticana/sail",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Metadata-driven Angular component library for CRUD admin frontends backed by the keel Go backend. Tables, forms, navigation, OTP/2FA/social auth, billing, payout onboarding.",
   "main": "src/index.ts",
   "files": [

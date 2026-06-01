@@ -1,12 +1,14 @@
 import { HttpErrorResponse, HttpParams } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { inject, Injectable } from "@angular/core";
 import { catchError, map, Observable, throwError } from "rxjs";
 import { PaginatedList } from "../model/appdata";
 import { RestURL } from "./rest_url";
+import { BaseAuthService } from "./auth.service";
 import { BaseRestService } from "./base_rest.service";
 
 @Injectable({providedIn: 'root'})
 export class BackendService extends BaseRestService {
+    private readonly auth = inject(BaseAuthService);
     protected readonly prefix = this.url(RestURL.api_prefix);
 
     protected handleError(error: HttpErrorResponse) {
@@ -18,18 +20,19 @@ export class BackendService extends BaseRestService {
         return throwError(() => 'error occurred, see console log and try again');
     }
 
-    /**
-     * Build a fully-qualified URL under the configured API base. Use for
-     * endpoints that don't fit the metadata-driven `/api/{name}/{op}`
-     * shape — e.g. domain-specific actions like `rides/start`. Strips any
-     * leading slash on `path` so callers can pass either form.
-     *
-     * For metadata-driven CRUD use list/get/post/delete instead — they
-     * already build the URL.
-     */
+    /** Free-form path under the API base — for custom endpoints (e.g. `rides/start`). CRUD methods use `crudUrl` instead. */
     protected apiUrl(path: string): string {
         const trimmed = path.startsWith('/') ? path.slice(1) : path;
         return this.prefix + trimmed;
+    }
+
+    /** CRUD URL versioned from the backend (Apis[apiName].Version); throws rather than assume a version. */
+    private crudUrl(apiName: string, action: string): string {
+        const version = this.auth.getApiDictionary(apiName)?.Version;
+        if (!version) {
+            throw new Error(`sail: no backend version for API "${apiName}"; refusing to assume one.`);
+        }
+        return `${this.prefix}${version}/${apiName}/${action}`;
     }
 
     /**
@@ -62,34 +65,28 @@ export class BackendService extends BaseRestService {
         return params;
     }
 
-    /**
-     * keel list endpoints return `{items, limit, offset, total}`. This method
-     * unwraps to the array — most callers only need the records. Use
-     * `listPaginated()` to access the total + offset. Pass `_limit` / `_offset`
-     * in `filter` to control paging (defaults: 100 / 0).
-     */
+    /** Unwraps `{items, limit, offset, total}` to the items array. Pass `_limit` / `_offset` in `filter` to control paging (defaults: 100 / 0). */
     list<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T[]> {
         return this.listPaginated<T>(apiName, filter).pipe(map((page) => page.items));
     }
 
-    /** Paginated list — returns `{items, limit, offset, total}`. */
     listPaginated<T>(apiName: string, filter?: {[key: string]: string}) : Observable<PaginatedList<T>> {
         return this.http.get<PaginatedList<T>>(
-            this.apiUrl(apiName + '/list'),
+            this.crudUrl(apiName, 'list'),
             {params: this.toParams(filter)},
         ).pipe(catchError(this.handleError));
     }
 
     get<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T> {
-        return this.http.get<T>(this.apiUrl(apiName + '/get'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
+        return this.http.get<T>(this.crudUrl(apiName, 'get'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
     }
 
     post<T>(apiName: string, items: T | T[]) : Observable<{message: string}> {
-        return this.http.post<{message: string}>(this.apiUrl(apiName + '/post'), items).pipe(catchError(this.handleError));
+        return this.http.post<{message: string}>(this.crudUrl(apiName, 'post'), items).pipe(catchError(this.handleError));
     }
 
     delete(apiName: string, filter?: {[key: string]: string}): Observable<{message: string}> {
-        return this.http.delete<{message: string}>(this.apiUrl(apiName + '/delete'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
+        return this.http.delete<{message: string}>(this.crudUrl(apiName, 'delete'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
     }
 
     /**
