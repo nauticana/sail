@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpParams } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
-import { catchError, map, Observable, throwError } from "rxjs";
-import { PaginatedList } from "../model/appdata";
+import { catchError, map, Observable, switchMap, take, throwError } from "rxjs";
+import { ApplicationData, PaginatedList } from "../model/appdata";
 import { RestURL } from "./rest_url";
 import { BaseAuthService } from "./auth.service";
 import { BaseRestService } from "./base_rest.service";
@@ -56,28 +56,45 @@ export class BackendService extends BaseRestService {
         return params;
     }
 
+    /** Gates a CRUD call on appdata being loaded — `appData$` is a ReplaySubject(1) so this resolves synchronously once the cache is populated, and blocks the call (instead of throwing) when a component fires CRUD before loadAppData() finishes. */
+    private appDataReady(): Observable<ApplicationData> {
+        return this.auth.getAppData().pipe(take(1));
+    }
+
     /** Unwraps `{items, limit, offset, total}` to the items array. Pass `_limit` / `_offset` in `filter` to control paging (defaults: 100 / 0). */
     list<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T[]> {
         return this.listPaginated<T>(apiName, filter).pipe(map((page) => page.items));
     }
 
     listPaginated<T>(apiName: string, filter?: {[key: string]: string}) : Observable<PaginatedList<T>> {
-        return this.http.get<PaginatedList<T>>(
-            this.crudUrl(apiName, 'list'),
-            {params: this.toParams(filter)},
-        ).pipe(catchError(this.handleError));
+        return this.appDataReady().pipe(
+            switchMap(() => this.http.get<PaginatedList<T>>(
+                this.crudUrl(apiName, 'list'),
+                {params: this.toParams(filter)},
+            )),
+            catchError(this.handleError),
+        );
     }
 
     get<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T> {
-        return this.http.get<T>(this.crudUrl(apiName, 'get'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
+        return this.appDataReady().pipe(
+            switchMap(() => this.http.get<T>(this.crudUrl(apiName, 'get'), {params: this.toParams(filter)})),
+            catchError(this.handleError),
+        );
     }
 
     post<T>(apiName: string, items: T | T[]) : Observable<{message: string}> {
-        return this.http.post<{message: string}>(this.crudUrl(apiName, 'post'), items).pipe(catchError(this.handleError));
+        return this.appDataReady().pipe(
+            switchMap(() => this.http.post<{message: string}>(this.crudUrl(apiName, 'post'), items)),
+            catchError(this.handleError),
+        );
     }
 
     delete(apiName: string, filter?: {[key: string]: string}): Observable<{message: string}> {
-        return this.http.delete<{message: string}>(this.crudUrl(apiName, 'delete'), {params: this.toParams(filter)}).pipe(catchError(this.handleError));
+        return this.appDataReady().pipe(
+            switchMap(() => this.http.delete<{message: string}>(this.crudUrl(apiName, 'delete'), {params: this.toParams(filter)})),
+            catchError(this.handleError),
+        );
     }
 
     /**
