@@ -38,16 +38,7 @@ export class BackendService extends BaseRestService {
     /**
      * Generic typed HTTP request for endpoints that don't fit the
      * list/get/post/delete pattern. Subclasses use this for
-     * domain-specific actions:
-     *
-     *   class RideService extends BackendService {
-     *     startRide(req: StartRideReq) {
-     *       return this.request<RideResponse>('POST', 'rides/start', req);
-     *     }
-     *   }
-     *
-     * Errors are routed through handleError so callers see the same
-     * "see console log and try again" envelope as CRUD methods.
+     * domain-specific actions.
      */
     protected request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Observable<T> {
         return this.http.request<T>(method, this.apiUrl(path), { body }).pipe(catchError(this.handleError));
