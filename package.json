@@ -50,6 +50,7 @@
     "@angular/core": "^21.2.8",
     "@angular/forms": "^21.2.8",
     "@angular/material": "^21.2.6",
+    "@angular/platform-browser": "^21.2.8",
     "@angular/router": "^21.2.8",
     "class-validator": "^0.15.1",
     "rxjs": "~7.8.0",
