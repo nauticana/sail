@@ -17,8 +17,8 @@ import { TableLookup } from "../table/table_lookup";
     encapsulation: ViewEncapsulation.None,
     host: {
         '[class.field-wide]': 'isTextArea',
-        '[class.field-editable]': '!readonlyField()',
-        '[class.field-readonly]': 'readonlyField()',
+        '[class.field-editable]': '!isReadonly',
+        '[class.field-readonly]': 'isReadonly',
         '[style.max-width.px]': 'fieldMaxWidth',
     },
     imports: [
@@ -54,9 +54,19 @@ export class DynamicField extends BaseTable {
         return this.col.InputType;
     }
 
+    /** Effective read-only: explicit [readonly] input OR the column's own
+     *  Readonly flag from keel's column_display_attribute. */
+    get isReadonly(): boolean {
+        return this.readonlyField() || !!this.col?.Readonly;
+    }
+
     get isTextArea(): boolean {
         if (!this.col) return false;
-        return this.col.Size > 80;
+        // Explicit display_rows override wins; otherwise trust keel's InputType
+        // (TEXT columns → 'textarea', VARCHAR → 'text') rather than guessing
+        // from Size — a long VARCHAR is still a single-line field.
+        if (this.col.DisplayRows) return this.col.DisplayRows > 1;
+        return this.col.InputType === 'textarea';
     }
 
     get isDateLike(): boolean {
@@ -71,6 +81,7 @@ export class DynamicField extends BaseTable {
      * `null` = no cap (field fills its container — used for text areas / long fields).
      */
     get fieldMaxWidth(): number | null {
+        if (this.col?.DisplayWidth) return this.col.DisplayWidth;
         if (this.isTextArea) return null;
         const size = this.col?.Size ?? 0;
         if (size === 0) return 240;
@@ -81,6 +92,7 @@ export class DynamicField extends BaseTable {
     }
 
     get textAreaRows(): number {
+        if (this.col?.DisplayRows) return this.col.DisplayRows;
         if (!this.col) return 3;
         if (this.col.Size > 500) return 4;
         return 2;

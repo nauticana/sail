@@ -54,6 +54,11 @@ export interface TableColumn {
   HasDefault:   boolean;
   DefaultValue: string;
   Validators?:  AbstractControlOptions['validators'];
+  // Optional per-column UI overrides from keel's column_display_attribute.
+  // Absent/0 means "no override" — fall back to the Size/InputType heuristics.
+  Readonly?:     boolean;
+  DisplayWidth?: number;
+  DisplayRows?:  number;
 }
 
 // One custom button registered against a table via the basis

@@ -1,12 +1,12 @@
 @if (isLookupTableSearch()) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
-        <input matInput [value]="readonlyField() ? displayCaption : value()" [required]="required" [readonly]="readonlyField()">
-        <button matIconButton matSuffix (click)="openLookup()" [disabled]="readonlyField()">
+        <input matInput [value]="isReadonly ? displayCaption : value()" [required]="required" [readonly]="isReadonly">
+        <button matIconButton matSuffix (click)="openLookup()" [disabled]="isReadonly">
             <mat-icon>search</mat-icon>
         </button>
     </mat-form-field>
-} @else if (inputType === 'select' && readonlyField()) {
+} @else if (inputType === 'select' && isReadonly) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <input matInput [value]="displayCaption" readonly>
@@ -21,8 +21,8 @@
         </mat-select>
     </mat-form-field>
 } @else if (inputType === 'checkbox') {
-    <mat-checkbox [checked]="value() === true || value() === '1'" (change)="onCheckboxChange($event);" [disabled]="readonlyField()">{{ colCaption(field()) }}</mat-checkbox>
-} @else if (readonlyField() && isDateLike && !value()) {
+    <mat-checkbox [checked]="value() === true || value() === '1'" (change)="onCheckboxChange($event);" [disabled]="isReadonly">{{ colCaption(field()) }}</mat-checkbox>
+} @else if (isReadonly && isDateLike && !value()) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <input matInput value="" readonly>
@@ -33,7 +33,7 @@
         <textarea matInput
          [value]="value()"
          (input)="onInputChange($event);"
-         [disabled]="readonlyField()"
+         [disabled]="isReadonly"
          [required]="required"
          [attr.maxLength]="maxLength"
          [rows]="textAreaRows">
@@ -46,7 +46,7 @@
          [type]="inputType"
          [value]="value()"
          (input)="onInputChange($event);"
-         [disabled]="readonlyField()"
+         [disabled]="isReadonly"
          [required]="required"
          [attr.maxLength]="maxLength"
          [attr.step]="step">

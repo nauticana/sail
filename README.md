@@ -623,6 +623,31 @@ INSERT INTO authorization_role_permission (role_id, authorization_object_id, act
 - **Snake_case fields** — keel marshals PascalCase, so a snake_case `address` field on the wire serializes as `Address` from keel but your client TS expects `address`. Mixed payloads break in subtle ways (read paths show data, write paths look like no-ops).
 - **Forgetting to restart httpsrv after seeding `rest_api_header`** — the route table is built once at startup. New rows = 404 until restart.
 
+## Tuning edit-form fields (column_display_attribute)
+
+The generic edit form renders each column from keel's metadata. By default:
+
+- **Textarea vs input** follows the column's `InputType` — keel sets
+  `textarea` for `TEXT`, `text` for `VARCHAR`. (Earlier builds keyed off
+  `Size > 80`, which turned long `VARCHAR`s into textareas; it now trusts
+  `InputType`.)
+- **Read-only** applies only to primary keys (and FK columns in child rows).
+
+To override per column without changing the schema, seed keel's
+`column_display_attribute` table (`table_name, column_name, read_only,
+display_width, display_rows`). sail honours three optional `TableColumn`
+fields it produces:
+
+| Field          | Effect |
+|----------------|--------|
+| `read_only`    | Field renders display-only (use for `*_at` audit timestamps, system-managed status). |
+| `display_rows` | Textarea height. `1` forces a single-line input — keep a column `TEXT` (so bulk-loaded values don't overflow) yet render it on one line. |
+| `display_width`| Field max-width in px. |
+
+No rows seeded = unchanged behaviour. Requires keel with the
+`column_display_attribute` feature; rebuild httpsrv after seeding (metadata
+is read once at startup).
+
 ## Account deletion / logout everywhere / push tokens
 
 These are App Store / Play Store compliance primitives from keel. All are opt-in.
