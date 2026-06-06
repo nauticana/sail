@@ -54,9 +54,10 @@ export interface TableColumn {
   HasDefault:   boolean;
   DefaultValue: string;
   Validators?:  AbstractControlOptions['validators'];
-  // Optional per-column UI overrides from keel's column_display_attribute.
-  // Absent/0 means "no override" — fall back to the Size/InputType heuristics.
-  Readonly?:     boolean;
+  // Optional per-column UI/CRUD overrides from keel's column_display_attribute.
+  // DisplayMode: 'R' read-only, 'H' hidden, 'D' default-seeded, 'I' insert-only;
+  // absent/'' = editable default. Absent width/rows = fall back to heuristics.
+  DisplayMode?:  string;
   DisplayWidth?: number;
   DisplayRows?:  number;
 }

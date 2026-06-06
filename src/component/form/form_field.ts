@@ -54,10 +54,10 @@ export class DynamicField extends BaseTable {
         return this.col.InputType;
     }
 
-    /** Effective read-only: explicit [readonly] input OR the column's own
-     *  Readonly flag from keel's column_display_attribute. */
+    /** Read-only state for this field. The parent form computes it (keys,
+     *  FK columns, and column_display_attribute modes R/I) and feeds it in. */
     get isReadonly(): boolean {
-        return this.readonlyField() || !!this.col?.Readonly;
+        return this.readonlyField();
     }
 
     get isTextArea(): boolean {

@@ -634,19 +634,20 @@ The generic edit form renders each column from keel's metadata. By default:
 - **Read-only** applies only to primary keys (and FK columns in child rows).
 
 To override per column without changing the schema, seed keel's
-`column_display_attribute` table (`table_name, column_name, read_only,
+`column_display_attribute` table (`table_name, column_name, display_mode,
 display_width, display_rows`). sail honours three optional `TableColumn`
 fields it produces:
 
 | Field          | Effect |
 |----------------|--------|
-| `read_only`    | Field renders display-only (use for `*_at` audit timestamps, system-managed status). |
+| `DisplayMode`  | `R` read-only (shown display-only; **hidden when empty**, so a new record's audit fields disappear and on edit only populated ones show). `H` hidden everywhere — the new-record builder omits it so the DB default/sequence/trigger fills it. `D` editable, prefilled with the column default on a new record. `I` insert-only — editable while creating, locked once it exists. `U` update-stamp — display-only like `R` in the UI, but keel auto-sets it on every UPDATE (`now()` for timestamps, `user_id` for integers), so `updated_at`/`updated_by` need no DB trigger. Empty/NULL = editable. |
 | `display_rows` | Textarea height. `1` forces a single-line input — keep a column `TEXT` (so bulk-loaded values don't overflow) yet render it on one line. |
 | `display_width`| Field max-width in px. |
 
-No rows seeded = unchanged behaviour. Requires keel with the
-`column_display_attribute` feature; rebuild httpsrv after seeding (metadata
-is read once at startup).
+`R`/`H`/`I` are also enforced server-side by keel (excluded from generic
+INSERT/UPDATE), so the modes are real, not just cosmetic. No rows seeded =
+unchanged behaviour. Requires keel with the `column_display_attribute`
+feature; rebuild httpsrv after seeding (metadata is read once at startup).
 
 ## Account deletion / logout everywhere / push tokens
 

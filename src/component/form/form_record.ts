@@ -36,9 +36,17 @@ export class RecordForm {
             this.guiConfig.tableOverrides?.[this.tableName()]?.editableTimestamps ?? []
         );
         if (tableDef && tableDef.Columns && tableDef.Columns.length > 0) {
+            const record = this.record();
             return tableDef.Columns
                 .filter(col => !(col.HasDefault && col.DataType === 'timestamp'
                                  && !editableTimestamps.has(col.PascalName)))
+                // column_display_attribute: 'H' is never shown; 'R'/'U' (read-only
+                // and keel-set audit stamp) show display-only but hide when empty —
+                // so a new record's audit fields disappear and on edit only
+                // populated ones show.
+                .filter(col => col.DisplayMode !== 'H')
+                .filter(col => !((col.DisplayMode === 'R' || col.DisplayMode === 'U')
+                                 && this.isEmpty(record[col.PascalName])))
                 .sort((a, b) => a.Order - b.Order)
                 .map(col => col.PascalName)
                 .filter(key => !hidden.has(key) && recordKeys.has(key));
@@ -48,6 +56,10 @@ export class RecordForm {
 
     isArray(value: any): boolean {
         return Array.isArray(value);
+    }
+
+    private isEmpty(value: any): boolean {
+        return value === null || value === undefined || value === '';
     }
 
     onRecordUpdate(updates: {[key: string]: any}) {
