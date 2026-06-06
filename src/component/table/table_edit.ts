@@ -63,15 +63,18 @@ export class TableEdit extends BaseForm implements OnInit {
         if (rec) Object.assign(this.editableRecord, rec);
     }
 
+    /**
+     * Tabs are the table's child relations (rest_api_child metadata), not just
+     * whatever array fields the backend happened to embed. Seed an empty array
+     * for any child the response omitted so its grid renders (and accepts new rows).
+     */
     private buildTabs() {
-        this.tabCount = 0;
-        this.tabFields = [];
-        for (const field of Object.keys(this.editableRecord)) {
-            if (this.isArray(this.editableRecord[field])) {
-                this.tabCount++;
-                this.tabFields.push(field);
-            }
+        const tableDef = this.cacheService.getTableDefinition(this.tableName());
+        this.tabFields = (tableDef?.Children ?? []).map((child) => child.PascalName);
+        for (const field of this.tabFields) {
+            if (!this.isArray(this.editableRecord[field])) this.editableRecord[field] = [];
         }
+        this.tabCount = this.tabFields.length;
     }
 
     /** Re-fetch the row from the backend after a server-side mutation (TableAction success, etc.). */
