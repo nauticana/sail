@@ -16,6 +16,10 @@ import { CanActivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
 
+/** Sort dropdown options by their visible label so long lookup lists are scannable. */
+const byCaption = (a: ConstantValue, b: ConstantValue) =>
+  (a.Caption ?? '').localeCompare(b.Caption ?? '', undefined, { numeric: true, sensitivity: 'base' });
+
 @Injectable()
 export abstract class BaseAuthService extends BaseRestService {
   protected readonly router = inject(Router);
@@ -416,7 +420,7 @@ export abstract class BaseAuthService extends BaseRestService {
         Value: key,
         Caption: domainMap[key],
         [opField]: 'S',
-    } as unknown as ConstantValue));
+    } as unknown as ConstantValue)).sort(byCaption);
   }
 
   getTableValues(tableName: string): ConstantValue[] | undefined {
@@ -430,7 +434,7 @@ export abstract class BaseAuthService extends BaseRestService {
         Value: key,
         Caption: tableMap[key],
         [opField]: 'S',
-    } as unknown as ConstantValue));
+    } as unknown as ConstantValue)).sort(byCaption);
   }
 
   getMenus(): Observable<ApplicationMenu[]> {
