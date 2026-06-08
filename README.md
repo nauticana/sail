@@ -315,7 +315,7 @@ If "trust this device" appears to do nothing (user is 2FA-prompted on every logi
 
 ## Billing
 
-sail ships a shared `BillingService` and five billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
+sail ships a shared `BillingService` and nine billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
 
 ### Service
 
@@ -337,6 +337,8 @@ export class PricingPage {
 | `createCheckout(req)` | `POST /api/billing/checkout` | `Observable<CheckoutResponse>` |
 | `getSubscription()` | `GET /api/billing/subscription` | `Observable<Subscription>` |
 | `cancelSubscription()` | `POST /api/billing/subscription/cancel` | `Observable<void>` |
+| `changePlan(planId)` | `POST /api/billing/subscription/change` | `Observable<void>` |
+| `setSeats(seats)` | `POST /api/billing/subscription/seats` | `Observable<void>` |
 | `listInvoices()` | `GET /api/billing/invoices` | `Observable<Invoice[]>` |
 | `listPaymentMethods()` | `GET /api/billing/payment-methods` | `Observable<PaymentMethod[]>` |
 | `createPortalSession()` | `POST /api/billing/portal` | `Observable<PortalResponse>` |
@@ -463,13 +465,64 @@ A `TableAction` with `kind: 'redirect'` makes `BaseTable.executeAction` POST and
 
 > **Response-shape contract.** The generic redirect-action path reads a bare `url` because it's polymorphic — one dispatch for checkout / portal / export / etc., where the action's identity lives in the metadata, not the payload. keel's `WrapTableAction` enforces no shape; your inner handler must return `{ url }`. The *typed* billing endpoints keep specific names instead (`createCheckout()` → `checkoutUrl`, `createPortalSession()` → `portalUrl`). So the same portal concept has two response shapes depending on the path: wire it as `<sail-portal-button>` (typed → `portalUrl`) **or** as a `table_action` redirect (generic → `url`), not both.
 
+### Status chip (v1.0.1)
+
+`<sail-status-chip>` resolves a code to its caption from the client-cache `constant_value` dictionary — no per-app `@switch`. It defaults to the `SUBSCRIPTION_STATUS` domain (so `T` trialing / `X` past-due render with no app code) and works for any constant domain via `[domain]`. The code is exposed as `[attr.data-status]` so the app can colour the chip:
+
+```html
+<sail-status-chip [value]="sub()?.status"></sail-status-chip>
+<sail-status-chip [value]="invoice.status" domain="INVOICE_STATUS"></sail-status-chip>
+```
+
+> Replaces a downstream app's hardcoded status `@switch` (e.g. seo's): captions are backend-authoritative — when a dictionary row is absent the raw code shows, never a fabricated label.
+
+### Trial banner (v1.0.1)
+
+`<sail-trial-banner>` shows "Trial ends in N days" from `Subscription.trialEnd`; it renders nothing when the value is empty, unparseable, or already past, so it can sit unconditionally in the template:
+
+```html
+<sail-trial-banner [trialEnd]="sub()?.trialEnd"></sail-trial-banner>
+```
+
+### Seat selector (v1.0.1)
+
+`<sail-seat-selector>` is a presentational quantity stepper seeded from `Subscription.seats`. Feed the result into checkout (`[quantity]` / metadata) for new subs, or `BillingService.setSeats()` for an existing one:
+
+```html
+<sail-seat-selector [seats]="sub()?.seats ?? 1" [min]="1" (seatsChange)="seats.set($event)"></sail-seat-selector>
+```
+
+### Plan change vs first-time checkout (v1.0.1)
+
+First-time checkout uses `<sail-checkout-button>` (provider-hosted). For an **existing** subscription, upgrade/downgrade is a distinct path — `BillingService.changePlan(planId)` routes to keel's `SubscriptionLifecycle.ChangePlan` via an endpoint the app exposes. Wire the picker's selection to whichever path applies:
+
+```typescript
+onPlanPicked(planId: string) {
+  this.sub() ? this.billing.changePlan(planId).subscribe() : this.startCheckout(planId);
+}
+```
+
+`<sail-plan-selector>` varies its CTA copy by `PublicPlan.activationMode` ("Start trial" for `T`, "Subscribe" for `P`, "Activate" for `F`); override or extend via `[ctaLabels]="{ S: 'Add seats' }"`.
+
+### Dunning banner (v1.0.1)
+
+`<sail-dunning-banner>` shows only when `Subscription.status === 'X'` (past-due / keel `SetDunningState`), prompting the partner to update their card and deep-linking to the provider portal via an embedded `<sail-portal-button>`:
+
+```html
+<sail-dunning-banner [status]="sub()?.status"></sail-dunning-banner>
+```
+
 ### Compose a full Billing screen
 
 A complete screen is the pieces above assembled over `BillingService` — no metadata CRUD (billing data is partner-scoped, read-mostly, money-formatted, with an external-redirect action, which `TableList`/`TableEdit` don't model):
 
 ```html
-<sail-plan-selector [plans]="plans()" [selected]="sub()?.planId" (selectionChange)="selected.set($event)"></sail-plan-selector>
-<sail-checkout-button [priceId]="priceFor(selected())" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
+<sail-dunning-banner [status]="sub()?.status"></sail-dunning-banner>
+<sail-trial-banner [trialEnd]="sub()?.trialEnd"></sail-trial-banner>
+<sail-status-chip [value]="sub()?.status"></sail-status-chip>
+<sail-plan-selector [plans]="plans()" [selected]="sub()?.planId" (selectionChange)="onPlanPicked($event)"></sail-plan-selector>
+<sail-seat-selector [seats]="sub()?.seats ?? 1" (seatsChange)="seats.set($event)"></sail-seat-selector>
+<sail-checkout-button [priceId]="priceFor(selected())" [quantity]="seats()" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
 <sail-usage-meter [meters]="usage()"></sail-usage-meter>
 <sail-payment-methods></sail-payment-methods>
 <sail-portal-button></sail-portal-button>

@@ -14,7 +14,7 @@
         </ul>
       }
       <button matButton="elevated" class="primary" type="button" (click)="onSelect(plan.id)">
-        @if (plan.id === selected()) { Selected } @else { Choose }
+        @if (plan.id === selected()) { Selected } @else { {{ ctas()[plan.id] }} }
       </button>
     </div>
   }

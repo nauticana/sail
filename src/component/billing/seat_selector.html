@@ -1,0 +1,15 @@
+<div class="seat-selector" role="group" aria-label="Seats">
+  <button matIconButton type="button"
+          aria-label="Decrease seats"
+          [disabled]="!canDecrease()"
+          (click)="decrease()">
+    <mat-icon>remove</mat-icon>
+  </button>
+  <span class="seat-count" aria-live="polite">{{ seats() }}</span>
+  <button matIconButton type="button"
+          aria-label="Increase seats"
+          [disabled]="!canIncrease()"
+          (click)="increase()">
+    <mat-icon>add</mat-icon>
+  </button>
+</div>

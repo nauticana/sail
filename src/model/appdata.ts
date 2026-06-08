@@ -213,6 +213,13 @@ export interface PublicPlan {
 	// not-yet-priced tiers leave it empty. Pass straight to
 	// `<sail-checkout-button [priceId]>` / `BillingService.createCheckout({ priceId })`.
 	priceId?:    string;
+	// keel `subscription_plan.activation_mode` (SUBSCRIPTION_ACTIVATION_MODE
+	// dictionary, single char — e.g. 'P' paid, 'F' free, 'T' trial). Drives the
+	// picker CTA copy ("Start trial" / "Subscribe" / …). Optional — pre-v1.0.3
+	// backends omit it.
+	activationMode?: string;
+	// Length of the free trial in days when `activationMode === 'T'`.
+	trialDays?:      number;
 }
 
 // ConfirmRegisterResponse — shape returned by POST /public/confirm/register.
@@ -288,12 +295,18 @@ export interface PaginatedList<T> {
 
 export interface Subscription {
 	planId:      string;
-	status:      string;  // 'A' active, 'P' pending-payment, 'C' cancelled, ...
+	status:      string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via SUBSCRIPTION_STATUS dict
 	begda:       string;
 	endda?:      string;
 	monthlyCost: number;
 	currency:    string;
 	autoRenew:   boolean;
+	// ISO timestamp the trial ends (keel `trial_end`); empty/absent when not
+	// trialing. Drives `<sail-trial-banner>`.
+	trialEnd?:   string;
+	// Seat quantity on the active/trial sub (keel `seats`); absent for
+	// non-seat plans. Drives `<sail-seat-selector>`.
+	seats?:      number;
 }
 
 export interface Invoice {

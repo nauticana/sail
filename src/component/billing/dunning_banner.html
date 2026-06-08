@@ -1,0 +1,6 @@
+@if (isPastDue()) {
+  <div class="dunning-banner" role="alert">
+    <span class="dunning-message">{{ message() }}</span>
+    <sail-portal-button label="Update your card"></sail-portal-button>
+  </div>
+}

@@ -20,6 +20,8 @@ export const RestURL = {
   checkoutURL:       '/api/billing/checkout',
   subscriptionURL:   '/api/billing/subscription',
   cancelSubURL:      '/api/billing/subscription/cancel',
+  changePlanURL:     '/api/billing/subscription/change',
+  seatsURL:          '/api/billing/subscription/seats',
   invoicesURL:       '/api/billing/invoices',
   paymentMethodsURL: '/api/billing/payment-methods',
   portalURL:         '/api/billing/portal',

@@ -49,6 +49,20 @@ export class BillingService extends BaseRestService {
     return this.http.post<void>(this.url(RestURL.cancelSubURL), {});
   }
 
+  /**
+   * Upgrade / downgrade the current subscription to `planId` — distinct from
+   * first-time checkout. Routes to keel's `SubscriptionLifecycle.ChangePlan`
+   * (atomic close+open) via an endpoint the app exposes.
+   */
+  changePlan(planId: string): Observable<void> {
+    return this.http.post<void>(this.url(RestURL.changePlanURL), { planId });
+  }
+
+  /** Set the seat quantity on the current active/trial subscription. */
+  setSeats(seats: number): Observable<void> {
+    return this.http.post<void>(this.url(RestURL.seatsURL), { seats });
+  }
+
   /** Partner's invoice history. */
   listInvoices(): Observable<Invoice[]> {
     return this.http.get<Invoice[]>(this.url(RestURL.invoicesURL));
