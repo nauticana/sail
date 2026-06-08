@@ -1,0 +1,20 @@
+<div class="usage-meter">
+  @for (r of rows(); track r.resource) {
+    <div class="usage-row">
+      <div class="usage-label">{{ r.resource }}</div>
+      @if (r.hasBar) {
+        <div class="usage-bar" role="progressbar"
+             [attr.aria-label]="r.resource"
+             [attr.aria-valuemin]="0"
+             [attr.aria-valuemax]="r.ariaMax"
+             [attr.aria-valuenow]="r.ariaNow"
+             [attr.aria-valuetext]="r.valueText">
+          <div class="usage-fill" [style.width.%]="r.percent"></div>
+        </div>
+      }
+      <div class="usage-value">{{ r.valueText }}</div>
+    </div>
+  } @empty {
+    <div class="usage-empty">No usage data.</div>
+  }
+</div>

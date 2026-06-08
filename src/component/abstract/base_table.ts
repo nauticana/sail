@@ -114,8 +114,17 @@ export abstract class BaseTable {
         if (!this.beforeExecuteAction(action, record)) return;
         if (action.confirmMessage && !confirm(action.confirmMessage)) return;
         const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
-        this.backendService.executeAction(action.method, body).subscribe({
-            next: () => this.onActionSuccess(action, record),
+        this.backendService.executeAction<{ url?: string }>(action.method, body).subscribe({
+            next: (resp) => {
+                // A 'redirect' action POSTs then follows the returned {url}
+                // (provider-hosted checkout / portal / any external handoff
+                // declared as basis table_action metadata — no component).
+                if (action.kind === 'redirect' && resp?.url) {
+                    window.location.href = resp.url;
+                    return;
+                }
+                this.onActionSuccess(action, record);
+            },
             error: (err) => {
                 console.error(`Action ${action.action} failed`, err);
                 alert(err?.error?.detail ?? `Failed to ${action.caption}`);

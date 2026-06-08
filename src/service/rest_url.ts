@@ -22,6 +22,8 @@ export const RestURL = {
   cancelSubURL:      '/api/billing/subscription/cancel',
   invoicesURL:       '/api/billing/invoices',
   paymentMethodsURL: '/api/billing/payment-methods',
+  portalURL:         '/api/billing/portal',
+  usageURL:          '/api/billing/usage',
   // OTP / social / push / account-lifecycle endpoints
   otpSendURL:          '/public/otp/send',
   otpVerifyURL:        '/public/otp/verify',

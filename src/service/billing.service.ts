@@ -7,8 +7,10 @@ import {
   CheckoutResponse,
   Invoice,
   PaymentMethod,
+  PortalResponse,
   PublicPlan,
   Subscription,
+  UsageMeter,
 } from '../model/appdata';
 
 /**
@@ -55,5 +57,19 @@ export class BillingService extends BaseRestService {
   /** Payment methods on file for the partner. */
   listPaymentMethods(): Observable<PaymentMethod[]> {
     return this.http.get<PaymentMethod[]>(this.url(RestURL.paymentMethodsURL));
+  }
+
+  /**
+   * Create a provider customer-portal session; caller redirects to the URL so
+   * the partner can manage their payment method / subscription on the
+   * provider's hosted page.
+   */
+  createPortalSession(): Observable<PortalResponse> {
+    return this.http.post<PortalResponse>(this.url(RestURL.portalURL), {});
+  }
+
+  /** Current-period usage per resource (used vs plan limit). */
+  listUsage(): Observable<UsageMeter[]> {
+    return this.http.get<UsageMeter[]>(this.url(RestURL.usageURL));
   }
 }

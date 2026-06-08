@@ -315,7 +315,7 @@ If "trust this device" appears to do nothing (user is 2FA-prompted on every logi
 
 ## Billing
 
-sail ships a shared `BillingService` and three billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
+sail ships a shared `BillingService` and five billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
 
 ### Service
 
@@ -339,6 +339,8 @@ export class PricingPage {
 | `cancelSubscription()` | `POST /api/billing/subscription/cancel` | `Observable<void>` |
 | `listInvoices()` | `GET /api/billing/invoices` | `Observable<Invoice[]>` |
 | `listPaymentMethods()` | `GET /api/billing/payment-methods` | `Observable<PaymentMethod[]>` |
+| `createPortalSession()` | `POST /api/billing/portal` | `Observable<PortalResponse>` |
+| `listUsage()` | `GET /api/billing/usage` | `Observable<UsageMeter[]>` |
 
 ### Components
 
@@ -434,6 +436,44 @@ Add to `src/styles.css` to match the rest of the library:
 
 /* Checkout button */
 .checkout-button { display: flex; flex-direction: column; gap: .5rem; }
+```
+
+### Customer portal (v1.0.0)
+
+`createPortalSession()` + `<sail-portal-button>` mirror checkout — POST `/api/billing/portal`, then redirect to the provider-hosted customer portal where the partner manages their payment method / subscription:
+
+```html
+<sail-portal-button [label]="'Manage billing'"></sail-portal-button>
+```
+
+### Usage meters (v1.0.0)
+
+`listUsage()` returns `UsageMeter[]` (`{ resource, used, limit }`, matching keel's `UsageItem`); `<sail-usage-meter>` renders one progress bar per resource (a `limit < 0` shows "Unlimited"):
+
+```typescript
+readonly meters = toSignal(this.billing.listUsage(), { initialValue: [] });
+```
+```html
+<sail-usage-meter [meters]="meters()"></sail-usage-meter>
+```
+
+### Redirect-action (v1.0.0)
+
+A `TableAction` with `kind: 'redirect'` makes `BaseTable.executeAction` POST and then follow the returned `{ url }` instead of refreshing — so checkout / portal / any provider-hosted handoff can be declared as a basis `table_action` row with **no bespoke component**. The backend action handler returns `{ "url": "https://…" }`.
+
+> **Response-shape contract.** The generic redirect-action path reads a bare `url` because it's polymorphic — one dispatch for checkout / portal / export / etc., where the action's identity lives in the metadata, not the payload. keel's `WrapTableAction` enforces no shape; your inner handler must return `{ url }`. The *typed* billing endpoints keep specific names instead (`createCheckout()` → `checkoutUrl`, `createPortalSession()` → `portalUrl`). So the same portal concept has two response shapes depending on the path: wire it as `<sail-portal-button>` (typed → `portalUrl`) **or** as a `table_action` redirect (generic → `url`), not both.
+
+### Compose a full Billing screen
+
+A complete screen is the pieces above assembled over `BillingService` — no metadata CRUD (billing data is partner-scoped, read-mostly, money-formatted, with an external-redirect action, which `TableList`/`TableEdit` don't model):
+
+```html
+<sail-plan-selector [plans]="plans()" [selected]="sub()?.planId" (selectionChange)="selected.set($event)"></sail-plan-selector>
+<sail-checkout-button [priceId]="priceFor(selected())" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
+<sail-usage-meter [meters]="usage()"></sail-usage-meter>
+<sail-payment-methods></sail-payment-methods>
+<sail-portal-button></sail-portal-button>
+<!-- invoices: render listInvoices() rows directly -->
 ```
 
 ## Consent capture

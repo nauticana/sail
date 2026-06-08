@@ -32,6 +32,8 @@ export * from './component/security/trusted_devices';
 export * from './component/billing/plan_selector';
 export * from './component/billing/checkout_button';
 export * from './component/billing/payment_methods';
+export * from './component/billing/portal_button';
+export * from './component/billing/usage_meter';
 export * from './component/payout/provider_onboarding';
 export * from './component/payout/bank_info_form';
 export * from './component/payment/user_payment_methods';

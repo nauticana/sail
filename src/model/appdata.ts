@@ -83,6 +83,7 @@ export interface TableAction {
   confirmMessage?:  string;
   authorityObject:  string;   // uppercased table_name — for canExecute()
   authorityCheck:   string;   // uppercased action_name — for canExecute()
+  kind?:            'post' | 'redirect'; // 'redirect' = POST then follow the returned {url}; default 'post'
 }
 
 export interface ForeignKey {
@@ -262,6 +263,18 @@ export interface CheckoutRequest {
 
 export interface CheckoutResponse {
 	checkoutUrl: string;
+}
+
+/** Response of BillingService.createPortalSession — the provider customer-portal URL. */
+export interface PortalResponse {
+	portalUrl: string;
+}
+
+/** One resource's current-period usage vs its plan limit (matches keel UsageItem). */
+export interface UsageMeter {
+	resource: string;
+	used:     number;
+	limit:    number;
 }
 
 // REST list endpoints return paginated wrappers. `BackendService.list<T>()`
