@@ -284,6 +284,25 @@ export interface UsageMeter {
 	limit:    number;
 }
 
+// Normalized outcome of an off-session charge — the camelCase JSON shape an app
+// returns from its own charge endpoint, mirroring keel `payment.ChargeResult`.
+// 'requires_action' means the rider must complete an SCA / 3DS confirmation
+// (drive it with `<sail-sca-confirm>`).
+export type ChargeStatus = 'succeeded' | 'requires_action' | 'failed';
+
+export interface ChargeResult {
+	status:            ChargeStatus;
+	providerChargeId?: string;   // PaymentIntent / charge id (pi_xxx)
+	// Provider client secret — present when status === 'requires_action' and the
+	// SCA challenge must be confirmed inline (provider SDK). Mirrors keel
+	// ChargeResult.ClientSecret.
+	clientSecret?:     string;
+	// Provider-hosted redirect URL when one exists (often empty for off-session
+	// 3DS). When present it's the simplest, provider-agnostic confirmation path.
+	actionUrl?:        string;
+	error?:            string;   // decline / error message when status === 'failed'
+}
+
 // REST list endpoints return paginated wrappers. `BackendService.list<T>()`
 // unwraps to the array; use `listPaginated<T>()` to get the metadata.
 export interface PaginatedList<T> {

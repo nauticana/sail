@@ -529,6 +529,70 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 <!-- invoices: render listInvoices() rows directly -->
 ```
 
+## Off-session SCA / 3DS confirmation (v1.0.x)
+
+When an app charges a rider's **vaulted** card off-session (keel `payment.ChargeClient` / `StripeChargeClient`), the provider may return `requires_action` — the cardholder must complete a Strong Customer Authentication (3DS) challenge. keel surfaces the hooks on `ChargeResult` (`ClientSecret`, `ActionURL`); sail standardizes the **client-side** confirmation so it isn't rebuilt per app.
+
+sail stays provider-agnostic: it ships **no payment-provider SDK** and **no default confirmer**. It provides a port (`ScaConfirmer`), the `SCA_CONFIRMER` injection token, and `<sail-sca-confirm>`, which:
+
+- redirects to `ChargeResult.actionUrl` when present (provider-hosted challenge — no SDK needed); else
+- delegates the inline `ChargeResult.clientSecret` to the app-registered `SCA_CONFIRMER`.
+
+### Backend contract (app-owned)
+
+Off-session charging is a worker/handler concern, so the **app** owns the charge endpoint. Have it call keel's `ChargeClient.Charge` and return the normalized result as camelCase JSON matching sail's `ChargeResult`:
+
+```jsonc
+// POST /api/<app>/charge  →  200
+{ "status": "requires_action", "clientSecret": "pi_..._secret_...", "actionUrl": "" }
+// or { "status": "succeeded", "providerChargeId": "pi_..." }
+// or { "status": "failed", "error": "card_declined" }
+```
+
+> `ChargeRequest.Metadata` (keel v1.0.4) carries `ride_id` / `user_id` / `tip_amount` through to the settled charge's `PaymentEvent.Metadata`, so the webhook can correlate and split the fare — set it on the backend, not the client.
+
+### Frontend adoption (downstream projects)
+
+**1. Implement the provider confirmer** (Stripe shown; lives in the app, behind an *optional* `@stripe/stripe-js` peer dep — non-Stripe apps skip it):
+
+```typescript
+import { Injectable } from '@angular/core';
+import { loadStripe } from '@stripe/stripe-js';
+import { ScaConfirmer, ScaResult } from '@nauticana/sail';
+
+@Injectable({ providedIn: 'root' })
+export class StripeScaConfirmer implements ScaConfirmer {
+  async confirm(clientSecret: string): Promise<ScaResult> {
+    const stripe = await loadStripe(/* publishable key from backend cache */);
+    if (!stripe) return { outcome: 'failed', error: 'Stripe.js failed to load' };
+    const { error } = await stripe.handleNextAction({ clientSecret });
+    return error ? { outcome: 'failed', error: error.message } : { outcome: 'succeeded' };
+  }
+}
+```
+
+**2. Register it at composition time** (`app.config.ts` / `main.ts`):
+
+```typescript
+import { SCA_CONFIRMER } from '@nauticana/sail';
+
+providers: [
+  { provide: SCA_CONFIRMER, useExisting: StripeScaConfirmer },
+]
+```
+
+**3. Drop the component into the post-charge flow** — bind the charge response and react to the outcome:
+
+```html
+<sail-sca-confirm
+    [result]="charge()"
+    (confirmed)="onPaid()"
+    (failed)="onScaFailed($event)">
+</sail-sca-confirm>
+```
+
+`<sail-sca-confirm>` renders nothing for `succeeded`, the decline message for `failed`, and a confirm button for `requires_action`. The publishable key is backend-authoritative — read it from the auth/app-data cache, never hardcode a fallback.
+
 ## Consent capture
 
 `ConsentGateComponent` is a reusable signup-consent primitive that mirrors keel's `user.SignupConsent` structure. It always renders two required checkboxes (`privacy_policy`, `cross_border`) and lets you declare any number of optional consents.

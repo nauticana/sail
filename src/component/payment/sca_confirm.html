@@ -1,0 +1,14 @@
+@if (needsAction()) {
+  <div class="sca-confirm">
+    <button matButton="elevated" class="primary" type="button"
+            [disabled]="loading()"
+            (click)="confirm()">
+      @if (loading()) { Confirming… } @else { {{ label() }} }
+    </button>
+  </div>
+} @else if (declined()) {
+  <div class="auth-error" role="alert">{{ result().error ?? 'Your payment was declined.' }}</div>
+}
+@if (errorMessage()) {
+  <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+}
