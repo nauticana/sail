@@ -2,10 +2,11 @@
   @for (plan of plans(); track plan.id) {
     <div class="plan-card" [class.plan-selected]="plan.id === selected()">
       <h3 class="plan-caption">{{ plan.caption }}</h3>
-      <div class="plan-price">
-        <span class="plan-amount">{{ plan.monthlyCost }}</span>
-        <span class="plan-period">/ month</span>
-      </div>
+      @if (priceLabels()[plan.id]; as priceLabel) {
+        <div class="plan-price">
+          <span class="plan-amount">{{ priceLabel }}</span>
+        </div>
+      }
       @if (featuresFor(plan.id).length > 0) {
         <ul class="plan-features">
           @for (feature of featuresFor(plan.id); track feature) {

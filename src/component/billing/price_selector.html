@@ -1,0 +1,17 @@
+<div class="price-selector" role="radiogroup" aria-label="Billing options">
+  @for (offer of offers(); track offer.key) {
+    <button class="price-offer" type="button"
+            role="radio"
+            [class.price-selected]="offer.key === selected()"
+            [attr.aria-checked]="offer.key === selected()"
+            (click)="onSelect(offer)">
+      <span class="price-amount">{{ offer.amountText }}</span>
+      <span class="price-cycle">/ {{ offer.cycleText }}</span>
+      @if (offer.termText) {
+        <span class="price-term">{{ offer.termText }}</span>
+      }
+    </button>
+  } @empty {
+    <p class="empty-state">No billing options available.</p>
+  }
+</div>

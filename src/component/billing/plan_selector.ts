@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { PublicPlan } from '../../model/appdata';
+import { fromPriceLabel } from '../../util/money';
 
 /**
  * Plan picker. Pure presentational component — stateless, no service calls.
@@ -39,6 +40,13 @@ export class PlanSelectorComponent {
       const mode = plan.activationMode ?? '';
       out[plan.id] = overrides[mode] ?? PlanSelectorComponent.DEFAULT_CTA[mode] ?? 'Choose';
     }
+    return out;
+  });
+
+  /** planId → indicative "from" price derived from the plan's offers ('' = none). */
+  readonly priceLabels = computed<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const plan of this.plans()) out[plan.id] = fromPriceLabel(plan.prices);
     return out;
   });
 

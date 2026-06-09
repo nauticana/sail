@@ -46,7 +46,7 @@
         <mat-select formControlName="PlanID" required>
           @for (p of plans(); track p.id) {
             <mat-option [value]="p.id">
-              {{ p.caption }}@if (p.monthlyCost > 0) { — \${{ p.monthlyCost }}/mo }
+              {{ p.caption }}@if (priceHint(p); as hint) { — {{ hint }} }
             </mat-option>
           }
         </mat-select>

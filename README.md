@@ -315,7 +315,7 @@ If "trust this device" appears to do nothing (user is 2FA-prompted on every logi
 
 ## Billing
 
-sail ships a shared `BillingService` and nine billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
+sail ships a shared `BillingService` and ten billing components backed by keel's payment endpoints (see [keel/SHARED_PAYMENT.md](https://github.com/nauticana/keel/blob/main/SHARED_PAYMENT.md) for the provider contract — Stripe by default, pluggable).
 
 ### Service
 
@@ -356,10 +356,24 @@ export class PricingPage {
 </sail-plan-selector>
 ```
 
-**Checkout button** — calls `createCheckout()` and redirects to the provider-hosted URL. `PublicPlan.priceId` lets you wire the picker directly to checkout without a local mapping table:
+**Offer / price picker (v1.0.5)** — a plan no longer has a single price. keel v1.0.5 sells per-plan **offers** in the `subscription_plan_price` table (billing cycle × commitment term, each with its own `provider_price_id`), surfaced as `PublicPlan.prices: PlanPrice[]`. The customer picks an offer **at checkout**; its `priceId` is what flows to `<sail-checkout-button>`:
+
+```html
+<sail-price-selector
+    [prices]="selectedPlan().prices ?? []"
+    [selected]="offer()?.priceId"
+    (selectionChange)="offer.set($event)">
+</sail-price-selector>
+```
+
+`<sail-price-selector>` is presentational (a `radiogroup` of offers), formats each amount with `Intl` from the offer's currency (so JPY/BHD render with the right number of decimals), and maps PERIOD_TYPE codes to copy via `[cycleLabels]`. It emits the full `PlanPrice` so you keep the chosen terms, not just the id.
+
+> **Migration.** The flat `PublicPlan.priceId` is deprecated (keel v1.0.5 dropped `subscription_plan.provider_price_id`) — read the id from the selected offer (`offer().priceId`). **keel v1.0.7 also removed `PublicPlan.monthlyCost`/`annualCost`** from both `/public/plans` and the billing catalog, so any plan-card code reading them now gets `undefined`. Derive a display price from the offers with `fromPriceLabel(plan.prices)` (used by `<sail-plan-selector>`), or render the per-offer amounts via `<sail-price-selector>`. These fields are removed from sail's `PublicPlan` type so the compiler flags any remaining references.
+
+**Checkout button** — calls `createCheckout()` and redirects to the provider-hosted URL. Feed it the chosen offer's `priceId`:
 ```html
 <sail-checkout-button
-    [priceId]="selectedPlan().priceId!"
+    [priceId]="offer()!.priceId!"
     [mode]="'subscription'"
     [successUrl]="'https://app.example.com/billing/done'"
     [cancelUrl]="'https://app.example.com/billing'"
@@ -521,8 +535,9 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 <sail-trial-banner [trialEnd]="sub()?.trialEnd"></sail-trial-banner>
 <sail-status-chip [value]="sub()?.status"></sail-status-chip>
 <sail-plan-selector [plans]="plans()" [selected]="sub()?.planId" (selectionChange)="onPlanPicked($event)"></sail-plan-selector>
+<sail-price-selector [prices]="selectedPlan()?.prices ?? []" [selected]="offer()?.priceId" (selectionChange)="offer.set($event)"></sail-price-selector>
 <sail-seat-selector [seats]="sub()?.seats ?? 1" (seatsChange)="seats.set($event)"></sail-seat-selector>
-<sail-checkout-button [priceId]="priceFor(selected())" [quantity]="seats()" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
+<sail-checkout-button [priceId]="offer()!.priceId!" [quantity]="seats()" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
 <sail-usage-meter [meters]="usage()"></sail-usage-meter>
 <sail-payment-methods></sail-payment-methods>
 <sail-portal-button></sail-portal-button>

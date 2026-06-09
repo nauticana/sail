@@ -13,6 +13,7 @@ import { firstValueFrom, map, merge } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { PartnerRegistration, PublicPlan } from '../../model/appdata';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
+import { fromPriceLabel } from '../../util/money';
 
 @Component({
   selector: 'sail-register',
@@ -74,6 +75,11 @@ export class RegisterComponent implements OnInit {
 
   protected getGoogleMapsApiKey(): string {
     return this.guiConfig.googleMapsApiKey ?? '';
+  }
+
+  /** Indicative "from" price for a plan option, derived from its offers ('' = free/none). */
+  protected priceHint(plan: PublicPlan): string {
+    return fromPriceLabel(plan.prices);
   }
 
   ngOnInit() {
