@@ -35,12 +35,14 @@ export abstract class BaseAsync {
   /**
    * Subscribe to an Observable with shared loading/error semantics.
    * Clears messages, sets loading, invokes onSuccess on next, and routes
-   * errors through setError with the given fallback message.
+   * errors through setError with the given fallback message. Pass `onError`
+   * when the component must also react to failures (e.g. emit an output).
    */
   protected run<T>(
     obs: Observable<T>,
     onSuccess: (value: T) => void,
     fallbackError = 'Operation failed. Please try again.',
+    onError?: (err: unknown) => void,
   ): void {
     this.clearMessages();
     this.loading.set(true);
@@ -49,7 +51,10 @@ export abstract class BaseAsync {
         this.loading.set(false);
         onSuccess(value);
       },
-      error: (err) => this.setError(err, fallbackError),
+      error: (err) => {
+        this.setError(err, fallbackError);
+        onError?.(err);
+      },
     });
   }
 }

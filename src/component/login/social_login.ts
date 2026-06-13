@@ -99,13 +99,19 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
   }
 
   private onIdToken(provider: SocialProvider, idToken: string) {
+    const fallback = `Sign-in with ${provider} failed.`;
     this.run(
       this.auth.loginSocial(provider, idToken, this.buildSignupConsent()),
       (resp) => this.loginSuccess.emit(resp),
-      `Sign-in with ${provider} failed.`,
+      fallback,
+      (err) => this.loginError.emit(this.toError(err, fallback)),
     );
-    // Also surface errors to the host via output.
-    // (BaseAsync.run already captures errorMessage; the emit is additional.)
+  }
+
+  private toError(err: unknown, fallback: string): Error {
+    if (err instanceof Error) return err;
+    const e = err as { error?: { detail?: string; message?: string } };
+    return new Error(e?.error?.detail ?? e?.error?.message ?? fallback);
   }
 
   private buildSignupConsent(): SignupConsent | undefined {

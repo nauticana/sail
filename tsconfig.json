@@ -11,6 +11,10 @@
     "emitDecoratorMetadata": true,
     "noEmit": true
   },
+  "angularCompilerOptions": {
+    "strictTemplates": true,
+    "strictInjectionParameters": true
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

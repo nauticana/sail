@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, OnInit, 
 import { MatButtonModule } from "@angular/material/button";
 import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogRef, MatDialogTitle } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
+import { take } from "rxjs";
 import { RecordForm } from "../form/form_record";
 import { BaseView } from "../abstract/base_view";
 
@@ -41,7 +42,7 @@ export class TableLookup extends BaseView implements OnInit {
     private resolveApi() {
         const tableName = this.tableName();
         if (!this.apiName() && tableName) {
-            this.cacheService.getAppData().subscribe((data) => {
+            this.cacheService.getAppData().pipe(take(1)).subscribe((data) => {
                 if (data.Apis) {
                     for (const api in data.Apis) {
                         const entry = data.Apis[api];

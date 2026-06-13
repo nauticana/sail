@@ -63,11 +63,14 @@ export class TwoFactorVerifyComponent extends BaseAsync {
         'Backup code verification failed.',
       );
     } else {
-      this.clearMessages();
-      this.auth.verify2FALogin(
-        code!,
-        trustDevice ?? false,
-        this.getDeviceName(),
+      this.run(
+        this.auth.verify2FALogin(code!, trustDevice ?? false, this.getDeviceName()),
+        (res) => {
+          if (!res.valid || !res.token) {
+            this.errorMessage.set('Invalid authentication code.');
+          }
+        },
+        'Verification failed. Please try again.',
       );
     }
   }

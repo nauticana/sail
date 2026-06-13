@@ -38,6 +38,10 @@ export class RegisterComponent implements OnInit {
   private router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
+  /** Geocoding is only active when a Google Maps key is configured; without
+   *  one the address-consent + verify step is skipped so registration still works. */
+  protected readonly geocodeEnabled = !!this.guiConfig.googleMapsApiKey;
+
   readonly registerError = signal('');
   readonly plans = signal<PublicPlan[]>([]);
 
@@ -58,7 +62,7 @@ export class RegisterComponent implements OnInit {
     PlanID: ['FREE', Validators.required],
     Latitude: [null as number | null],
     Longitude: [null as number | null],
-    consentLocation: [false, Validators.requiredTrue],
+    consentLocation: [false, this.geocodeEnabled ? Validators.requiredTrue : []],
   });
 
   readonly geocodeStatus = signal<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -92,7 +96,7 @@ export class RegisterComponent implements OnInit {
   constructor() {
     effect(() => {
       const consent = this.consentLocation();
-      if (consent) {
+      if (this.geocodeEnabled && consent) {
         this.tryGeocode();
       } else {
         this.registerForm.patchValue({ Latitude: null, Longitude: null });
@@ -107,7 +111,7 @@ export class RegisterComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.registerForm.patchValue({ Latitude: null, Longitude: null });
-        if (this.consentLocation()) {
+        if (this.geocodeEnabled && this.consentLocation()) {
           this.tryGeocode();
         }
       });

@@ -43,13 +43,20 @@ export class TableReport extends BaseRestService {
     readonly paramValues = signal<Record<string, string>>({});
 
     /**
+     * Report id — the last path segment of apiName (e.g. 'scorecard' for
+     * 'analytic/scorecard'). This is the key for metadata lookup AND the value
+     * REPORT/ACCESS grants are scoped to; the full path is only used for the
+     * fetch URL.
+     */
+    readonly reportId = computed(() => this.apiName().split('/').pop() ?? '');
+
+    /**
      * Report header text — long-form description from rest_report_header.
      * Falls back to the title-cased table name only if the lookup misses
      * (e.g. a brand-new report whose row hasn't been seeded yet).
      */
     readonly reportTitle = computed(() => {
-        const reportId = this.apiName().split('/').pop() ?? '';
-        return this.auth.getReport(reportId)?.Description || titleCase(this.tableName());
+        return this.auth.getReport(this.reportId())?.Description || titleCase(this.tableName());
     });
 
     /**
@@ -60,8 +67,7 @@ export class TableReport extends BaseRestService {
      * reports.
      */
     readonly params = computed<ReportParam[]>(() => {
-        const reportId = this.apiName().split('/').pop() ?? '';
-        return this.auth.getReport(reportId)?.Params ?? [];
+        return this.auth.getReport(this.reportId())?.Params ?? [];
     });
 
     constructor() {
@@ -70,7 +76,7 @@ export class TableReport extends BaseRestService {
             const api = this.apiName();
             if (!api) return;
 
-            if (!this.auth.canReport(api)) {
+            if (!this.auth.canReport(this.reportId())) {
                 this.errorMessage.set('You do not have permission to view this report.');
                 return;
             }

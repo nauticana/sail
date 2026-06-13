@@ -1,5 +1,6 @@
-import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
-import { catchError, map, throwError } from 'rxjs';
+import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import { map } from 'rxjs';
+import { isKeelUrl } from './rest_url';
 
 // Detect a final response event by structural shape rather than
 // `event instanceof HttpResponse`. Bundling can produce two distinct
@@ -21,7 +22,14 @@ function isFinalResponse(e: unknown): e is HttpResponse<unknown> {
     && typeof r.status === 'number';
 }
 
+// Scoped to keel URLs so third-party responses (and their errors) pass through
+// untouched. Unwraps keel's `{ data }` envelope; errors are left intact so
+// consumers can read the original `HttpErrorResponse.error` (keel's RFC 7807
+// ProblemDetail, with `detail` / `title`).
 export const apiResponseInterceptor: HttpInterceptorFn = (req, next) => {
+  if (!isKeelUrl(req.url)) {
+    return next(req);
+  }
   return next(req).pipe(
     map(event => {
       if (isFinalResponse(event)) {
@@ -31,16 +39,6 @@ export const apiResponseInterceptor: HttpInterceptorFn = (req, next) => {
         }
       }
       return event;
-    }),
-    catchError((error: HttpErrorResponse) => {
-      const detail = error.error?.detail || error.error?.title || error.message;
-      return throwError(() => new HttpErrorResponse({
-        error: detail,
-        headers: error.headers,
-        status: error.status,
-        statusText: error.statusText,
-        url: error.url ?? undefined,
-      }));
     }),
   );
 };

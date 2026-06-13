@@ -1,8 +1,13 @@
 {
   "name": "@nauticana/sail",
-  "version": "1.0.3",
+  "version": "1.0.7",
   "description": "Metadata-driven Angular component library for CRUD admin frontends backed by the keel Go backend. Tables, forms, navigation, OTP/2FA/social auth, billing, payout onboarding.",
   "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check:templates": "ngc -p tsconfig.json",
+    "check": "npm run typecheck && npm run check:templates"
+  },
   "files": [
     "src/",
     "tsconfig.json"
@@ -47,6 +52,7 @@
     "@angular/cdk": "^21.2.6",
     "@angular/common": "^21.2.8",
     "@angular/compiler": "^21.2.8",
+    "@angular/compiler-cli": "^21.2.8",
     "@angular/core": "^21.2.8",
     "@angular/forms": "^21.2.8",
     "@angular/material": "^21.2.6",

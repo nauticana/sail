@@ -54,3 +54,24 @@ export function configureRestUrls(httpHost: string, overrides?: Partial<typeof R
     Object.assign(RestURL, overrides);
   }
 }
+
+/**
+ * True when `url` targets the configured keel backend's authenticated `/api/`
+ * surface. Used to scope the JWT interceptor so the token is never attached to
+ * a third-party origin that merely happens to contain `/api/` in its path.
+ */
+export function isKeelApiUrl(url: string): boolean {
+  const host = RestURL.httpHost;
+  return host ? url.startsWith(host + '/api/') : url.startsWith('/api/');
+}
+
+/**
+ * True when `url` targets the keel backend at all (`/api/` or `/public/`).
+ * Used to scope the response interceptor's envelope-unwrapping so third-party
+ * responses pass through untouched.
+ */
+export function isKeelUrl(url: string): boolean {
+  const host = RestURL.httpHost;
+  if (host) return url.startsWith(host + '/');
+  return url.startsWith('/api/') || url.startsWith('/public/');
+}

@@ -102,18 +102,20 @@
         </mat-form-field>
       </div>
 
-      <div class="auth-checkbox">
-        <mat-checkbox formControlName="consentLocation">
-          I consent to geocode my business address for location services
-        </mat-checkbox>
-      </div>
+      @if (geocodeEnabled) {
+        <div class="auth-checkbox">
+          <mat-checkbox formControlName="consentLocation">
+            I consent to geocode my business address for location services
+          </mat-checkbox>
+        </div>
 
-      @if (geocodeStatus() === 'loading') {
-        <div class="geocode-status geocode-loading" role="status">Verifying address...</div>
-      } @else if (geocodeStatus() === 'success') {
-        <div class="geocode-status geocode-success" role="status">Address verified.</div>
-      } @else if (geocodeStatus() === 'error') {
-        <div class="geocode-status geocode-error" role="alert">{{ geocodeError() }}</div>
+        @if (geocodeStatus() === 'loading') {
+          <div class="geocode-status geocode-loading" role="status">Verifying address...</div>
+        } @else if (geocodeStatus() === 'success') {
+          <div class="geocode-status geocode-success" role="status">Address verified.</div>
+        } @else if (geocodeStatus() === 'error') {
+          <div class="geocode-status geocode-error" role="alert">{{ geocodeError() }}</div>
+        }
       }
 
       @if (registerError()) {
@@ -121,7 +123,7 @@
       }
 
       <button matButton="elevated" class="primary" type="submit"
-        [disabled]="!registerForm.valid || geocodeStatus() !== 'success'">
+        [disabled]="!registerForm.valid || (geocodeEnabled && geocodeStatus() !== 'success')">
         Create Account
       </button>
     </form>

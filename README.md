@@ -2,24 +2,27 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. Use **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.0.x ↔ keel v1.0.x**. Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 ## What it provides
 
 | Category | Exports |
 |----------|---------|
-| **Table components** | `TableList`, `TableSearch`, `TableEdit`, `TableDetail`, `TableLookup` |
+| **Table components** | `TableList`, `TableSearch`, `TableEdit`, `TableDetail`, `TableLookup`, `TableReport` |
 | **Form components** | `DynamicField`, `RecordForm`, `TableForm` |
 | **Navigation** | `Navigation` (sidenav + toolbar with menu, responsive) |
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
 | **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `AccountDeletionComponent` |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent` |
-| **Billing** | `PlanSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent` |
-| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere), `BillingService`, `BackendService`, `LabelService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
-| **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `BaseAsync` |
+| **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
+| **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
+| **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
-| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `TrustedDevice`, `PublicPlan`, `PaymentMethod`, `Subscription`, `Invoice`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
 | **Decorators** | `@IsString()`, `@IsNumeric()` (class-validator based) |
+| **Utils** | `titleCase()`, `fromPriceLabel()` |
 
 ## Quick start
 
@@ -35,7 +38,7 @@ This adds the following to your `package.json`:
 
 ```json
 "dependencies": {
-  "@nauticana/sail": "^0.5.0",
+  "@nauticana/sail": "^1.0.0",
   "class-validator": "^0.15.1"
 }
 ```
@@ -249,7 +252,7 @@ interface SailGuiConfig {
 }
 ```
 
-## Backend endpoints (keel v0.5)
+## Backend endpoints (keel v1.0)
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -312,6 +315,10 @@ For the browser to store and resend that cookie, the requests must be credential
   - `Origin` = the **exact** SPA origin (e.g. `https://app.example.com`). A wildcard `*` is rejected by the browser for credentialed responses — keel's CORS layer enforces this.
 
 If "trust this device" appears to do nothing (user is 2FA-prompted on every login despite checking the box), the cause is almost always a missing `AllowCredentials` / wildcard-origin on the backend — open devtools and confirm the `keel_td` cookie is actually set after a successful verify.
+
+### Session token storage
+
+The session JWT and the short-lived `loginToken` are kept in `localStorage` (the trusted-device secret is the only HttpOnly cookie). This is a deliberate trade-off for a token-based SPA, but it means any XSS in the consuming app can read the session token. Harden accordingly: ship a strict `Content-Security-Policy`, keep third-party script surface minimal, and prefer short JWT lifetimes on the keel side.
 
 ## Billing
 
@@ -921,7 +928,7 @@ npm update @nauticana/sail
 Or to install a specific version:
 
 ```bash
-npm install @nauticana/sail@0.9.0
+npm install @nauticana/sail@1.0.7
 ```
 
 ## Migrating to v0.5.0
@@ -1511,6 +1518,21 @@ No data migration needed. Rows written under the old plaintext-fingerprint schem
 ### Backend alignment
 
 v0.9.0 targets **keel v0.9**. The full backend contract is documented in [keel/README.md → Trusted-device model (v0.9) and Migration from v0.8 trusted-device API](https://github.com/nauticana/keel/blob/main/README.md). Verify your backend sets `AllowCredentials` (cross-origin only) before rolling out.
+
+## Migrating to v1.0.7 — interceptor scoping, 2FA-verify return type
+
+Additive for the bundled components; the notes below apply only if you call the auth API directly or relied on the interceptors mutating non-keel traffic.
+
+- **Interceptors are now scoped to the keel host.** `authInterceptor` only attaches the JWT to the configured backend's `/api/` URLs (set via `configureRestUrls(host)`), and `apiResponseInterceptor` only unwraps / passes through responses from keel URLs. Requests to other origins are left untouched — the JWT no longer leaks to a third-party URL that merely contains `/api/`. If you routed non-keel calls through these interceptors expecting them to mutate the payload, handle that in your own interceptor.
+- **`apiResponseInterceptor` preserves the original error shape.** It no longer flattens `HttpErrorResponse.error` to a string, so `err.error.detail` / `err.error.message` (keel's RFC 7807 ProblemDetail) reach your components intact — matching what `BaseAsync` already reads.
+- **`verify2FALogin()` now returns `Observable<TwoFactorVerifyResponse>`** instead of subscribing internally and returning `void` — mirroring `verifyBackupCode()`, so a component can show loading / invalid-code state. **You must subscribe** for the request to fire. The bundled `TwoFactorVerifyComponent` is already updated; only direct callers need to change:
+
+  ```diff
+  - this.auth.verify2FALogin(code, trustDevice, deviceName);
+  + this.auth.verify2FALogin(code, trustDevice, deviceName).subscribe();
+  ```
+
+- **`<sail-checkout-button>` `priceId` is now optional**, so setup-mode (save-card) works as documented — omit `[priceId]` for `[mode]="'setup'"`. Subscription / payment modes without a price now surface an inline error instead of a 400.
 
 ## Modernization items
 

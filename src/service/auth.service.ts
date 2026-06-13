@@ -161,33 +161,27 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   /**
-   * Verify a TOTP code during the LOGIN flow (public endpoint). Uses `/public/2fa/verify`
+   * Verify a TOTP code during the LOGIN flow (public endpoint, `/public/2fa/verify`).
+   * Returns the response so callers can drive loading / invalid-code UI; on a
+   * valid code the login is completed (token stored, app data + routes loaded).
+   * withCredentials so the browser stores the `keel_td` cookie keel sets on a
+   * `trustDevice:true` verify — that cookie is what skips 2FA next login.
    */
-  verify2FALogin(code: string, trustDevice = false, deviceName?: string) {
-    const loginToken = localStorage.getItem('loginToken');
-    if (!loginToken) {
-        console.error('No login token found');
-        return;
-    }
+  verify2FALogin(code: string, trustDevice = false, deviceName?: string): Observable<TwoFactorVerifyResponse> {
     const request: TwoFactorVerifyRequest = {
         code,
-        loginToken,
+        loginToken: localStorage.getItem('loginToken') ?? '',
         trustDevice,
         deviceName,
     };
-    // withCredentials so the browser stores the `keel_td` cookie keel sets on
-    // a `trustDevice:true` verify — that cookie is what skips 2FA next login.
-    this.http.post<TwoFactorVerifyResponse>(this.twoFactorLoginVerifyUrl, request, { withCredentials: true }).subscribe({
-        next: (res) => {
+    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorLoginVerifyUrl, request, { withCredentials: true }).pipe(
+        tap((res) => {
             if (res.valid && res.token) {
                 localStorage.removeItem('loginToken');
                 this.completeLogin(res.token);
             }
-        },
-        error: (err) => {
-            console.error('2FA verification failed:', err);
-        },
-    });
+        }),
+    );
   }
 
   /** Verify a single-use backup code during the LOGIN flow (public endpoint). */
@@ -526,6 +520,17 @@ export abstract class BaseAuthService extends BaseRestService {
     return undefined;
   }
 
+  /**
+   * Where to land after routes are (re)built. A fresh login starts from the
+   * root or a `/login` route → go to the dashboard. A refresh / bookmark of an
+   * authenticated route → preserve it so deep links survive route restoration.
+   */
+  private postLoginTarget(): string {
+    const path = window.location.pathname;
+    const preserve = !!path && path !== '/' && !path.startsWith('/login');
+    return preserve ? path + window.location.search : '/dashboard';
+  }
+
   async initRoutes() {
     // Lazy imports to break circular dependency:
     // auth.service → TableSearch/TableList → BaseTable → auth.service
@@ -615,7 +620,7 @@ export abstract class BaseAuthService extends BaseRestService {
 
             newRoutes.push({ path: '**', redirectTo: 'dashboard' });
             this.router.resetConfig(newRoutes);
-            this.router.navigate(['/dashboard']);
+            this.router.navigateByUrl(this.postLoginTarget());
         },
         error: (err) => {
             console.error('initRoutes failed:', err);

@@ -22,8 +22,12 @@ import { CheckoutMode } from '../../model/appdata';
 export class CheckoutButtonComponent extends BaseAsync {
   private readonly billing = inject(BillingService);
 
-  /** Stripe price ID (or keel-internal plan id resolved server-side). */
-  readonly priceId = input.required<string>();
+  /**
+   * Stripe price ID (or keel-internal plan id resolved server-side).
+   * Required for 'subscription' / 'payment'; omit for 'setup' (save-card),
+   * where keel rejects a non-empty priceId with 400.
+   */
+  readonly priceId = input<string>();
   /** Checkout mode — 'subscription' (default), 'payment' (one-off), or 'setup' (capture method). */
   readonly mode = input<CheckoutMode>('subscription');
   /** Quantity for the priced item. */
@@ -40,10 +44,16 @@ export class CheckoutButtonComponent extends BaseAsync {
   readonly label = input('Continue to payment');
 
   startCheckout(): void {
+    const mode = this.mode();
+    const priceId = this.priceId();
+    if (mode !== 'setup' && !priceId) {
+      this.errorMessage.set('Select a plan before continuing.');
+      return;
+    }
     this.run(
       this.billing.createCheckout({
-        mode:       this.mode(),
-        priceId:    this.priceId(),
+        mode,
+        priceId:    mode === 'setup' ? undefined : priceId,
         quantity:   this.quantity(),
         email:      this.email(),
         successUrl: this.successUrl(),
