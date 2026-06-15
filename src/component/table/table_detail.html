@@ -38,7 +38,7 @@
                         </td>
                     }
                     <td>
-                        <button matIconButton (click)="saveRow()" title="Save"><mat-icon>save</mat-icon></button>
+                        <button matIconButton (click)="saveRow()" [title]="isNew ? 'Add' : 'Update'"><mat-icon>{{ isNew ? 'add' : 'check' }}</mat-icon></button>
                         <button matIconButton (click)="cancelRow(record)" title="Cancel"><mat-icon>cancel</mat-icon></button>
                     </td>
                 } @else {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, OnInit, output, ViewEncapsulation } from "@angular/core";
 import { DynamicField } from "../form/form_field";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseForm } from "../abstract/base_form";
@@ -26,6 +26,9 @@ export class TableDetail extends BaseForm implements OnInit {
     readonly parentRecord = input<any>({});
     /** When true, the parent view is in read-only mode — disable all child row editing. */
     readonly parentReadOnly = input(false);
+    /** Fires after any grid mutation (add/edit/delete/undelete/cancel) so a parent
+     *  can re-evaluate unsaved-changes state. Local only — no server call. */
+    readonly changed = output<void>();
 
     override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
@@ -88,6 +91,7 @@ export class TableDetail extends BaseForm implements OnInit {
                 } else {
                     Object.assign(record, result);
                 }
+                this.changed.emit();
             }
         });
     }
@@ -123,6 +127,7 @@ export class TableDetail extends BaseForm implements OnInit {
         this.editingRecord = null;
         this.originalRecord = null;
         this.isNew = false;
+        this.changed.emit();
     }
 
     cancelRow(record: any) {
@@ -137,6 +142,7 @@ export class TableDetail extends BaseForm implements OnInit {
         this.editingRecord = null;
         this.originalRecord = null;
         this.isNew = false;
+        this.changed.emit();
     }
 
     deleteRow(record: any) {
@@ -148,11 +154,13 @@ export class TableDetail extends BaseForm implements OnInit {
         } else {
             record[this.config.opField] = OpCode.Delete;
         }
+        this.changed.emit();
     }
 
     unDeleteRow(record: any) {
         if (record[this.config.opField] === OpCode.Delete) {
             record[this.config.opField] = OpCode.Update;
         }
+        this.changed.emit();
     }
 }

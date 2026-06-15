@@ -12,7 +12,7 @@ import {
 import { RestURL } from './rest_url';
 import { Observable, ReplaySubject } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
-import { CanActivateFn, Router, Routes } from '@angular/router';
+import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
 
@@ -500,6 +500,15 @@ export abstract class BaseAuthService extends BaseRestService {
     );
   };
 
+  // Confirms navigation away when the routed component reports unsaved changes.
+  // Opt in by implementing hasUnsavedChanges(): boolean on the component.
+  readonly canDeactivate: CanDeactivateFn<{ hasUnsavedChanges?: () => boolean }> = (component) => {
+    if (component && typeof component.hasUnsavedChanges === 'function' && component.hasUnsavedChanges()) {
+      return window.confirm('You have unsaved changes. Leave this page without saving?');
+    }
+    return true;
+  };
+
   /** Override in subclasses to add project-specific routes */
   protected buildExtraRoutes(data: ApplicationData): Routes {
     if (this.guiConfig.extraRoutes) {
@@ -615,6 +624,13 @@ export abstract class BaseAuthService extends BaseRestService {
                     }
                 }
 
+                // Guard navigation away from any component-backed page that
+                // tracks unsaved changes (opt-in via hasUnsavedChanges()).
+                for (const r of children) {
+                    if ((r as { component?: unknown }).component) {
+                        (r as { canDeactivate?: unknown[] }).canDeactivate = [this.canDeactivate];
+                    }
+                }
                 newRoutes.push({ path: menuPath, children });
             }
 
