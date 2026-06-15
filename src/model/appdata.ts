@@ -40,7 +40,7 @@ export interface TableColumn {
   PascalName:   string;
   Caption:      string;
   DataType:     string;
-  InputType:    'text' | 'password' | 'number' | 'date' | 'datetime' | 'datetime-local' | 'textarea' | 'select' | 'checkbox';
+  InputType:    'text' | 'password' | 'number' | 'date' | 'time' | 'datetime' | 'datetime-local' | 'textarea' | 'select' | 'checkbox';
   Size:         number;
   Scale:        number;
   Step:         string;

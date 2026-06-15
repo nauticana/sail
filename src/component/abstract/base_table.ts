@@ -267,12 +267,26 @@ export abstract class BaseTable {
         return String(rawValue);
     }
 
-    isTimeStamp(fieldName: string): boolean {
+    /**
+     * Temporal input kind for a field, or null if not temporal. Drives both the
+     * load-format and save-restore so TIME/DATE columns aren't given the
+     * datetime-local (seconds + 'Z') treatment a Postgres TIME/DATE rejects.
+     */
+    temporalKind(fieldName: string): 'time' | 'date' | 'datetime-local' | null {
         const col = this.getColumn(fieldName)
-        if (col) {
-            return col.DataType === 'timestamp';
+        if (col?.InputType === 'time') return 'time'
+        if (col?.InputType === 'date') return 'date'
+        if (col?.InputType === 'datetime-local') return 'datetime-local'
+        // Fallback for column metadata predating keel's time/date split.
+        if (col ? col.DataType === 'timestamp'
+                : (fieldName.endsWith('Time') || fieldName.endsWith('time'))) {
+            return 'datetime-local'
         }
-        return fieldName.endsWith('Time') || fieldName.endsWith('time');
+        return null
+    }
+
+    isTimeStamp(fieldName: string): boolean {
+        return this.temporalKind(fieldName) !== null
     }
 
     isNumber(fieldName: string): boolean {
@@ -303,9 +317,11 @@ export abstract class BaseTable {
         return Array.isArray(value);
     }
 
-    formatTimeStamp(val: string): string {
+    formatTimeStamp(val: string, kind: 'time' | 'date' | 'datetime-local' = 'datetime-local'): string {
         if (val && typeof val === 'string') {
-            return val.slice(0, 16);
+            if (kind === 'time') return val.slice(0, 5);    // HH:MM
+            if (kind === 'date') return val.slice(0, 10);   // YYYY-MM-DD
+            return val.slice(0, 16);                         // YYYY-MM-DDTHH:MM
         }
         return val;
     }
@@ -313,16 +329,20 @@ export abstract class BaseTable {
     formatRecordTimeStamp(record: any) {
         if (record) {
             for (const key of Object.keys(record)) {
-                if (this.isTimeStamp(key)) {
-                    record[key] = this.formatTimeStamp(record[key]);
+                const kind = this.temporalKind(key);
+                if (kind) {
+                    record[key] = this.formatTimeStamp(record[key], kind);
                 }
             }
         }
     }
 
-    restoreTimeStamp(val: any): any {
-        // PostgreSQL can't cast '' to TIMESTAMP — normalize empty to null.
+    restoreTimeStamp(val: any, kind: 'time' | 'date' | 'datetime-local' = 'datetime-local'): any {
+        // PostgreSQL can't cast '' to a temporal type — normalize empty to null.
         if (val === '' || val === undefined || val === null) return null;
+        // TIME/DATE values are sent verbatim ('08:45', '2026-06-15'); only
+        // datetime-local needs the seconds + UTC marker the picker omits.
+        if (kind === 'time' || kind === 'date') return val;
         if (typeof val === 'string' && !val.endsWith('Z')) {
             return val + ':00Z';
         }
@@ -332,8 +352,9 @@ export abstract class BaseTable {
     restoreRecordTimeStamp(record: any) {
         if (record) {
             for (const key of Object.keys(record)) {
-                if (this.isTimeStamp(key)) {
-                    record[key] = this.restoreTimeStamp(record[key]);
+                const kind = this.temporalKind(key);
+                if (kind) {
+                    record[key] = this.restoreTimeStamp(record[key], kind);
                 }
             }
         }

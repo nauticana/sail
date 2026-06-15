@@ -72,6 +72,7 @@ export class DynamicField extends BaseTable {
     get isDateLike(): boolean {
         if (!this.col) return false;
         return this.col.InputType === 'date'
+            || this.col.InputType === 'time'
             || this.col.InputType === 'datetime'
             || this.col.InputType === 'datetime-local';
     }
