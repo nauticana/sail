@@ -8,6 +8,7 @@ import {
   PushPlatform, PushRegisterRequest,
   ReauthCredentials,
   SignupConsent, SocialLoginRequest, SocialProvider,
+  UserProfile,
 } from '../model/auth';
 import { RestURL } from './rest_url';
 import { Observable, ReplaySubject } from 'rxjs';
@@ -51,6 +52,11 @@ export abstract class BaseAuthService extends BaseRestService {
   protected readonly deleteAccountUrl          = this.url(RestURL.deleteAccountURL);
   protected readonly pushRegisterUrl           = this.url(RestURL.pushRegisterURL);
   protected readonly pushRevokeUrl             = this.url(RestURL.pushRevokeURL);
+  protected readonly profileUrl                = this.url(RestURL.profileURL);
+  protected readonly profileEmailUrl           = this.url(RestURL.profileEmailURL);
+  protected readonly profileEmailConfirmUrl    = this.url(RestURL.profileEmailConfirmURL);
+  protected readonly profilePhoneUrl           = this.url(RestURL.profilePhoneURL);
+  protected readonly profilePhoneConfirmUrl    = this.url(RestURL.profilePhoneConfirmURL);
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
@@ -214,6 +220,34 @@ export abstract class BaseAuthService extends BaseRestService {
 
   forgotPassword(username: string) {
     return this.http.post<{ message: string }>(this.chpassUrl, { username });
+  }
+
+  // ── Self-service profile (keel ProfileHandler) ──
+  // Name/locale apply immediately; email/phone are verify-before-apply: a code
+  // is sent to the new value, the change lands only on confirm.
+
+  getProfile() {
+    return this.http.get<UserProfile>(this.profileUrl);
+  }
+
+  updateProfile(firstName: string, lastName: string, locale: string) {
+    return this.http.post<{ message: string }>(this.profileUrl, { firstName, lastName, locale });
+  }
+
+  requestEmailChange(value: string) {
+    return this.http.post<{ message: string }>(this.profileEmailUrl, { value });
+  }
+
+  confirmEmailChange(value: string, code: number) {
+    return this.http.post<{ message: string }>(this.profileEmailConfirmUrl, { value, code });
+  }
+
+  requestPhoneChange(value: string) {
+    return this.http.post<{ message: string }>(this.profilePhoneUrl, { value });
+  }
+
+  confirmPhoneChange(value: string, code: number) {
+    return this.http.post<{ message: string }>(this.profilePhoneConfirmUrl, { value, code });
   }
 
   confirmRegister(email: string, code: string) {

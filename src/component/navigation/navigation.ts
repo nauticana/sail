@@ -57,6 +57,7 @@ export class Navigation {
   );
 
   readonly isLoggedIn = this.authService.isLoggedIn;
+  protected readonly accountLink = this.guiConfig.accountLink;
 
   logout() {
     this.authService.logout();

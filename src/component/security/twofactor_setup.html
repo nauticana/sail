@@ -23,12 +23,18 @@
         @if (backupCodes().length > 0) {
           <div class="twofactor-backup">
             <h3>Backup Codes</h3>
-            <p class="auth-instructions">Save these codes in a safe place. Each code can only be used once.</p>
-            <ul class="backup-code-list">
-              @for (code of backupCodes(); track code) {
-                <li><code>{{ code }}</code></li>
-              }
-            </ul>
+            <p class="auth-instructions">Download these codes and keep them safe — they're shown only once, each works once, and can't be retrieved later (only regenerated).</p>
+            <div class="auth-actions">
+              <button matButton="elevated" class="primary" type="button" (click)="downloadBackupCodes()">Download codes</button>
+              <button matButton type="button" (click)="showCodes.set(!showCodes())">{{ showCodes() ? 'Hide codes' : 'Show codes' }}</button>
+            </div>
+            @if (showCodes()) {
+              <ul class="backup-code-list">
+                @for (code of backupCodes(); track code) {
+                  <li><code>{{ code }}</code></li>
+                }
+              </ul>
+            }
           </div>
         }
 

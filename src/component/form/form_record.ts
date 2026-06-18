@@ -40,11 +40,12 @@ export class RecordForm {
             return tableDef.Columns
                 .filter(col => !(col.HasDefault && col.DataType === 'timestamp'
                                  && !editableTimestamps.has(col.PascalName)))
-                // column_display_attribute: 'H' is never shown; 'R'/'U' (read-only
-                // and keel-set audit stamp) show display-only but hide when empty —
-                // so a new record's audit fields disappear and on edit only
-                // populated ones show.
-                .filter(col => col.DisplayMode !== 'H')
+                // column_display_attribute: 'H' is never shown; 'S' (secret) is
+                // also never shown and is stripped from reads server-side; 'R'/'U'
+                // (read-only and keel-set audit stamp) show display-only but hide
+                // when empty — so a new record's audit fields disappear and on edit
+                // only populated ones show.
+                .filter(col => col.DisplayMode !== 'H' && col.DisplayMode !== 'S')
                 .filter(col => !((col.DisplayMode === 'R' || col.DisplayMode === 'U')
                                  && this.isEmpty(record[col.PascalName])))
                 .sort((a, b) => a.Order - b.Order)

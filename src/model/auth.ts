@@ -102,6 +102,16 @@ export interface OtpResendRequest {
   purpose?: OtpPurpose;
 }
 
+// Current user's editable profile (GET profileURL). language is the locale.
+export interface UserProfile {
+  firstName:        string;
+  lastName:         string;
+  email:            string;
+  phoneNumber:      string;
+  language:         string;
+  twoFactorEnabled?: boolean;
+}
+
 // ── Re-authentication credentials ──
 // Required by Setup2FA, Disable2FA, DeleteAccount, LogoutEverywhere — server
 // rejects with 401 if neither `password` nor `twoFactorCode` is supplied.

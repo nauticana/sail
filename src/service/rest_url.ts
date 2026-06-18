@@ -33,6 +33,15 @@ export const RestURL = {
   loginSocialURL:      '/public/login/social',
   logoutEverywhereURL: '/api/user/logout-everywhere',
   deleteAccountURL:    '/api/user/account',
+  // Self-service profile (keel ProfileHandler). GET profileURL reads the
+  // current profile; POST updates name/locale. Email/phone are verify-before-
+  // apply (request → confirm). A consumer whose backend mounts these under a
+  // different prefix overrides them via configureRestUrls.
+  profileURL:             '/api/user/profile',
+  profileEmailURL:        '/api/user/profile/email',
+  profileEmailConfirmURL: '/api/user/profile/email/confirm',
+  profilePhoneURL:        '/api/user/profile/phone',
+  profilePhoneConfirmURL: '/api/user/profile/phone/confirm',
   pushRegisterURL:     '/api/push/register',
   pushRevokeURL:       '/api/push/revoke',
   // Payout — keel/payout endpoints.

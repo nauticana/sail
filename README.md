@@ -13,11 +13,12 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Navigation** | `Navigation` (sidenav + toolbar with menu, responsive) |
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
 | **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `AccountDeletionComponent` |
+| **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
-| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
 | **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
@@ -121,6 +122,10 @@ bootstrapApplication(App, {
           { label: 'Login', routerLink: '/login/local' },
           { label: 'Register', routerLink: '/login/register' },
         ],
+        // Shown in the toolbar before Logout when logged in. Mount the matching
+        // authenticated route to MyAccountComponent (its links expect
+        // /account/2fa, /account/devices, /account/delete, /login/chpass).
+        accountLink: { label: 'My Account', routerLink: '/account' },
         loginFooterLinks: [
           { label: 'Sign in with Google', routerLink: '/login/google' },
         ],

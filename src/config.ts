@@ -37,6 +37,8 @@ export interface SailGuiConfig {
   loginFooterLinks?: RouteLink[];
   /** Links shown in navigation toolbar when not logged in (e.g., Login, Register) */
   publicRouteLinks?: RouteLink[];
+  /** Link shown in the toolbar before Logout when logged in, e.g. {label:'My Account', routerLink:'/account'}. Omitted → not shown. */
+  accountLink?: RouteLink;
   /** Map RestUri (or prefix pattern like 'analytic/*') to a custom component */
   menuItemRouteOverrides?: { [restUriPattern: string]: Type<unknown> };
   /** Per-table overrides for hiding fields / seeding defaults. Keyed by table PascalName. */

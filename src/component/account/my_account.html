@@ -1,0 +1,17 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">My Account</h2>
+
+    <sail-profile-editor></sail-profile-editor>
+
+    <section class="account-section">
+      <h3>Security</h3>
+      <nav class="account-links">
+        <a matButton routerLink="/login/chpass">Change password</a>
+        <a matButton routerLink="/account/2fa">Two-factor authentication</a>
+        <a matButton routerLink="/account/devices">Trusted devices</a>
+        <a matButton class="warn" routerLink="/account/delete">Delete account</a>
+      </nav>
+    </section>
+  </div>
+</div>

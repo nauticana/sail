@@ -26,6 +26,8 @@ export * from './component/login/consent_gate';
 export * from './component/login/otp_input';
 export * from './component/login/social_login';
 export * from './component/login/account_deletion';
+export * from './component/account/profile_editor';
+export * from './component/account/my_account';
 export * from './component/security/twofactor_setup';
 export * from './component/security/twofactor_verify';
 export * from './component/security/trusted_devices';

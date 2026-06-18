@@ -28,6 +28,7 @@ export class TwoFactorSetupComponent extends BaseAsync {
   readonly qrUri = signal('');
   readonly secret = signal('');
   readonly backupCodes = signal<string[]>([]);
+  readonly showCodes = signal(false);
 
   // setup2FA requires the user's current password (or current TOTP code
   // if 2FA already enabled — pass twoFactorCode instead). Disable additionally
@@ -63,6 +64,18 @@ export class TwoFactorSetupComponent extends BaseAsync {
 
   proceedToVerify() {
     this.step.set('verify');
+  }
+
+  // Backup codes are shown once at setup. Offer a download (they're hashed
+  // server-side, so they can never be re-displayed later — only regenerated).
+  downloadBackupCodes() {
+    const blob = new Blob([this.backupCodes().join('\n') + '\n'], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup-codes.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   confirmSetup() {
