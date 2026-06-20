@@ -1,10 +1,12 @@
-import { inject, signal, WritableSignal } from "@angular/core";
+import { inject, signal, WritableSignal, Injector } from "@angular/core";
 import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
 import { ConstantValue, LookupStyle, OpCode } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 import { BackendService } from "../../service/rest_service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
 import { titleCase } from "../../util/text";
+import { MatDialog } from "@angular/material/dialog";
+import { RevealDialog } from "../table/reveal_dialog";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" alert. */
@@ -14,6 +16,8 @@ export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view';
 export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
     protected readonly backendService = inject(BackendService);
+    // Reveal dialogs are rare — resolve MatDialog lazily so every BaseTable subclass doesn't eagerly depend on it.
+    readonly #injector = inject(Injector);
     protected readonly config: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
     protected readonly dialogWidth: string = '400px';
     readonly tableName: WritableSignal<string> = signal('');
@@ -114,14 +118,17 @@ export abstract class BaseTable {
         if (!this.beforeExecuteAction(action, record)) return;
         if (action.confirmMessage && !confirm(action.confirmMessage)) return;
         const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
-        this.backendService.executeAction<{ url?: string }>(action.method, body).subscribe({
+        this.backendService.executeAction<Record<string, unknown>>(action.method, body).subscribe({
             next: (resp) => {
-                // A 'redirect' action POSTs then follows the returned {url}
-                // (provider-hosted checkout / portal / any external handoff
-                // declared as basis table_action metadata — no component).
-                if (action.kind === 'redirect' && resp?.url) {
-                    window.location.href = resp.url;
+                const url = resp?.['url'];
+                // R = redirect: POST then follow the returned {url} (hosted checkout / portal).
+                if (action.kind === 'R' && typeof url === 'string') {
+                    window.location.href = url;
                     return;
+                }
+                // V = reveal: show the returned secret once (e.g. a freshly minted key).
+                if (action.kind === 'V') {
+                    this.#injector.get(MatDialog).open(RevealDialog, { data: resp ?? {}, width: '480px' });
                 }
                 this.onActionSuccess(action, record);
             },
