@@ -110,8 +110,38 @@ export abstract class BaseAuthService extends BaseRestService {
     this.token = token;
     this.isLoggedIn.set(true);
     localStorage.setItem('jwt', token);
+    const ret = this.validatedReturnUrl();
+    if (ret && this.guiConfig.sessionCookieUrl) {
+      // OAuth flow: mirror the bearer into a cookie, then hand off to the
+      // (cross-origin) authorization server via a full navigation.
+      this.http.post(this.url(this.guiConfig.sessionCookieUrl), {}, { withCredentials: true })
+          .pipe(take(1))
+          .subscribe({
+            next: () => window.location.assign(ret),
+            error: () => window.location.assign(ret),
+          });
+      return;
+    }
     this.loadAppData();
     this.initRoutes();
+  }
+
+  /** A post-login `?return=` URL, only when its host is in allowedReturnHosts and
+   * the scheme is https (or loopback) — an open-redirect guard. '' otherwise. */
+  private validatedReturnUrl(): string {
+    const raw = new URLSearchParams(window.location.search).get('return');
+    if (!raw) return '';
+    try {
+      const u = new URL(raw, window.location.origin);
+      if (u.username || u.password) return '';   // reject userinfo ("user@host") spoofing
+      const host = u.hostname.toLowerCase();
+      const okScheme = u.protocol === 'https:' || host === 'localhost' || host === '127.0.0.1';
+      const allowed = (this.guiConfig.allowedReturnHosts ?? []).some((h) => h.toLowerCase() === host);
+      if (okScheme && allowed) {
+        return u.toString();
+      }
+    } catch { /* malformed → reject */ }
+    return '';
   }
 
   login(username: string, password: string) {

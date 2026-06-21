@@ -59,6 +59,15 @@ export interface SailGuiConfig {
   defaultPolicyLanguage?: string;
   /** Route to navigate to after account deletion. Defaults to '/login/local'. */
   accountDeletedRoute?: string;
+
+  // ── OAuth authorization-flow bridge (for an OAuth AS on a different host) ──
+  /** Backend path that mirrors the bearer JWT into an HttpOnly session cookie so
+   * a cross-site OAuth `/authorize` can see the session, e.g. '/api/v1/auth/session-cookie'.
+   * When set, login POSTs here before handing off to an allowed ?return= host. */
+  sessionCookieUrl?: string;
+  /** Hostnames a post-login `?return=` may redirect to (open-redirect allowlist),
+   * e.g. ['mcp.daxoom.com']. Anything not listed is ignored. */
+  allowedReturnHosts?: string[];
 }
 
 export const SAIL_GUI_CONFIG = new InjectionToken<SailGuiConfig>('SailGuiConfig');
