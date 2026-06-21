@@ -140,6 +140,8 @@ bootstrapApplication(App, {
 });
 ```
 
+> **Auth-loop breaker.** `authInterceptor` carries a built-in circuit breaker: after 5 `401`/`403`s on token-bearing keel API calls within 10s it opens for 30s and refuses those requests **locally** (never sent), so a stale/rejected session can't drive the app to hammer the API and the edge/CDN. A later success closes it; login (no bearer) is never blocked, so recovery works. No wiring needed beyond registering `authInterceptor`.
+
 ### 5. Create the root component
 
 ```typescript
