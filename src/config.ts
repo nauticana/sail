@@ -66,7 +66,7 @@ export interface SailGuiConfig {
    * When set, login POSTs here before handing off to an allowed ?return= host. */
   sessionCookieUrl?: string;
   /** Hostnames a post-login `?return=` may redirect to (open-redirect allowlist),
-   * e.g. ['mcp.daxoom.com']. Anything not listed is ignored. */
+   * e.g. ['mcp.example.com']. Anything not listed is ignored. */
   allowedReturnHosts?: string[];
 }
 

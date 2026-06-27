@@ -106,6 +106,13 @@ export abstract class BaseAuthService extends BaseRestService {
     ).subscribe((data: ApplicationData) => this.appData$.next(data));
   }
 
+  /** Adopt an externally-minted JWT (registration/SSO handoff flows) and run the
+   * full post-login sequence — store under the canonical key, load appdata, init
+   * routes. Apps must use this instead of writing localStorage directly. */
+  acceptToken(token: string) {
+    this.completeLogin(token);
+  }
+
   private completeLogin(token: string) {
     this.token = token;
     this.isLoggedIn.set(true);
