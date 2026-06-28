@@ -9,6 +9,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import {
   ConsentState, LoginResponseSocial, SignupConsent, SocialProvider,
 } from '../../model/auth';
+import { firstValueFrom } from 'rxjs';
 
 declare const google: any;
 declare const AppleID: any;
@@ -66,9 +67,11 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
 
   private async initGoogle() {
     await loadScript(GSI_URL);
+    const nonce = await firstValueFrom(this.auth.getSocialNonce());
     google.accounts.id.initialize({
       client_id: this.guiConfig.googleClientId,
       callback: (res: { credential: string }) => this.onIdToken('google', res.credential),
+      ...(nonce ? { nonce } : {}),
     });
     // Render into the template anchor once the view is ready.
     queueMicrotask(() => {
@@ -80,11 +83,13 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
 
   private async initApple() {
     await loadScript(APPLE_URL);
+    const nonce = await firstValueFrom(this.auth.getSocialNonce());
     AppleID.auth.init({
       clientId: this.guiConfig.appleServiceId,
       scope: 'name email',
       redirectURI: this.guiConfig.appleRedirectUri ?? window.location.origin,
       usePopup: true,
+      ...(nonce ? { nonce } : {}),
     });
   }
 

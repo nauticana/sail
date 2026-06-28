@@ -11,7 +11,7 @@ import {
   UserProfile,
 } from '../model/auth';
 import { RestURL } from './rest_url';
-import { Observable, ReplaySubject } from 'rxjs';
+import { Observable, ReplaySubject, catchError, of } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
@@ -378,6 +378,16 @@ export abstract class BaseAuthService extends BaseRestService {
     const payload: SocialLoginRequest = { provider, token: idToken, ...consent };
     return this.http.post<LoginResponseSocial>(this.loginSocialUrl, payload).pipe(
       tap((res) => { if (res?.token) this.completeLogin(res.token); }),
+    );
+  }
+
+  // Single-use nonce for the social id_token flow (replay protection): GET on
+  // the same social-login route. Empty when the backend hasn't enabled it —
+  // callers then sign in without one.
+  getSocialNonce(): Observable<string> {
+    return this.http.get<{ nonce: string }>(this.loginSocialUrl).pipe(
+      map((res) => res?.nonce ?? ''),
+      catchError(() => of('')),
     );
   }
 
