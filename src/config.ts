@@ -33,6 +33,8 @@ export interface SailGuiConfig {
   extraRoutes?: (data: ApplicationData) => Routes;
   dashboardComponent?: Type<any>;
   appTitle?: string;
+  /** Public asset URL for the application logo shown in the navigation home link, e.g. 'logo.png'. */
+  appLogoUrl?: string;
   googleMapsApiKey?: string;
   loginFooterLinks?: RouteLink[];
   /** Links shown in navigation toolbar when not logged in (e.g., Login, Register) */

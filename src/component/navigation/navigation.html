@@ -4,7 +4,21 @@
         [mode]="isHandset() ? 'over' : 'side'"
         [opened]="isLoggedIn() && !isHandset()">
         <mat-toolbar class="primary">
-            <span>Menu</span>
+            <a class="sail-navigation-home"
+                routerLink="/"
+                [attr.aria-label]="guiConfig.appTitle ? guiConfig.appTitle + ' home' : 'Home'">
+                @if (guiConfig.appLogoUrl) {
+                    <img class="sail-navigation-logo"
+                        [src]="guiConfig.appLogoUrl"
+                        width="40"
+                        height="40"
+                        alt="">
+                } @else if (guiConfig.appTitle) {
+                    <span class="sail-navigation-home-title">{{ guiConfig.appTitle }}</span>
+                } @else {
+                    <mat-icon aria-hidden="true">home</mat-icon>
+                }
+            </a>
         </mat-toolbar>
         @if (isLoggedIn()) {
             <mat-accordion>

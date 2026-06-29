@@ -111,6 +111,7 @@ bootstrapApplication(App, {
         opField: 'op_code',
         hiddenFields: ['op_code', 'PartnerId'],
         appTitle: 'My App',
+        appLogoUrl: 'logo.png',
         dashboardComponent: DashUser,
         publicRoutes: [
           { path: 'login/local', loadComponent: () => import('@nauticana/sail').then(m => m.LoginComponent) },
@@ -160,6 +161,17 @@ import { Navigation } from '@nauticana/sail';
 export class App {}
 ```
 
+Place the application logo in the consumer's `public/` directory (for example,
+`public/logo.png`) and set the same public URL in `appLogoUrl`. Sail displays it
+in the sidenav toolbar as a link to `/`. When `appLogoUrl` is omitted, the link
+falls back to `appTitle`, then to a home icon, so home navigation remains
+available without requiring a library-owned brand asset. The consuming app may
+also reuse that asset as its favicon:
+
+```html
+<link rel="icon" type="image/png" href="logo.png">
+```
+
 ### 6. Provide global styles
 
 All sail components use `ViewEncapsulation.None` — they ship no CSS. Your project must provide a global stylesheet covering sail selectors.
@@ -177,7 +189,8 @@ Key CSS classes used by components:
 /* Layout */
 .auth-container, .auth-card, .auth-header, .auth-title, .auth-form,
 .auth-actions, .auth-footer, .auth-app-title, .auth-checkbox,
-.auth-section-label, .auth-instructions, .form-row, .register-card
+.auth-section-label, .auth-instructions, .form-row, .register-card,
+.sail-navigation-home, .sail-navigation-logo, .sail-navigation-home-title
 
 /* Feedback */
 .auth-error, .auth-success, .geocode-status, .geocode-loading,
@@ -240,6 +253,7 @@ interface SailGuiConfig {
   opField: string;                    // Operation field name (default: 'op_code')
   hiddenFields: string[];             // Fields hidden from forms (default: ['op_code', 'PartnerId'])
   appTitle?: string;                  // Shown on login pages
+  appLogoUrl?: string;                // Public logo URL used by the navigation home link
   googleMapsApiKey?: string;          // For RegisterComponent geocoding
   dashboardComponent?: Type<any>;     // Component for /dashboard route
   publicRoutes?: Routes;              // Routes available before login
