@@ -1,0 +1,8 @@
+<mat-form-field appearance="outline" class="entity-selector">
+  <mat-label>{{ label() }}</mat-label>
+  <mat-select [value]="value()" (selectionChange)="onChange($event.value)">
+    @for (e of entities(); track e.id) {
+      <mat-option [value]="e.id" [disabled]="e.active === false">{{ e.label }}</mat-option>
+    }
+  </mat-select>
+</mat-form-field>

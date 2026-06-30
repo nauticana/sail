@@ -1,0 +1,32 @@
+<div class="verification-flow" [attr.data-step]="step()">
+  @switch (step()) {
+    @case ('verified') {
+      <p class="verification-success" role="status">Verified.</p>
+    }
+    @case ('idle') {
+      <p class="verification-intro">
+        Verify ownership@if (target()) { of {{ target() }} } to unlock trusted features.
+      </p>
+      <button matButton="elevated" type="button" class="primary" (click)="requestVerification.emit()">
+        Start verification
+      </button>
+    }
+    @default {
+      <p class="verification-intro">Enter the code we sent@if (target()) { to {{ target() }} }.</p>
+      <mat-form-field appearance="outline">
+        <mat-label>Verification code</mat-label>
+        <input matInput #codeInput name="code" autocomplete="one-time-code"
+               [value]="code()" (input)="code.set(codeInput.value)"
+               [disabled]="step() === 'verifying'">
+      </mat-form-field>
+      @if (errorMessage()) { <p class="verification-error" role="alert">{{ errorMessage() }}</p> }
+      <div class="verification-actions">
+        <button matButton="elevated" type="button" class="primary"
+                [disabled]="step() === 'verifying' || !code().trim()" (click)="submit()">
+          @if (step() === 'verifying') { Verifying… } @else { Confirm }
+        </button>
+        <button matButton type="button" (click)="requestVerification.emit()">Resend code</button>
+      </div>
+    }
+  }
+</div>

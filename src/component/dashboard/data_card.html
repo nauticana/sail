@@ -1,0 +1,37 @@
+<section class="data-card" [attr.data-state]="state()" [attr.aria-busy]="state() === 'loading'">
+  @if (heading()) { <h2 class="data-card-title">{{ heading() }}</h2> }
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="data-card-loading"><mat-spinner diameter="28"></mat-spinner></div>
+    }
+    @case ('ready') {
+      <p class="sr-only">{{ description() }}</p>
+      @if (chart(); as tpl) { <ng-container [ngTemplateOutlet]="tpl"></ng-container> }
+      @if (tableRows().length) {
+        <table class="sr-only data-card-table">
+          <caption>{{ description() }}</caption>
+          @if (tableHeaders().length) {
+            <thead><tr>@for (h of tableHeaders(); track $index) { <th>{{ h }}</th> }</tr></thead>
+          }
+          <tbody>
+            @for (row of tableRows(); track $index) {
+              <tr>@for (cell of row; track $index) { <td>{{ cell }}</td> }</tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
+    @case ('empty') { <p class="data-card-empty">{{ emptyMessage() }}</p> }
+    @case ('error') {
+      <p class="data-card-error" role="alert">{{ errorMessage() }}</p>
+      <button matButton type="button" (click)="retry.emit()">Retry</button>
+    }
+    @case ('locked') {
+      <div class="data-card-locked" role="group" [attr.aria-label]="(heading() || 'Insight') + ' — locked'">
+        <p class="locked-message">{{ lockedMessage() }}</p>
+        <button matButton="elevated" type="button" class="primary" (click)="upgrade.emit()">{{ ctaLabel() }}</button>
+      </div>
+    }
+  }
+</section>

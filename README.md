@@ -18,6 +18,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
+| **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
 | **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
@@ -749,6 +750,25 @@ Config required in `SAIL_GUI_CONFIG`:
 Under the hood, the component calls `BaseAuthService.loginSocial(provider, idToken, consent)` → `POST /public/login/social` and emits `loginSuccess: LoginResponseSocial`. The session is completed automatically (token stored, app data loaded, routes initialized).
 
 For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWithGoogle(code)` (hits `/public/login/google`) is still supported; prefer `loginSocial` for new code.
+
+## Dashboard components
+
+Horizontal building blocks for an entitlement-aware dashboard. All are presentational (signals in, events out) and ship no CSS — the app styles the documented class hooks and supplies the metric data, chart, and action logic.
+
+- **`DashboardShellComponent`** (`sail-dashboard-shell`) — responsive card-grid layout. `[heading]` + a `[dashboardActions]` projection slot for the header; project cards into the default slot. Styles: `.dashboard-shell` / `.dashboard-header` / `.dashboard-grid`.
+- **`DataCardComponent`** (`sail-data-card`) — card chrome for one visualization with `[state]` ∈ `loading | ready | empty | error | locked`. The chart is supplied as an `<ng-template>` and instantiated **only** in `ready`, so during loading/error/locked it never exists (no hidden canvas). `description` (required) is the screen-reader text alternative; `[tableHeaders]`/`[tableRows]` render a visually-hidden (`.sr-only`) data table. Emits `upgrade` / `retry`.
+- **`LockedOverlayComponent`** (`sail-locked-overlay`) — entitlement gate. Wraps protected content given as an `<ng-template>`; when `[locked]` the template is never instantiated, so **no data exists behind the gate** (DOM, canvas, or network) — the strict free-tier rule. Emits `upgrade`.
+- **`ActionCenterComponent`** (`sail-action-center`) — prioritized next-best-action list from `[actions]: ActionItem[]` (sorted by `priority`, done items show a check). Emits `act`.
+- **`EntitySelectorComponent`** (`sail-entity-selector`) — scope dropdown over `[entities]: EntityOption[]`; resolves `[selected]` or the first active entity and emits `selectionChange`.
+- **`VerificationFlowComponent`** (`sail-verification-flow`) — self-service request → enter-code → verified UI (a 2FA sibling), backend-agnostic: emits `requestVerification` / `confirmCode`, driven by `[step]` + `[errorMessage]` the host feeds back.
+
+```html
+<sail-data-card heading="Trends" [state]="state()" description="Weekly visibility trend" (upgrade)="goUpgrade()">
+  <ng-template><canvas baseChart [data]="chartData()" [type]="'line'"></canvas></ng-template>
+</sail-data-card>
+```
+
+Models: `DataCardState`, `ActionItem`, `EntityOption`, `VerificationStep`.
 
 ## Adding a new domain table
 

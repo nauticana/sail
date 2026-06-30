@@ -1,0 +1,8 @@
+@if (locked()) {
+  <div class="locked-overlay" role="group" [attr.aria-label]="(feature() || 'Feature') + ' — locked'">
+    <p class="locked-message">{{ message() }}</p>
+    <button matButton="elevated" type="button" class="primary" (click)="upgrade.emit()">{{ ctaLabel() }}</button>
+  </div>
+} @else if (content(); as tpl) {
+  <ng-container [ngTemplateOutlet]="tpl"></ng-container>
+}

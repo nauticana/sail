@@ -1,0 +1,13 @@
+<section class="dashboard-shell">
+  @if (heading()) {
+    <header class="dashboard-header">
+      <h1 class="dashboard-title">{{ heading() }}</h1>
+      <div class="dashboard-actions">
+        <ng-content select="[dashboardActions]"></ng-content>
+      </div>
+    </header>
+  }
+  <div class="dashboard-grid">
+    <ng-content></ng-content>
+  </div>
+</section>
