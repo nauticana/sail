@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { ProfileEditorComponent } from './profile_editor';
@@ -12,4 +12,8 @@ import { ProfileEditorComponent } from './profile_editor';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, MatButtonModule, ProfileEditorComponent],
 })
-export class MyAccountComponent {}
+export class MyAccountComponent {
+  /** Opt-in: set true once the host's backend has an SMS provider, to expose
+   *  phone-number change in the embedded profile editor. */
+  readonly phoneChangeEnabled = input(false);
+}

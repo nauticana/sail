@@ -144,7 +144,9 @@ bootstrapApplication(App, {
 });
 ```
 
-> **Auth-loop breaker.** `authInterceptor` carries a built-in circuit breaker: after 5 `401`/`403`s on token-bearing keel API calls within 10s it opens for 30s and refuses those requests **locally** (never sent), so a stale/rejected session can't drive the app to hammer the API and the edge/CDN. A later success closes it; login (no bearer) is never blocked, so recovery works. No wiring needed beyond registering `authInterceptor`.
+> **Auth-loop breaker.** `authInterceptor` carries a built-in circuit breaker: after 5 `401`s on token-bearing keel API calls within 10s it opens for 30s and refuses those requests **locally** (never sent), so a stale/rejected session can't drive the app to hammer the API and the edge/CDN. Only `401` counts — a `403` is a legitimate permission denial, not a session failure. A later success **or accepting a new token** (login) closes it, so a freshly authenticated session is never blocked. No wiring needed beyond registering `authInterceptor`.
+
+> **Phone-number change (opt-in).** `ProfileEditorComponent` and `MyAccountComponent` gate phone change behind a `phoneChangeEnabled` input (default `false`, since it needs an SMS provider — keel returns 503 without `Notify`). Enable it once your backend has SMS wired: `<sail-my-account [phoneChangeEnabled]="true" />` or `<sail-profile-editor [phoneChangeEnabled]="true" />`.
 
 ### 5. Create the root component
 
@@ -506,7 +508,7 @@ readonly meters = toSignal(this.billing.listUsage(), { initialValue: [] });
 
 ### Redirect-action (v1.0.0)
 
-A `TableAction` with `kind: 'redirect'` makes `BaseTable.executeAction` POST and then follow the returned `{ url }` instead of refreshing — so checkout / portal / any provider-hosted handoff can be declared as a basis `table_action` row with **no bespoke component**. The backend action handler returns `{ "url": "https://…" }`.
+A `TableAction` with `kind: 'R'` (redirect — the `constant_value` code) makes `BaseTable.executeAction` POST and then follow the returned `{ url }` instead of refreshing — so checkout / portal / any provider-hosted handoff can be declared as a basis `table_action` row with **no bespoke component**. The backend action handler returns `{ "url": "https://…" }`.
 
 > **Response-shape contract.** The generic redirect-action path reads a bare `url` because it's polymorphic — one dispatch for checkout / portal / export / etc., where the action's identity lives in the metadata, not the payload. keel's `WrapTableAction` enforces no shape; your inner handler must return `{ url }`. The *typed* billing endpoints keep specific names instead (`createCheckout()` → `checkoutUrl`, `createPortalSession()` → `portalUrl`). So the same portal concept has two response shapes depending on the path: wire it as `<sail-portal-button>` (typed → `portalUrl`) **or** as a `table_action` redirect (generic → `url`), not both.
 

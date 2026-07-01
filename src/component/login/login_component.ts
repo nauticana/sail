@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from '@angular/material/input';
@@ -25,10 +25,11 @@ import { SocialLoginComponent } from './social_login';
 })
 export class LoginComponent {
   private auth = inject(BaseAuthService);
-  private router = inject(Router);
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
   protected readonly loggedOut = inject(ActivatedRoute).snapshot.queryParamMap.get('loggedOut') === 'true';
+  /** OAuth session-cookie handoff failure from BaseAuthService, shown below. */
+  protected readonly sessionHandoffError = this.auth.sessionHandoffError;
 
   /**
    * Auto-show the embedded SocialLoginComponent whenever at least one
@@ -58,14 +59,12 @@ export class LoginComponent {
   }
 
   /**
-   * SocialLoginComponent emits the response after BaseAuthService.loginSocial
-   * persists the JWT internally. Mirror the same post-login navigation that
-   * password-login uses (root route by default; consumers override via
-   * BaseAuthService.navigateToRoleHome when role-aware routing lands).
+   * loginSocial already ran completeLogin, which owns post-login navigation
+   * (route init, or the OAuth cookie handoff). Handlers must NOT navigate here —
+   * doing so abandons a pending handoff before its cookie is set. Downstream
+   * social-login handlers should follow the same rule.
    */
-  protected onSocialSuccess(_: LoginResponseSocial): void {
-    this.router.navigateByUrl('/');
-  }
+  protected onSocialSuccess(_: LoginResponseSocial): void {}
 
   protected onSocialError(err: Error): void {
     console.error('social login failed:', err);

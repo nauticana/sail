@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,9 +6,9 @@ import { MatInputModule } from '@angular/material/input';
 import { BaseAuthService } from '../../service/auth.service';
 import { UserProfile } from '../../model/auth';
 
-// Self-service profile editor: name/locale save immediately; email change is
-// verify-before-apply (code to the new address). Phone change is gated until
-// the backend has an SMS provider.
+// Self-service profile editor: name/locale save immediately; email and phone
+// change are verify-before-apply (code to the new value). Phone change is shown
+// only when the host enables phoneChangeEnabled (its backend has an SMS provider).
 @Component({
   selector: 'sail-profile-editor',
   templateUrl: './profile_editor.html',
@@ -19,8 +19,8 @@ export class ProfileEditorComponent implements OnInit {
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
 
-  // Flip true once the backend wires an SMS provider for phone codes.
-  readonly phoneChangeEnabled = false;
+  // Set by the host once its backend wires an SMS provider for phone codes.
+  readonly phoneChangeEnabled = input(false);
 
   readonly loading = signal(false);
   readonly profileMsg = signal('');
@@ -39,6 +39,12 @@ export class ProfileEditorComponent implements OnInit {
   readonly emailErr = signal('');
   readonly newEmail = new FormControl('', [Validators.required, Validators.email]);
   readonly emailCode = new FormControl('', [Validators.required]);
+
+  readonly phonePhase = signal<'idle' | 'enter' | 'code'>('idle');
+  readonly phoneMsg = signal('');
+  readonly phoneErr = signal('');
+  readonly newPhone = new FormControl('', [Validators.required]);
+  readonly phoneCode = new FormControl('', [Validators.required]);
 
   ngOnInit(): void {
     this.auth.getProfile().subscribe({
@@ -92,6 +98,38 @@ export class ProfileEditorComponent implements OnInit {
     this.auth.confirmEmailChange(this.newEmail.value!, Number(this.emailCode.value)).subscribe({
       next: () => { this.loading.set(false); this.email.set(this.newEmail.value!); this.cancelEmailChange(); this.profileMsg.set('Email updated.'); },
       error: (e) => { this.loading.set(false); this.emailErr.set(this.msg(e, 'Invalid or expired code.')); },
+    });
+  }
+
+  startPhoneChange(): void {
+    this.phonePhase.set('enter');
+    this.phoneMsg.set('');
+    this.phoneErr.set('');
+  }
+
+  cancelPhoneChange(): void {
+    this.phonePhase.set('idle');
+    this.newPhone.reset();
+    this.phoneCode.reset();
+  }
+
+  sendPhoneCode(): void {
+    if (this.newPhone.invalid) return;
+    this.loading.set(true);
+    this.phoneErr.set('');
+    this.auth.requestPhoneChange(this.newPhone.value!).subscribe({
+      next: () => { this.loading.set(false); this.phonePhase.set('code'); this.phoneMsg.set('We sent a code to your new number.'); },
+      error: (e) => { this.loading.set(false); this.phoneErr.set(this.msg(e, 'Could not send a code.')); },
+    });
+  }
+
+  confirmPhoneChange(): void {
+    if (this.phoneCode.invalid) return;
+    this.loading.set(true);
+    this.phoneErr.set('');
+    this.auth.confirmPhoneChange(this.newPhone.value!, Number(this.phoneCode.value)).subscribe({
+      next: () => { this.loading.set(false); this.phone.set(this.newPhone.value!); this.cancelPhoneChange(); this.profileMsg.set('Phone updated.'); },
+      error: (e) => { this.loading.set(false); this.phoneErr.set(this.msg(e, 'Invalid or expired code.')); },
     });
   }
 

@@ -19,22 +19,24 @@ export class EntitySelectorComponent {
   readonly entities = input<EntityOption[]>([]);
   readonly selected = input<string | undefined>(undefined);
   readonly label = input<string>('Business');
-  readonly selectionChange = output<string>();
+  readonly selectionChange = output<string | undefined>();
 
   readonly value = signal<string | undefined>(undefined);
 
   constructor() {
     // Explicit selection wins; else keep the current pick if still valid; else the
-    // first active entity. Emit whenever the resolved value actually changes.
+    // first active entity. "Valid" means present AND active, so a scope that goes
+    // inactive (or vanishes) is dropped. Emit on every change, including a clear
+    // (undefined) when no active option remains, so the host stops showing stale data.
     effect(() => {
       const opts = this.entities();
-      const want = this.selected();
+      const isActive = (id?: string) => !!id && opts.some((e) => e.id === id && e.active !== false);
       const cur = this.value();
       const resolved =
-        want && opts.some((e) => e.id === want) ? want
-          : cur && opts.some((e) => e.id === cur) ? cur
+        isActive(this.selected()) ? this.selected()
+          : isActive(cur) ? cur
             : opts.find((e) => e.active !== false)?.id;
-      if (resolved && resolved !== cur) {
+      if (resolved !== cur) {
         this.value.set(resolved);
         this.selectionChange.emit(resolved);
       }

@@ -16,6 +16,7 @@ import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
+import { resetAuthCircuit } from './auth.interceptor';
 
 /** Sort dropdown options by their visible label so long lookup lists are scannable. */
 const byCaption = (a: ConstantValue, b: ConstantValue) =>
@@ -60,6 +61,10 @@ export abstract class BaseAuthService extends BaseRestService {
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
+
+  /** Set when the OAuth session-cookie handoff fails; the UI shows it and lets the
+   *  user retry instead of being redirected into a cookieless login loop. */
+  readonly sessionHandoffError = signal<string | null>(null);
 
   /**
    * Multi-role app support. Consumers that distinguish rider/driver/admin
@@ -117,15 +122,22 @@ export abstract class BaseAuthService extends BaseRestService {
     this.token = token;
     this.isLoggedIn.set(true);
     localStorage.setItem('jwt', token);
+    resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
     const ret = this.validatedReturnUrl();
     if (ret && this.guiConfig.sessionCookieUrl) {
       // OAuth flow: mirror the bearer into a cookie, then hand off to the
-      // (cross-origin) authorization server via a full navigation.
+      // (cross-origin) authorization server via a full navigation. Only hand off
+      // once the cookie is actually set — redirecting after a failed cookie request
+      // sends the user on without a session and loops them back to login.
+      this.sessionHandoffError.set(null);
       this.http.post(this.url(this.guiConfig.sessionCookieUrl), {}, { withCredentials: true })
           .pipe(take(1))
           .subscribe({
             next: () => window.location.assign(ret),
-            error: () => window.location.assign(ret),
+            error: (err) => {
+              console.error('Session cookie handoff failed:', err);
+              this.sessionHandoffError.set('Could not complete sign-in. Please try again.');
+            },
           });
       return;
     }

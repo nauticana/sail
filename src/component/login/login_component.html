@@ -9,6 +9,9 @@
     @if (loggedOut) {
       <p class="auth-message" role="status" aria-live="polite">You have been logged out successfully.</p>
     }
+    @if (sessionHandoffError()) {
+      <p class="auth-error" role="alert">{{ sessionHandoffError() }}</p>
+    }
     <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
       <mat-form-field appearance="outline">
         <mat-label>Username</mat-label>

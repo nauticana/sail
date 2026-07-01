@@ -83,7 +83,7 @@ export interface TableAction {
   confirmMessage?:  string;
   authorityObject:  string;   // uppercased table_name — for canExecute()
   authorityCheck:   string;   // uppercased action_name — for canExecute()
-  kind?:            'P' | 'R' | 'V'; // P post (default) / R redirect (follow {url}) / V reveal (show returned secret once)
+  kind?:            'P' | 'R' | 'V'; // constant_value codes: P post (default) / R redirect (follow {url}) / V reveal (show returned secret once)
 }
 
 export interface ForeignKey {

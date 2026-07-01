@@ -2,12 +2,11 @@ import { HttpErrorResponse, HttpEventType, HttpInterceptorFn } from '@angular/co
 import { catchError, tap, throwError } from 'rxjs';
 import { isKeelApiUrl } from './rest_url';
 
-// Auth-loop breaker: repeated 401/403s on token-bearing API calls (a stale or
-// rejected session) can drive the app to hammer the API — and the edge/CDN in
-// front of it — indefinitely. After AUTH_FAIL_THRESHOLD failures within
-// AUTH_FAIL_WINDOW_MS the circuit opens for AUTH_CIRCUIT_COOLDOWN_MS: authed API
-// requests are refused locally (never sent) so the storm stops at the browser. A
-// later success closes it; login (no bearer) is never blocked, so recovery works.
+// Auth-loop breaker: repeated 401s on token-bearing API calls (a stale session) can
+// drive the app to hammer the API/CDN. After AUTH_FAIL_THRESHOLD within
+// AUTH_FAIL_WINDOW_MS the circuit opens for AUTH_CIRCUIT_COOLDOWN_MS — authed
+// requests are refused locally. Only 401 counts (403 is a permission denial); a
+// success or accepting a new token closes it.
 const AUTH_FAIL_WINDOW_MS = 10_000;
 const AUTH_FAIL_THRESHOLD = 5;
 const AUTH_CIRCUIT_COOLDOWN_MS = 30_000;
@@ -36,7 +35,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
     }),
     catchError((err: HttpErrorResponse) => {
-      if (authedApi && (err.status === 401 || err.status === 403)) {
+      if (authedApi && err.status === 401) {
         recordAuthFailure();
       }
       return throwError(() => err);
@@ -69,4 +68,10 @@ function recordAuthFailure(): void {
 function clearAuthFailures(): void {
   sessionStorage.removeItem(FAIL_KEY);
   sessionStorage.removeItem(OPEN_KEY);
+}
+
+/** Close the circuit on accepting a new token, so a freshly logged-in session
+ *  isn't blocked by failures from a prior stale session. */
+export function resetAuthCircuit(): void {
+  clearAuthFailures();
 }
