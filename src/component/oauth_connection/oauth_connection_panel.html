@@ -1,0 +1,68 @@
+@if (error()) {
+  <p class="connection-panel__error" role="alert">{{ error() }}</p>
+}
+
+@if (loading()) {
+  <p>Loading connections…</p>
+} @else {
+  <div class="connections">
+    @for (v of views(); track v.provider.code) {
+      <mat-card class="connection-card">
+        <div class="connection-card__head">
+          @if (v.provider.icon) {
+            @if (isIconUrl(v.provider.icon)) {
+              <img class="connection-card__icon" [ngSrc]="v.provider.icon" alt="" width="24" height="24" />
+            } @else {
+              <mat-icon>{{ v.provider.icon }}</mat-icon>
+            }
+          }
+          <h3 class="connection-card__title">{{ v.provider.name }}</h3>
+          <span
+            class="connection-card__status"
+            [class.status--connected]="v.status === 'connected'"
+            [class.status--error]="v.status === 'error'"
+            [class.status--pending]="v.status === 'pending'"
+          >{{ v.status }}</span>
+        </div>
+
+        @if (v.provider.description) {
+          <p class="connection-card__desc">{{ v.provider.description }}</p>
+        }
+
+        <div class="connection-card__actions">
+          @if (v.status === 'disconnected') {
+            <button matButton="filled" [disabled]="busy() === v.provider.code" (click)="connect(v)">
+              Connect
+            </button>
+          } @else {
+            <button matButton [disabled]="busy() === v.provider.code" (click)="test(v)">Test</button>
+            <button matButton [disabled]="busy() === v.provider.code" (click)="connect(v)">Reconnect</button>
+            <button matButton [disabled]="busy() === v.provider.code" (click)="disconnect(v)">Disconnect</button>
+          }
+        </div>
+
+        @if (expanded() === v.provider.code) {
+          @if (v.provider.connectNote) {
+            <p class="connection-card__note">{{ v.provider.connectNote }}</p>
+          }
+          <div class="connection-form">
+            @for (f of v.provider.fields; track f.key) {
+              <mat-form-field>
+                <mat-label>{{ f.label }}</mat-label>
+                <input
+                  matInput
+                  [type]="f.type ?? 'text'"
+                  [placeholder]="f.placeholder ?? ''"
+                  (input)="setField(v.provider.code, f.key, $event)"
+                />
+              </mat-form-field>
+            }
+            <button matButton="filled" [disabled]="busy() === v.provider.code" (click)="submit(v)">
+              {{ v.provider.authType === 'oauth' ? 'Continue' : 'Save' }}
+            </button>
+          </div>
+        }
+      </mat-card>
+    }
+  </div>
+}

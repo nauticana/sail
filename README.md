@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.0.x ↔ keel v1.0.x**. Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x** (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows.
 
@@ -771,6 +771,37 @@ Horizontal building blocks for an entitlement-aware dashboard. All are presentat
 ```
 
 Models: `DataCardState`, `ActionItem`, `EntityOption`, `VerificationStep`.
+
+## Provider connections (v1.1.9)
+
+`ConnectionPanel` is the drop-in UI for keel's `oauth/connect` layer — connect a
+partner to external providers (Google, GBP, Meta, Shopify, or any API-key service),
+then test / disconnect. Presentational and CSS-free; the app owns the provider
+catalog and any routing via the outputs.
+
+- **`OAuthConnectionPanelComponent`** (`sail-oauth-connection-panel`) — renders a card per
+  `[providers]: OAuthProviderDescriptor[]` with connect / test / reconnect / disconnect.
+  Providers with `fields` or a `connectNote` open an inline form/consent step first (API-key
+  credentials, a Shopify `shop`, or a "you'll be redirected to…" note); a bare field-less OAuth
+  provider redirects straight to consent. `[entityId]` scopes per-business connections and
+  reloads on change (0 = tenant-wide). Emits `connected` / `disconnected`.
+  Ships no CSS — style `.connections`, `.connection-card`, `.connection-card__{head,title,status,actions}`,
+  `.connection-form`, `.connection-panel__error`, and `.status--{connected,error,pending}`.
+- Each `OAuthProviderField` has a **`role`**: `credential` (sealed secret), `endpoint` (stored
+  as `api_endpoint`), or `param` (OAuth authorize query param) — so field order is
+  irrelevant. `icon` is a Material name or an image URL.
+- **`OAuthConnectionService`** — `startOAuth(provider, extra)` → consent URL,
+  `testConnection`, `list(entityId)` / `disconnect` (generic `partner_credential` REST), and
+  `saveApiKey` (POSTs the sealed `/api/oauth/apikey`).
+
+```html
+<sail-oauth-connection-panel [providers]="providers" [entityId]="businessId()"
+  (connected)="reload()" (disconnected)="reload()"></sail-oauth-connection-panel>
+```
+
+The app supplies the descriptor list (which providers, icons, copy, api-key fields);
+keel owns the flow and sealed storage. Models: `OAuthProviderDescriptor`,
+`PartnerCredential`, `OAuthConnectionView`, `OAuthConnectionStatus`.
 
 ## Adding a new domain table
 
