@@ -13,6 +13,19 @@ const AUTH_CIRCUIT_COOLDOWN_MS = 30_000;
 const FAIL_KEY = 'keel_auth_401s';
 const OPEN_KEY = 'keel_auth_circuit_until';
 
+/** Error-body code carried by the synthetic circuit-open rejection, so
+ *  consumers can tell "session expired, request refused locally" apart from a
+ *  real 401 and from a network failure (status 0). */
+export const AUTH_CIRCUIT_OPEN_CODE = 'sail_auth_circuit_open';
+
+// Set by BaseAuthService at construction. Called once when the circuit opens:
+// the stored session is dead, so the service clears it and routes to login
+// instead of letting the app oscillate through cooldown cycles forever.
+let sessionExpiredHandler: (() => void) | null = null;
+export function registerSessionExpiredHandler(fn: () => void): void {
+  sessionExpiredHandler = fn;
+}
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = localStorage.getItem('jwt');
   const authedApi = !!token && isKeelApiUrl(req.url);
@@ -23,8 +36,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (authedApi && authCircuitOpen()) {
     return throwError(() => new HttpErrorResponse({
       url: req.url,
-      status: 0,
-      statusText: 'auth circuit open: too many 401s — request stopped to prevent a loop',
+      status: 401,
+      statusText: 'Unauthorized',
+      error: {
+        code: AUTH_CIRCUIT_OPEN_CODE,
+        detail: 'auth circuit open: too many 401s — request stopped to prevent a loop',
+      },
     }));
   }
 
@@ -60,6 +77,7 @@ function recordAuthFailure(): void {
   if (times.length >= AUTH_FAIL_THRESHOLD) {
     sessionStorage.setItem(OPEN_KEY, String(now + AUTH_CIRCUIT_COOLDOWN_MS));
     sessionStorage.removeItem(FAIL_KEY);
+    sessionExpiredHandler?.();
   } else {
     sessionStorage.setItem(FAIL_KEY, JSON.stringify(times));
   }

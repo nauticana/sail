@@ -1,7 +1,7 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
-import { HttpParams } from '@angular/common/http';
-import { map, take, tap } from 'rxjs/operators';
-import { ApplicationData, AuthSummary, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
+import { HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { filter, map, mergeMap, take, tap } from 'rxjs/operators';
+import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
   OtpRequest, OtpResendRequest, OtpResponse, OtpVerifyRequest, OtpVerifyResponse,
@@ -11,56 +11,91 @@ import {
   UserProfile,
 } from '../model/auth';
 import { RestURL } from './rest_url';
-import { Observable, ReplaySubject, catchError, of } from 'rxjs';
+import { Observable, ReplaySubject, catchError, defer, merge, of, throwError } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
-import { resetAuthCircuit } from './auth.interceptor';
+import { registerSessionExpiredHandler, resetAuthCircuit } from './auth.interceptor';
 
 /** Sort dropdown options by their visible label so long lookup lists are scannable. */
 const byCaption = (a: ConstantValue, b: ConstantValue) =>
   (a.Caption ?? '').localeCompare(b.Caption ?? '', undefined, { numeric: true, sensitivity: 'base' });
 
+/** One grant in the permission index — pattern compiled once at appdata load, not per check. */
+interface CompiledPermission {
+  Obj: string;
+  Act: string;
+  Val: string;
+  Rx: RegExp;
+}
+
+/** Permission row as keel emits it; ObjectName/Low are the legacy field names. */
+interface PermissionRow {
+  AuthorizationObjectId?: string;
+  ObjectName?: string;
+  Action?: string;
+  LowLimit?: string;
+  Low?: string;
+}
+
 @Injectable()
 export abstract class BaseAuthService extends BaseRestService {
   protected readonly router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
-  protected cache!: ApplicationData;
-  private readonly appData$ = new ReplaySubject<ApplicationData>(1);
-  private readonly authIndex = new Map<string, AuthSummary[]>();
+  protected cache?: ApplicationData;
+  private appData$ = new ReplaySubject<ApplicationData>(1);
+  private appDataFail$ = new ReplaySubject<unknown>(1);
+  private readonly authIndex = new Map<string, CompiledPermission[]>();
+  /** The route config active before the first initRoutes() — restored on logout
+   *  so the login screen doesn't keep the previous user's route tree. */
+  private preLoginRoutes: Routes | null = null;
 
-  protected readonly appdataUrl                = this.url(RestURL.appdataURL);
-  protected readonly loginUrl                  = this.url(RestURL.loginURL);
-  protected readonly registerUrl               = this.url(RestURL.registerURL);
-  protected readonly chpassUrl                 = this.url(RestURL.chpassURL);
-  protected readonly confirmRegisterUrl        = this.url(RestURL.confirmRegisterURL);
-  protected readonly confirmChpassUrl          = this.url(RestURL.confirmChpassURL);
-  protected readonly loginGoogleUrl            = this.url(RestURL.loginGoogleURL);
-  protected readonly twoFactorSetupUrl         = this.url(RestURL.twoFactorSetupURL);
-  protected readonly twoFactorVerifyUrl        = this.url(RestURL.twoFactorVerifyURL);
-  protected readonly twoFactorDisableUrl       = this.url(RestURL.twoFactorDisableURL);
-  protected readonly twoFactorLoginVerifyUrl   = this.url(RestURL.twoFactorLoginVerifyURL);
-  protected readonly twoFactorBackupVerifyUrl  = this.url(RestURL.twoFactorBackupVerifyURL);
-  protected readonly trustedDeviceListUrl      = this.url(RestURL.trustedDeviceListURL);
-  protected readonly trustedDeviceRegisterUrl  = this.url(RestURL.trustedDeviceRegisterURL);
-  protected readonly trustedDeviceRevokeUrl    = this.url(RestURL.trustedDeviceRevokeURL);
-  protected readonly otpSendUrl                = this.url(RestURL.otpSendURL);
-  protected readonly otpVerifyUrl              = this.url(RestURL.otpVerifyURL);
-  protected readonly otpResendUrl              = this.url(RestURL.otpResendURL);
-  protected readonly loginSocialUrl            = this.url(RestURL.loginSocialURL);
-  protected readonly logoutEverywhereUrl       = this.url(RestURL.logoutEverywhereURL);
-  protected readonly deleteAccountUrl          = this.url(RestURL.deleteAccountURL);
-  protected readonly pushRegisterUrl           = this.url(RestURL.pushRegisterURL);
-  protected readonly pushRevokeUrl             = this.url(RestURL.pushRevokeURL);
-  protected readonly profileUrl                = this.url(RestURL.profileURL);
-  protected readonly profileEmailUrl           = this.url(RestURL.profileEmailURL);
-  protected readonly profileEmailConfirmUrl    = this.url(RestURL.profileEmailConfirmURL);
-  protected readonly profilePhoneUrl           = this.url(RestURL.profilePhoneURL);
-  protected readonly profilePhoneConfirmUrl    = this.url(RestURL.profilePhoneConfirmURL);
+  constructor() {
+    super();
+    // When the auth circuit opens on repeated 401s the stored session is dead —
+    // clear it and land on login instead of oscillating through cooldowns.
+    registerSessionExpiredHandler(() => this.onSessionExpired());
+  }
+
+  // URLs resolve lazily so configureRestUrls() may run any time before the
+  // first request — including in a subclass constructor. (Field initializers
+  // here would run during super() and snapshot pre-configuration values.)
+  protected get appdataUrl()               { return this.url(RestURL.appdataURL); }
+  protected get loginUrl()                 { return this.url(RestURL.loginURL); }
+  protected get registerUrl()              { return this.url(RestURL.registerURL); }
+  protected get chpassUrl()                { return this.url(RestURL.chpassURL); }
+  protected get confirmRegisterUrl()       { return this.url(RestURL.confirmRegisterURL); }
+  protected get confirmChpassUrl()         { return this.url(RestURL.confirmChpassURL); }
+  protected get loginGoogleUrl()           { return this.url(RestURL.loginGoogleURL); }
+  protected get twoFactorSetupUrl()        { return this.url(RestURL.twoFactorSetupURL); }
+  protected get twoFactorVerifyUrl()       { return this.url(RestURL.twoFactorVerifyURL); }
+  protected get twoFactorDisableUrl()      { return this.url(RestURL.twoFactorDisableURL); }
+  protected get twoFactorLoginVerifyUrl()  { return this.url(RestURL.twoFactorLoginVerifyURL); }
+  protected get twoFactorBackupVerifyUrl() { return this.url(RestURL.twoFactorBackupVerifyURL); }
+  protected get trustedDeviceListUrl()     { return this.url(RestURL.trustedDeviceListURL); }
+  protected get trustedDeviceRegisterUrl() { return this.url(RestURL.trustedDeviceRegisterURL); }
+  protected get trustedDeviceRevokeUrl()   { return this.url(RestURL.trustedDeviceRevokeURL); }
+  protected get otpSendUrl()               { return this.url(RestURL.otpSendURL); }
+  protected get otpVerifyUrl()             { return this.url(RestURL.otpVerifyURL); }
+  protected get otpResendUrl()             { return this.url(RestURL.otpResendURL); }
+  protected get loginSocialUrl()           { return this.url(RestURL.loginSocialURL); }
+  protected get logoutEverywhereUrl()      { return this.url(RestURL.logoutEverywhereURL); }
+  protected get deleteAccountUrl()         { return this.url(RestURL.deleteAccountURL); }
+  protected get pushRegisterUrl()          { return this.url(RestURL.pushRegisterURL); }
+  protected get pushRevokeUrl()            { return this.url(RestURL.pushRevokeURL); }
+  protected get profileUrl()               { return this.url(RestURL.profileURL); }
+  protected get profileEmailUrl()          { return this.url(RestURL.profileEmailURL); }
+  protected get profileEmailConfirmUrl()   { return this.url(RestURL.profileEmailConfirmURL); }
+  protected get profilePhoneUrl()          { return this.url(RestURL.profilePhoneURL); }
+  protected get profilePhoneConfirmUrl()   { return this.url(RestURL.profilePhoneConfirmURL); }
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
+
+  /** Last appdata load failure (null when none). UIs can watch this to show a
+   *  "couldn't load application data" state instead of an unexplained blank app. */
+  readonly appDataError = signal<unknown>(null);
 
   /** Set when the OAuth session-cookie handoff fails; the UI shows it and lets the
    *  user retry instead of being redirected into a cookieless login loop. */
@@ -103,12 +138,19 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   loadAppData() {
-    this.http.get<ApplicationData>(this.appdataUrl).pipe(
-        tap((data) => {
+    this.appDataError.set(null);
+    this.http.get<ApplicationData>(this.appdataUrl).subscribe({
+        next: (data) => {
             this.cache = data;
             this.buildAuthIndex();
-        }),
-    ).subscribe((data: ApplicationData) => this.appData$.next(data));
+            this.appData$.next(data);
+        },
+        error: (err) => {
+            console.error('loadAppData failed:', err);
+            this.appDataError.set(err);
+            this.appDataFail$.next(err);
+        },
+    });
   }
 
   /** Adopt an externally-minted JWT (registration/SSO handoff flows) and run the
@@ -163,39 +205,36 @@ export abstract class BaseAuthService extends BaseRestService {
     return '';
   }
 
-  login(username: string, password: string) {
-    // withCredentials so the browser sends the server-set `keel_td` cookie
-    // (keel v0.9 trusted-device secret). When it maps to a trusted row, keel
-    // skips 2FA. The old client-supplied `deviceFingerprint` field is gone.
-    this.http.post<LoginResponse2FA>(this.loginUrl, { username, password }, { withCredentials: true }).subscribe({
-        next: (res) => {
-            if (res.twoFactorRequired && res.loginToken) {
-                localStorage.setItem('loginToken', res.loginToken);
-                this.router.navigate(['/login/2fa']);
-            } else {
-                this.completeLogin(res.token);
-            }
-        },
-        error: (err) => {
-            console.error('Login failed:', err);
-        },
-    });
+  /** Route a login response: into the 2FA step when required, else complete the login. */
+  private handleLoginResponse(res: LoginResponse2FA): void {
+    if (res.twoFactorRequired && res.loginToken) {
+        localStorage.setItem('loginToken', res.loginToken);
+        this.router.navigate(['/login/2fa']);
+    } else {
+        this.completeLogin(res.token);
+    }
   }
 
-  loginWithGoogle(code: string, redirectUri?: string) {
-    this.http.post<LoginResponse2FA>(this.loginGoogleUrl, { code, redirectUri }, { withCredentials: true }).subscribe({
-        next: (res) => {
-            if (res.twoFactorRequired && res.loginToken) {
-                localStorage.setItem('loginToken', res.loginToken);
-                this.router.navigate(['/login/2fa']);
-            } else {
-                this.completeLogin(res.token);
-            }
-        },
-        error: (err) => {
-            console.error('Google login failed:', err);
-        },
-    });
+  /**
+   * POST credentials. On success the session is completed (or the user is
+   * routed to 2FA) via the tap — callers subscribe and handle the `error`
+   * channel to surface "wrong password" / network failures in the UI.
+   *
+   * withCredentials so the browser sends the server-set `keel_td` cookie
+   * (keel v0.9 trusted-device secret). When it maps to a trusted row, keel
+   * skips 2FA. The old client-supplied `deviceFingerprint` field is gone.
+   */
+  login(username: string, password: string): Observable<LoginResponse2FA> {
+    return this.http.post<LoginResponse2FA>(this.loginUrl, { username, password }, { withCredentials: true }).pipe(
+        tap((res) => this.handleLoginResponse(res)),
+    );
+  }
+
+  /** OAuth-code Google login. Same contract as login() — subscribe and handle errors. */
+  loginWithGoogle(code: string, redirectUri?: string): Observable<LoginResponse2FA> {
+    return this.http.post<LoginResponse2FA>(this.loginGoogleUrl, { code, redirectUri }, { withCredentials: true }).pipe(
+        tap((res) => this.handleLoginResponse(res)),
+    );
   }
 
   // ── 2FA Methods ──
@@ -239,10 +278,18 @@ export abstract class BaseAuthService extends BaseRestService {
     );
   }
 
-  /** Verify a single-use backup code during the LOGIN flow (public endpoint). */
-  verifyBackupCode(code: string) {
+  /** Verify a single-use backup code during the LOGIN flow (public endpoint).
+   * On a valid code the login is completed — same contract as verify2FALogin. */
+  verifyBackupCode(code: string): Observable<TwoFactorVerifyResponse> {
     const loginToken = localStorage.getItem('loginToken');
-    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken }, { withCredentials: true });
+    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken }, { withCredentials: true }).pipe(
+        tap((res) => {
+            if (res.valid && res.token) {
+                localStorage.removeItem('loginToken');
+                this.completeLogin(res.token);
+            }
+        }),
+    );
   }
 
   /**
@@ -318,11 +365,7 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   logout() {
-    this.token = null;
-    this.isLoggedIn.set(false);
-    localStorage.removeItem('jwt');
-    localStorage.removeItem('menu');
-    this.clearRole();
+    this.clearSession();
     this.router.navigate(['/login/local'], { queryParams: { loggedOut: 'true' } });
   }
 
@@ -336,9 +379,8 @@ export abstract class BaseAuthService extends BaseRestService {
   // keel endpoints directly.
 
   /**
-   * Send an OTP to a phone or email contact. `contactType` is a frontend-only
-   * field used by callers to drive UI navigation; it is stripped before
-   * posting because keel rejects unknown JSON fields with 400.
+   * Send an OTP to a phone or email contact. `contactType` (keel v0.5.11+)
+   * selects the SMS-vs-email dispatch channel and is posted as-is.
    *
    * The response is `{ otpToken }` — an opaque server-issued token (32 random
    * bytes, base64-URL) bound to the user_id in keel's cache for ~5 minutes.
@@ -348,11 +390,6 @@ export abstract class BaseAuthService extends BaseRestService {
    * numbers by comparing 200 vs 404.
    */
   sendOtp(req: OtpRequest): Observable<OtpResponse> {
-    // Send the request as-is — `contactType` is now a real backend
-    // field (keel v0.5.11+) that selects the SMS-vs-email dispatch
-    // channel. The pre-v0.5.11 strip-before-post workaround was
-    // removed when email-OTP support landed in keel/handler/
-    // otp_handler.go.
     return this.http.post<OtpResponse>(this.otpSendUrl, req);
   }
 
@@ -394,12 +431,14 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   // Single-use nonce for the social id_token flow (replay protection): GET on
-  // the same social-login route. Empty when the backend hasn't enabled it —
-  // callers then sign in without one.
+  // the same social-login route. Empty only when the backend explicitly hasn't
+  // enabled it (404/405); transient failures propagate so replay protection is
+  // never silently dropped.
   getSocialNonce(): Observable<string> {
     return this.http.get<{ nonce: string }>(this.loginSocialUrl).pipe(
       map((res) => res?.nonce ?? ''),
-      catchError(() => of('')),
+      catchError((err: HttpErrorResponse) =>
+        (err.status === 404 || err.status === 405) ? of('') : throwError(() => err)),
     );
   }
 
@@ -443,57 +482,80 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.post<void>(this.pushRevokeUrl, { token });
   }
 
-  /** Clear in-memory + localStorage session without triggering a navigation. */
+  /** Clear in-memory + localStorage session without triggering a navigation.
+   * Also drops the cached appdata/permissions/routes so nothing from the
+   * previous user's session (menus, grants, route tree) survives on the
+   * login screen or leaks into the next session. */
   protected clearSession() {
     this.token = null;
     this.isLoggedIn.set(false);
     localStorage.removeItem('jwt');
     localStorage.removeItem('menu');
+    localStorage.removeItem('loginToken');
+    this.clearRole();
+    this.cache = undefined;
+    this.authIndex.clear();
+    this.appDataError.set(null);
+    // End the previous session's streams and start fresh, so stale appdata
+    // never replays to the next session's subscribers.
+    this.appData$.complete();
+    this.appDataFail$.complete();
+    this.appData$ = new ReplaySubject<ApplicationData>(1);
+    this.appDataFail$ = new ReplaySubject<unknown>(1);
+    if (this.preLoginRoutes) {
+      this.router.resetConfig(this.preLoginRoutes);
+    }
+  }
+
+  /** Auth circuit opened (repeated 401s) — the stored session is dead. */
+  protected onSessionExpired(): void {
+    if (!this.isLoggedIn()) return;
+    this.clearSession();
+    this.router.navigate(['/login/local'], { queryParams: { sessionExpired: 'true' } });
   }
 
   private buildAuthIndex() {
     this.authIndex.clear();
-    for (const auth of this.cache.Permissions) {
-        const obj = auth.AuthorizationObjectId ?? (auth as any).ObjectName;
+    if (!this.cache?.Permissions) return;
+    for (const auth of this.cache.Permissions as PermissionRow[]) {
+        const obj = auth.AuthorizationObjectId ?? auth.ObjectName;
         const act = auth.Action;
-        const low = auth.LowLimit ?? (auth as any).Low;
+        const low = auth.LowLimit ?? auth.Low;
         if (!obj || !act || !low) continue;
         const key = obj + '|' + act;
-        if (!this.authIndex.has(key)) {
-            this.authIndex.set(key, []);
-        }
         const reg = low
             .replace(/[.+^${}()|[\]\\*?]/g, '\\$&')
             .replace(/\\\*/g, '.*')
             .replace(/\\\?/g, '.');
-        this.authIndex.get(key)!.push({
-            Obj: obj,
-            Act: act,
-            Val: low,
-            Reg: reg,
-        } as AuthSummary);
+        const list = this.authIndex.get(key) ?? [];
+        list.push({ Obj: obj, Act: act, Val: low, Rx: new RegExp(`^${reg}$`) });
+        this.authIndex.set(key, list);
     }
   }
 
   private checkPermission(authorityObjectId: string, activity: string, value: string): boolean {
-    if (!this.cache || !this.cache.Permissions) {
+    if (!this.cache) {
         return false;
     }
-    const key = authorityObjectId + '|' + activity;
-    const auths = this.authIndex.get(key);
-    if (!auths) {
-        return false;
-    }
-    for (const auth of auths) {
-        if (new RegExp(`^${auth.Reg}$`).test(value)) {
-            return true;
-        }
-    }
-    return false;
+    const auths = this.authIndex.get(authorityObjectId + '|' + activity);
+    return !!auths && auths.some((auth) => auth.Rx.test(value));
   }
 
-  getAppData() {
-    return this.appData$.asObservable();
+  /**
+   * Application data stream. Replays the cached appdata to late subscribers;
+   * while no appdata has loaded yet, a load failure ERRORS the stream so
+   * waiters (guards, CRUD gates) fail loudly instead of hanging forever.
+   * `defer` binds to the current session's subjects (they are recreated on
+   * logout so a previous user's data never replays).
+   */
+  getAppData(): Observable<ApplicationData> {
+    return defer(() => {
+      const failures = this.appDataFail$.pipe(
+        filter(() => !this.cache),
+        mergeMap((err) => throwError(() => err)),
+      );
+      return merge(this.appData$, failures);
+    });
   }
 
   getDomainValues(domainName: string): ConstantValue[] | undefined {
@@ -524,8 +586,10 @@ export abstract class BaseAuthService extends BaseRestService {
     } as unknown as ConstantValue)).sort(byCaption);
   }
 
+  /** Menu stream for navigation UIs. Deliberately never errors (a failed load
+   * just leaves menus empty) — error handling lives on getAppData()/appDataError. */
   getMenus(): Observable<ApplicationMenu[]> {
-    return this.appData$.pipe(map((data: ApplicationData) => data?.MainMenu ?? []));
+    return defer(() => this.appData$).pipe(map((data: ApplicationData) => data?.MainMenu ?? []));
   }
 
   getTableDefinition(tableName: string): TableDefinition | undefined {
@@ -543,14 +607,11 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   /**
-   * keel emits Reports as `map[string]*RestReport` which serializes to a
-   * JSON object keyed by report id, not an array. The previous cast to
-   * `RestReport[]` was a type lie that produced an empty iteration in
-   * practice. Object.values is the correct unwrap.
+   * keel emits Reports as `map[string]*RestReport` — a JSON object keyed by
+   * report id, not an array. Object.values is the correct unwrap.
    */
   getReports(): RestReport[] {
-    const reports = this.cache?.['Reports'] as Record<string, RestReport> | undefined;
-    return reports ? Object.values(reports) : [];
+    return this.cache?.Reports ? Object.values(this.cache.Reports) : [];
   }
 
   /**
@@ -558,8 +619,7 @@ export abstract class BaseAuthService extends BaseRestService {
    * Returns undefined if Reports cache is missing or the id isn't registered.
    */
   getReport(id: string): RestReport | undefined {
-    const reports = this.cache?.['Reports'] as Record<string, RestReport> | undefined;
-    return reports?.[id];
+    return this.cache?.Reports?.[id];
   }
 
   canRead(tableName: string)   { return this.checkPermission('TABLE', 'SELECT', tableName); }
@@ -580,16 +640,16 @@ export abstract class BaseAuthService extends BaseRestService {
 
   readonly canActivate: CanActivateFn = (route) => {
     return this.getAppData().pipe(
+      take(1),
       map(() => {
         const path = route.routeConfig?.path;
         if (!path) return true;
-        const allowed = this.canAccess(path.split('/')[0]);
-        if (!allowed) {
-          console.warn(`[canActivate] access denied for: ${path}`);
-          this.router.navigate(['/dashboard']);
-        }
-        return allowed;
+        if (this.canAccess(path.split('/')[0])) return true;
+        console.warn(`[canActivate] access denied for: ${path}`);
+        return this.router.parseUrl('/dashboard');
       }),
+      // appdata failed to load — the session is unusable; land on login.
+      catchError(() => of(this.router.parseUrl('/login/local'))),
     );
   };
 
@@ -728,6 +788,9 @@ export abstract class BaseAuthService extends BaseRestService {
             }
 
             newRoutes.push({ path: '**', redirectTo: 'dashboard' });
+            if (!this.preLoginRoutes) {
+                this.preLoginRoutes = this.router.config;
+            }
             this.router.resetConfig(newRoutes);
             this.router.navigateByUrl(this.postLoginTarget());
         },

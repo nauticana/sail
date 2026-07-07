@@ -34,7 +34,10 @@ export const apiResponseInterceptor: HttpInterceptorFn = (req, next) => {
     map(event => {
       if (isFinalResponse(event)) {
         const body = event.body as Record<string, unknown> | null;
-        if (body && typeof body === 'object' && 'data' in body) {
+        // keel's common.APIResponse is `{data, pagination?, meta}` with `meta`
+        // always present. Requiring both keys keeps a legitimate body that
+        // merely contains a `data` field from being truncated to it.
+        if (body && typeof body === 'object' && 'data' in body && 'meta' in body) {
           return event.clone({ body: body['data'] });
         }
       }

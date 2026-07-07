@@ -6,18 +6,56 @@ import { RestURL } from "./rest_url";
 import { BaseAuthService } from "./auth.service";
 import { BaseRestService } from "./base_rest.service";
 
+/** keel's RFC 7807 error body (WriteError) — surfaced verbatim on SailApiError. */
+export interface ProblemDetail {
+    title?: string;
+    detail?: string;
+    status?: number;
+    [key: string]: unknown;
+}
+
+/**
+ * Typed error thrown by BackendService CRUD calls. Preserves the HTTP status
+ * and keel's ProblemDetail so consumers can branch on status codes and show
+ * field-level validation messages instead of a generic string.
+ */
+export class SailApiError extends Error {
+    readonly status: number;
+    readonly problem?: ProblemDetail;
+    readonly response: HttpErrorResponse;
+
+    constructor(response: HttpErrorResponse) {
+        const problem = (response.error && typeof response.error === 'object')
+            ? response.error as ProblemDetail
+            : undefined;
+        super(problem?.detail ?? problem?.title ?? response.message);
+        this.name = 'SailApiError';
+        this.status = response.status;
+        this.problem = problem;
+        this.response = response;
+    }
+}
+
 @Injectable({providedIn: 'root'})
 export class BackendService extends BaseRestService {
     private readonly auth = inject(BaseAuthService);
-    protected readonly prefix = this.url(RestURL.api_prefix);
 
-    protected handleError(error: HttpErrorResponse) {
+    /** Resolved per call so configureRestUrls() may run any time before the first request. */
+    protected get prefix(): string {
+        return this.url(RestURL.api_prefix);
+    }
+
+    protected handleError(error: unknown): Observable<never> {
+        if (!(error instanceof HttpErrorResponse)) {
+            // e.g. crudUrl's missing-version Error — already descriptive, pass through.
+            return throwError(() => error);
+        }
         if (error.status === 0) {
             console.error('an error occurred', error.error);
         } else {
-            console.error(`backend return error code: ${error.status} error body: ${error.error}`);
+            console.error(`backend returned error code ${error.status}`, error.error);
         }
-        return throwError(() => 'error occurred, see console log and try again');
+        return throwError(() => new SailApiError(error));
     }
 
     /** Free-form path under the API base — for custom endpoints (e.g. `rides/start`). CRUD methods use `crudUrl` instead. */
@@ -41,22 +79,22 @@ export class BackendService extends BaseRestService {
      * domain-specific actions.
      */
     protected request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Observable<T> {
-        return this.http.request<T>(method, this.apiUrl(path), { body }).pipe(catchError(this.handleError));
+        return this.http.request<T>(method, this.apiUrl(path), { body }).pipe(catchError((err) => this.handleError(err)));
     }
 
-    /** Build query params from a flat string-string map; skips undefined/null. */
+    /** Build query params from a flat string-string map; skips undefined/null values. */
     private toParams(filter?: {[key: string]: string}): HttpParams {
         let params = new HttpParams();
         if (!filter) return params;
         for (const key in filter) {
-            if (Object.prototype.hasOwnProperty.call(filter, key)) {
+            if (Object.prototype.hasOwnProperty.call(filter, key) && filter[key] != null) {
                 params = params.set(key, filter[key]);
             }
         }
         return params;
     }
 
-    /** Gates a CRUD call on appdata being loaded — `appData$` is a ReplaySubject(1) so this resolves synchronously once the cache is populated, and blocks the call (instead of throwing) when a component fires CRUD before loadAppData() finishes. */
+    /** Gates a CRUD call on appdata being loaded — `appData$` is a ReplaySubject(1) so this resolves synchronously once the cache is populated, and blocks the call (instead of throwing) while loadAppData() is in flight. A failed appdata load errors through here, so gated calls fail loudly instead of hanging. */
     private appDataReady(): Observable<ApplicationData> {
         return this.auth.getAppData().pipe(take(1));
     }
@@ -72,28 +110,28 @@ export class BackendService extends BaseRestService {
                 this.crudUrl(apiName, 'list'),
                 {params: this.toParams(filter)},
             )),
-            catchError(this.handleError),
+            catchError((err) => this.handleError(err)),
         );
     }
 
     get<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T> {
         return this.appDataReady().pipe(
             switchMap(() => this.http.get<T>(this.crudUrl(apiName, 'get'), {params: this.toParams(filter)})),
-            catchError(this.handleError),
+            catchError((err) => this.handleError(err)),
         );
     }
 
     post<T>(apiName: string, items: T | T[]) : Observable<{message: string}> {
         return this.appDataReady().pipe(
             switchMap(() => this.http.post<{message: string}>(this.crudUrl(apiName, 'post'), items)),
-            catchError(this.handleError),
+            catchError((err) => this.handleError(err)),
         );
     }
 
     delete(apiName: string, filter?: {[key: string]: string}): Observable<{message: string}> {
         return this.appDataReady().pipe(
             switchMap(() => this.http.delete<{message: string}>(this.crudUrl(apiName, 'delete'), {params: this.toParams(filter)})),
-            catchError(this.handleError),
+            catchError((err) => this.handleError(err)),
         );
     }
 
@@ -106,6 +144,6 @@ export class BackendService extends BaseRestService {
      * primary key values; for table-level actions it is typically `{}`.
      */
     executeAction<T = unknown>(actionPath: string, body: Record<string, unknown> = {}): Observable<T> {
-        return this.http.post<T>(this.apiUrl(actionPath), body).pipe(catchError(this.handleError));
+        return this.http.post<T>(this.apiUrl(actionPath), body).pipe(catchError((err) => this.handleError(err)));
     }
 }

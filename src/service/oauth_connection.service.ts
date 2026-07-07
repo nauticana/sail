@@ -20,7 +20,7 @@ export class OAuthConnectionService extends BaseRestService {
   /** Start an OAuth connect flow; resolves to the provider consent URL to redirect to. */
   startOAuth(provider: string, extra: Record<string, string> = {}): Observable<string> {
     const qs = new URLSearchParams(extra).toString();
-    const path = `/api/oauth/${provider}/authorize${qs ? '?' + qs : ''}`;
+    const path = `/api/oauth/${encodeURIComponent(provider)}/authorize${qs ? '?' + qs : ''}`;
     return this.http.get<{ url: string }>(this.url(path)).pipe(map((r) => r.url));
   }
 
@@ -28,7 +28,7 @@ export class OAuthConnectionService extends BaseRestService {
    * status). entityId selects which one (0 = tenant-wide). */
   testConnection(provider: string, entityId = 0): Observable<{ status: string; message?: string }> {
     return this.http.post<{ status: string; message?: string }>(
-      this.url(`/api/oauth/${provider}/test?entity_id=${entityId}`),
+      this.url(`/api/oauth/${encodeURIComponent(provider)}/test?entity_id=${entityId}`),
       {},
     );
   }

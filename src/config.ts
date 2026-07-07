@@ -31,7 +31,7 @@ export interface SailGuiConfig {
   restUrls?: { [key: string]: string };
   publicRoutes?: Routes;
   extraRoutes?: (data: ApplicationData) => Routes;
-  dashboardComponent?: Type<any>;
+  dashboardComponent?: Type<unknown>;
   appTitle?: string;
   /** Public asset URL for the application logo shown in the navigation home link, e.g. 'logo.png'. */
   appLogoUrl?: string;

@@ -32,6 +32,8 @@ export interface ApplicationData {
     TableCache: {[key: string]: {[key: string]: string}};
     TableDefinitions: {[key: string]: TableDefinition};
     Apis: {[key: string]: DictionaryPath};
+    /** keel emits Reports as map[string]*RestReport — a JSON object keyed by report id. */
+    Reports?: {[key: string]: RestReport};
     [key: string]: unknown;
 }
 

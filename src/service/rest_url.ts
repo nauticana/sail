@@ -44,7 +44,11 @@ export const RestURL = {
   profilePhoneConfirmURL: '/api/user/profile/phone/confirm',
   pushRegisterURL:     '/api/push/register',
   pushRevokeURL:       '/api/push/revoke',
-  // Payout — keel/payout endpoints.
+  // Payout — keel/payout endpoints. keel mounts PayoutHandler.Routes(prefix)
+  // under the app's REST prefix; these defaults assume the conventional
+  // '/api/v1'. Payout routes are not in the Apis dictionary, so the version
+  // cannot be derived at runtime — apps mounting elsewhere MUST override
+  // these via configureRestUrls.
   payoutOnboardStartURL: '/api/v1/payout/onboard/start',
   payoutReusableURL:     '/api/v1/payout/reusable',
   payoutReusableLinkURL: '/api/v1/payout/reusable/link',
@@ -64,23 +68,30 @@ export function configureRestUrls(httpHost: string, overrides?: Partial<typeof R
   }
 }
 
+/** Configured host without a trailing slash, so `host + '/api/'` never yields `//api/`. */
+function normalizedHost(): string {
+  const host = RestURL.httpHost;
+  return host.endsWith('/') ? host.slice(0, -1) : host;
+}
+
 /**
  * True when `url` targets the configured keel backend's authenticated `/api/`
  * surface. Used to scope the JWT interceptor so the token is never attached to
  * a third-party origin that merely happens to contain `/api/` in its path.
  */
 export function isKeelApiUrl(url: string): boolean {
-  const host = RestURL.httpHost;
+  const host = normalizedHost();
   return host ? url.startsWith(host + '/api/') : url.startsWith('/api/');
 }
 
 /**
- * True when `url` targets the keel backend at all (`/api/` or `/public/`).
- * Used to scope the response interceptor's envelope-unwrapping so third-party
- * responses pass through untouched.
+ * True when `url` targets the keel backend's API surface (`/api/` or
+ * `/public/`). Used to scope the response interceptor's envelope-unwrapping so
+ * third-party responses — and non-API fetches from the backend host (assets,
+ * health checks) — pass through untouched.
  */
 export function isKeelUrl(url: string): boolean {
-  const host = RestURL.httpHost;
-  if (host) return url.startsWith(host + '/');
+  const host = normalizedHost();
+  if (host) return url.startsWith(host + '/api/') || url.startsWith(host + '/public/');
   return url.startsWith('/api/') || url.startsWith('/public/');
 }
