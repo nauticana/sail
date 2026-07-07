@@ -6,6 +6,8 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows.
 
+> **v1.1.10 is a breaking release.** The base classes migrated to signals (`records()`, `editableRecord()`, `isNew()` …), `login()`/`loginWithGoogle()` now return Observables, CRUD errors are typed `SailApiError`, `BaseView` split into read-only `BaseView` + `AbstractEditableView`, the decorators are renamed `IsSailString`/`IsSailNumeric`, and `configureRestUrls()` is finally safe to call from a subclass constructor. The complete old→new mapping — including per-app advisories for daxoom, seo, trvoo and bdsrest — is machine-readable in [`migration_guide.json`](migration_guide.json). Downstream apps must fully migrate before pushing to test or prod.
+
 ## What it provides
 
 | Category | Exports |
@@ -22,10 +24,10 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
 | **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
-| **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `BaseAsync`, `BaseRestService` |
+| **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
 | **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
-| **Decorators** | `@IsString()`, `@IsNumeric()` (class-validator based) |
+| **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
 | **Utils** | `titleCase()`, `fromPriceLabel()` |
 
 ## Quick start
