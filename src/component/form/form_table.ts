@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation } from "@angular/core";
 import { MAT_DIALOG_DATA, MatDialogActions, MatDialogContent, MatDialogRef, MatDialogTitle } from "@angular/material/dialog";
 import { BaseForm } from "../abstract/base_form";
 import { RecordForm } from "./form_record";
@@ -6,7 +6,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 
 interface TableFormDialogData {
-    record: {[key: string]: any};
+    record: {[key: string]: unknown};
     tableName: string;
     isNew?: boolean;
     readOnlyColumns?: string[];
@@ -28,6 +28,7 @@ interface TableFormDialogData {
     ]
 })
 export class TableForm extends BaseForm {
+    override readonly tableName = signal('');
     dialogRef = inject(MatDialogRef<TableForm>);
     data = inject<TableFormDialogData>(MAT_DIALOG_DATA);
 
@@ -35,9 +36,9 @@ export class TableForm extends BaseForm {
 
     constructor() {
         super();
-        this.editableRecord = {...this.data.record};
+        this.editableRecord.set({...this.data.record});
         this.tableName.set(this.data.tableName);
-        this.isNew = !!this.data.isNew;
+        this.isNew.set(!!this.data.isNew);
         this.readOnlyColumns = this.data.readOnlyColumns ?? [];
     }
 
@@ -47,7 +48,7 @@ export class TableForm extends BaseForm {
     }
 
     onSave(): void {
-        const result = {...this.editableRecord};
+        const result = {...this.editableRecord()};
         this.readyToSave(result);
         this.dialogRef.close(result);
     }

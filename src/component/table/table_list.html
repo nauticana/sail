@@ -4,7 +4,7 @@
     @if (canCreate()) {
         <button matButton="elevated" class="accent" (click)="addRecord()">New Record</button>
     }
-    @for (action of getActions(false); track action.action) {
+    @for (action of tableActions(); track action.action) {
         @if (canExecuteAction(action)) {
             <button matButton="outlined" type="button"
                     [title]="action.caption"
@@ -16,33 +16,56 @@
     }
 </div>
 
+@if (viewError()) {
+    <p class="table-list__error" role="alert">{{ viewError() }}</p>
+}
+
 <table>
     <thead>
         <tr>
-            @for (column of displayedColumns; track column) {
-                <th>{{ colCaption(column) }}</th>
+            @for (column of displayedColumns(); track column) {
+                <th scope="col">
+                    @if (column !== 'actions') {
+                        <button type="button" class="table-list__sort" (click)="onSortColumn(column)"
+                                [attr.aria-sort]="sortColumn() === column ? (sortAscending() ? 'ascending' : 'descending') : null">
+                            {{ colCaption(column) }}
+                            @if (sortColumn() === column) {
+                                <mat-icon>{{ sortAscending() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                            }
+                        </button>
+                    } @else {
+                        {{ colCaption(column) }}
+                    }
+                </th>
             }
         </tr>
     </thead>
-@if (records.length > 0) {
+@if (sortedRecords().length > 0) {
     <tbody>
-    @for (record of records; track trackByRecord($index, record)) {
+    @for (record of sortedRecords(); track trackByRecord($index, record)) {
         <tr>
-        @for (column of displayedColumns; track column) {
+        @for (column of displayedColumns(); track column) {
             <td>
             @if (isLinkColumn(column)) {
-                <a tabindex="0" role="button" (click)="editRecord(record)" (keydown.enter)="editRecord(record)">{{ displayValue(column, record[column]) }}</a>
+                <a tabindex="0" role="button" (click)="editRecord(record)"
+                   (keydown.enter)="editRecord(record)"
+                   (keydown.space)="$event.preventDefault(); editRecord(record)">{{ displayValue(column, record[column]) }}</a>
             } @else if (isBoolean(column)) {
-                <mat-checkbox [checked]="record[column] === true || record[column] === 'T'" disabled></mat-checkbox>
+                <mat-checkbox [checked]="record[column] === true || record[column] === 'T'" disabled [aria-label]="colCaption(column)"></mat-checkbox>
             } @else if (column !== 'actions') {
                 {{ displayValue(column, record[column]) }}
             } @else {
-                <button matIconButton type="button" (click)="editRecord(record)" title="Edit"><mat-icon>edit</mat-icon></button>
-                <button matIconButton type="button" (click)="deleteRecord(record)" title="Delete"><mat-icon>delete</mat-icon></button>
-                @for (action of getActions(true); track action.action) {
+                @if (canUpdate() || canRead()) {
+                    <button matIconButton type="button" (click)="editRecord(record)" title="Edit" aria-label="Edit"><mat-icon>edit</mat-icon></button>
+                }
+                @if (canDelete()) {
+                    <button matIconButton type="button" (click)="deleteRecord(record)" title="Delete" aria-label="Delete"><mat-icon>delete</mat-icon></button>
+                }
+                @for (action of recordActions(); track action.action) {
                     @if (canExecuteAction(action)) {
                         <button matIconButton type="button"
                                 [title]="action.caption"
+                                [attr.aria-label]="action.caption"
                                 (click)="executeAction(action, record)">
                             <mat-icon>{{ action.icon || 'play_arrow' }}</mat-icon>
                         </button>
@@ -57,6 +80,16 @@
 }
 </table>
 
-@if (records.length === 0 && displayedColumns.length > 0) {
+@if (total() > pageSizeOptions[0]) {
+    <mat-paginator [length]="total()"
+                   [pageIndex]="pageIndex()"
+                   [pageSize]="pageSize()"
+                   [pageSizeOptions]="pageSizeOptions"
+                   (page)="onPage($event)"
+                   aria-label="Select page">
+    </mat-paginator>
+}
+
+@if (records().length === 0 && displayedColumns().length > 0 && !viewError()) {
     <p class="empty-state">No records found.</p>
 }

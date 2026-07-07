@@ -53,14 +53,11 @@ export abstract class BaseAuthService extends BaseRestService {
 
   constructor() {
     super();
-    // When the auth circuit opens on repeated 401s the stored session is dead —
-    // clear it and land on login instead of oscillating through cooldowns.
     registerSessionExpiredHandler(() => this.onSessionExpired());
   }
 
-  // URLs resolve lazily so configureRestUrls() may run any time before the
-  // first request — including in a subclass constructor. (Field initializers
-  // here would run during super() and snapshot pre-configuration values.)
+  // Lazy getters, not field initializers: fields would snapshot during super(),
+  // before a subclass constructor can call configureRestUrls().
   protected get appdataUrl()               { return this.url(RestURL.appdataURL); }
   protected get loginUrl()                 { return this.url(RestURL.loginURL); }
   protected get registerUrl()              { return this.url(RestURL.registerURL); }
@@ -93,9 +90,11 @@ export abstract class BaseAuthService extends BaseRestService {
   token: string | null = null;
   readonly isLoggedIn = signal(false);
 
-  /** Last appdata load failure (null when none). UIs can watch this to show a
-   *  "couldn't load application data" state instead of an unexplained blank app. */
+  /** Last appdata load failure (null when none). */
   readonly appDataError = signal<unknown>(null);
+
+  /** Bumped on cache load/clear so computed()s over the non-reactive `cache` recompute. */
+  readonly appDataVersion = signal(0);
 
   /** Set when the OAuth session-cookie handoff fails; the UI shows it and lets the
    *  user retry instead of being redirected into a cookieless login loop. */
@@ -143,6 +142,7 @@ export abstract class BaseAuthService extends BaseRestService {
         next: (data) => {
             this.cache = data;
             this.buildAuthIndex();
+            this.appDataVersion.update((v) => v + 1);
             this.appData$.next(data);
         },
         error: (err) => {
@@ -216,13 +216,9 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   /**
-   * POST credentials. On success the session is completed (or the user is
-   * routed to 2FA) via the tap — callers subscribe and handle the `error`
-   * channel to surface "wrong password" / network failures in the UI.
-   *
-   * withCredentials so the browser sends the server-set `keel_td` cookie
-   * (keel v0.9 trusted-device secret). When it maps to a trusted row, keel
-   * skips 2FA. The old client-supplied `deviceFingerprint` field is gone.
+   * POST credentials; success completes the login (or routes to 2FA). Callers
+   * subscribe and handle the error channel to surface failures in the UI.
+   * withCredentials sends keel's `keel_td` trusted-device cookie (skips 2FA).
    */
   login(username: string, password: string): Observable<LoginResponse2FA> {
     return this.http.post<LoginResponse2FA>(this.loginUrl, { username, password }, { withCredentials: true }).pipe(
@@ -230,7 +226,7 @@ export abstract class BaseAuthService extends BaseRestService {
     );
   }
 
-  /** OAuth-code Google login. Same contract as login() — subscribe and handle errors. */
+  /** OAuth-code Google login; same contract as login(). */
   loginWithGoogle(code: string, redirectUri?: string): Observable<LoginResponse2FA> {
     return this.http.post<LoginResponse2FA>(this.loginGoogleUrl, { code, redirectUri }, { withCredentials: true }).pipe(
         tap((res) => this.handleLoginResponse(res)),
@@ -278,8 +274,7 @@ export abstract class BaseAuthService extends BaseRestService {
     );
   }
 
-  /** Verify a single-use backup code during the LOGIN flow (public endpoint).
-   * On a valid code the login is completed — same contract as verify2FALogin. */
+  /** Verify a login-flow backup code; a valid code completes the login (same contract as verify2FALogin). */
   verifyBackupCode(code: string): Observable<TwoFactorVerifyResponse> {
     const loginToken = localStorage.getItem('loginToken');
     return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken }, { withCredentials: true }).pipe(
@@ -482,10 +477,8 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.post<void>(this.pushRevokeUrl, { token });
   }
 
-  /** Clear in-memory + localStorage session without triggering a navigation.
-   * Also drops the cached appdata/permissions/routes so nothing from the
-   * previous user's session (menus, grants, route tree) survives on the
-   * login screen or leaks into the next session. */
+  /** Clear the session without navigating — including cached appdata, grants,
+   * and the route tree, so nothing leaks past logout. */
   protected clearSession() {
     this.token = null;
     this.isLoggedIn.set(false);
@@ -496,8 +489,8 @@ export abstract class BaseAuthService extends BaseRestService {
     this.cache = undefined;
     this.authIndex.clear();
     this.appDataError.set(null);
-    // End the previous session's streams and start fresh, so stale appdata
-    // never replays to the next session's subscribers.
+    this.appDataVersion.update((v) => v + 1);
+    // Fresh subjects so stale appdata never replays into the next session.
     this.appData$.complete();
     this.appDataFail$.complete();
     this.appData$ = new ReplaySubject<ApplicationData>(1);
@@ -541,13 +534,8 @@ export abstract class BaseAuthService extends BaseRestService {
     return !!auths && auths.some((auth) => auth.Rx.test(value));
   }
 
-  /**
-   * Application data stream. Replays the cached appdata to late subscribers;
-   * while no appdata has loaded yet, a load failure ERRORS the stream so
-   * waiters (guards, CRUD gates) fail loudly instead of hanging forever.
-   * `defer` binds to the current session's subjects (they are recreated on
-   * logout so a previous user's data never replays).
-   */
+  /** Appdata stream. Errors on load failure while nothing is cached yet, so
+   * waiters fail loudly instead of hanging; defer binds to the current session's subjects. */
   getAppData(): Observable<ApplicationData> {
     return defer(() => {
       const failures = this.appDataFail$.pipe(
@@ -586,8 +574,7 @@ export abstract class BaseAuthService extends BaseRestService {
     } as unknown as ConstantValue)).sort(byCaption);
   }
 
-  /** Menu stream for navigation UIs. Deliberately never errors (a failed load
-   * just leaves menus empty) — error handling lives on getAppData()/appDataError. */
+  /** Menu stream for navigation UIs; never errors (failures surface via appDataError). */
   getMenus(): Observable<ApplicationMenu[]> {
     return defer(() => this.appData$).pipe(map((data: ApplicationData) => data?.MainMenu ?? []));
   }

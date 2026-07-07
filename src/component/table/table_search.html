@@ -1,12 +1,12 @@
 <h1>
-    @if (title) {
-        {{ title }}
+    @if (title()) {
+        {{ title() }}
     } @else {
         {{ getCaption() }} Search
     }
 </h1>
 <div class="page-container">
-    <sail-record-form [tableName]="tableName()" [record]="editableRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></sail-record-form>
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord()" (recordChange)="editableRecord.set($event)" [fields]="searchColumns()" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
 </div>
 <div class="search-actions">
     <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>
@@ -14,7 +14,7 @@
     @if (canCreate()) {
         <button matButton="elevated" class="accent" (click)="onAddRecord()">New Record</button>
     }
-    @for (action of getActions(false); track action.action) {
+    @for (action of tableActions(); track action.action) {
         @if (canExecuteAction(action)) {
             <button matButton="outlined" type="button"
                     [title]="action.caption"

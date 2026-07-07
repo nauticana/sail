@@ -1,6 +1,6 @@
 <h1 mat-dialog-title class="table-form-title">
     <span class="table-form-title-text">
-        @if (isNew) {
+        @if (isNew()) {
             New {{ getCaption() }} Record
         } @else {
             {{ getCaption() }} Details
@@ -11,7 +11,7 @@
     </button>
 </h1>
 <div mat-dialog-content>
-    <sail-record-form [tableName]="tableName()" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></sail-record-form>
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord()" (recordChange)="editableRecord.set($event)" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
 </div>
 <div mat-dialog-actions align="end">
     <button matButton="elevated" class="primary" type="submit" (click)="onSave()">Save</button>

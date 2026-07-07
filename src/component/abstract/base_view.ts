@@ -1,39 +1,58 @@
-import { Directive, inject, signal, WritableSignal } from "@angular/core";
+import { computed, Directive, inject, signal, Type, WritableSignal } from "@angular/core";
 import { BaseTable } from "./base_table";
 import { MatDialog } from "@angular/material/dialog";
 
+/** Read-only listing surface; complete as-is (TableLookup). Editing views extend AbstractEditableView. */
 @Directive()
 export abstract class BaseView extends BaseTable {
-    protected readonly dialog = inject(MatDialog);
     readonly apiName: WritableSignal<string> = signal('');
-    readonly dialogComponent: WritableSignal<any> = signal(undefined);
-    records: Array<{[key: string]: any}> = [];
-    displayedColumns: string[] = [];
-    searchTerms: {[key: string]: string} = {};
-    protected hasLinkPermission = false;
+    readonly records = signal<Record<string, unknown>[]>([]);
+    readonly displayedColumns = signal<string[]>([]);
+    readonly searchTerms = signal<{[key: string]: string}>({});
+    /** Last load/save failure shown by the view's template ('' when none). */
+    readonly viewError = signal('');
 
-    protected abstract handleDelete(record: {[key: string]: any}): void;
+    protected readonly hasLinkPermission = computed(() => {
+        this.cacheService.appDataVersion();
+        this.tableName();
+        return this.canUpdate() || this.canRead();
+    });
 
-    protected abstract handleUpdate(result: {[key: string]: any}, isNew: boolean, original: {[key: string]: any}): void;
+    /** Whether an "actions" column is appended for privileged users; lookup views return false. */
+    protected includeActionsColumn(): boolean {
+        return true;
+    }
 
-    updateDisplayedColumns(record: Array<{[key: string]: any}>) {
-        this.displayedColumns = this.getDisplayedColumns(record);
-        if (this.displayedColumns.length > 0 &&
-            !this.displayedColumns.includes('actions') &&
+    updateDisplayedColumns(records: Record<string, unknown>[]) {
+        const columns = this.getDisplayedColumns(records);
+        if (columns.length > 0 &&
+            this.includeActionsColumn() &&
+            !columns.includes('actions') &&
             (this.canUpdate() || this.canDelete())
-        ) this.displayedColumns.push('actions');
-        this.hasLinkPermission = this.canUpdate() || this.canRead();
+        ) columns.push('actions');
+        this.displayedColumns.set(columns);
     }
 
     isLinkColumn(column: string): boolean {
-        return (this.displayedColumns.length > 0 && this.displayedColumns[0] === column && this.hasLinkPermission);
+        const columns = this.displayedColumns();
+        return (columns.length > 0 && columns[0] === column && this.hasLinkPermission());
     }
 
-    trackByRecord(index: number, record: {[key: string]: any}): any {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName());
-        if (!tableDef || !tableDef.Keys || tableDef.Keys.length === 0) return index;
-        return tableDef.Keys.map((key) => record[key.PascalName]).join('_');
+    /** Human-readable message for a failed view operation. */
+    protected errorText(err: unknown, fallback: string): string {
+        return err instanceof Error && err.message ? err.message : fallback;
     }
+}
+
+/** Listing surface with dialog-based create/edit/delete; subclasses implement persistence. */
+@Directive()
+export abstract class AbstractEditableView extends BaseView {
+    protected readonly dialog = inject(MatDialog);
+    readonly dialogComponent: WritableSignal<Type<unknown> | undefined> = signal(undefined);
+
+    protected abstract handleDelete(record: Record<string, unknown>): void;
+
+    protected abstract handleUpdate(result: Record<string, unknown>, isNew: boolean, original: Record<string, unknown>): void;
 
     /**
      * Shared row-dialog opener. Builds the dialog data and wires the result
@@ -41,12 +60,17 @@ export abstract class BaseView extends BaseTable {
      * `addRecord()` (new row + empty `original`) and `editRecord()` (existing
      * row passed through verbatim).
      */
-    private openRecordDialog(record: {[key: string]: any}, isNew: boolean): void {
+    private openRecordDialog(record: Record<string, unknown>, isNew: boolean): void {
+        const component = this.dialogComponent();
+        if (!component) {
+            console.error('sail: no dialogComponent configured for', this.tableName());
+            return;
+        }
         const dialogData = this.getDialogData(record, isNew);
         const apiName = this.apiName();
         if (apiName) dialogData['apiName'] = apiName;
 
-        this.dialog.open(this.dialogComponent(), {
+        this.dialog.open(component, {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',
@@ -62,8 +86,9 @@ export abstract class BaseView extends BaseTable {
         const record = this.emptyRecord();
         // Seed columns from an existing row when emptyRecord() returned just the
         // op-code field (table metadata wasn't loaded yet).
-        if (Object.keys(record).length === 1 && this.records.length > 0) {
-            Object.keys(this.records[0]).forEach((key) => { record[key] = ''; });
+        const rows = this.records();
+        if (Object.keys(record).length === 1 && rows.length > 0) {
+            Object.keys(rows[0]).forEach((key) => { record[key] = ''; });
         }
         this.openRecordDialog(record, true);
     }
@@ -75,12 +100,12 @@ export abstract class BaseView extends BaseTable {
      * buttons are gated by the same permissions.
      * Block only when neither read nor update is granted.
      */
-    editRecord(record: {[key: string]: any}) {
+    editRecord(record: Record<string, unknown>) {
         if (!this.canUpdate() && !this.requireAuth(() => this.canRead(), 'view')) return;
         this.openRecordDialog(record, false);
     }
 
-    deleteRecord(record: {[key: string]: any}) {
+    deleteRecord(record: Record<string, unknown>) {
         if (!this.requireAuth(() => this.canDelete(), 'delete')) return;
         this.handleDelete(record);
     }

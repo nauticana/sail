@@ -16,14 +16,4 @@ export class LabelService {
     loadLabels(_langcode: string) {
         // TODO: fetch from backend and populate this.labels
     }
-
-    /** @deprecated Use getLabel. */
-    GetLabel(langcode: string, key: string): string {
-        return this.getLabel(langcode, key);
-    }
-
-    /** @deprecated Use loadLabels. */
-    LoadLabels(langcode: string) {
-        this.loadLabels(langcode);
-    }
 }

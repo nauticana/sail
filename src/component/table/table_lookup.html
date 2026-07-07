@@ -1,25 +1,28 @@
 <h2 mat-dialog-title>{{ getCaption() }} Search</h2>
 <div mat-dialog-content>
-    <sail-record-form [tableName]="tableName()" [record]="searchRecord" [fields]="searchColumns" [isReadOnly]="isReadOnlyBound"></sail-record-form>
+    <sail-record-form [tableName]="tableName()" [record]="searchRecord()" (recordChange)="searchRecord.set($event)" [fields]="searchColumns()" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
     <div class="search-actions">
         <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>
         <button matButton (click)="onClear()">Clear</button>
     </div>
-    @if (records.length > 0) {
+    @if (viewError()) {
+        <p role="alert">{{ viewError() }}</p>
+    }
+    @if (records().length > 0) {
         <table>
             <thead>
                 <tr>
-                    <th>Select</th>
-                    @for (column of displayedColumns; track column) {
-                        <th>{{ colCaption(column) }}</th>
+                    <th scope="col">Select</th>
+                    @for (column of displayedColumns(); track column) {
+                        <th scope="col">{{ colCaption(column) }}</th>
                     }
                 </tr>
             </thead>
             <tbody>
-                @for (record of records; track trackByRecord($index, record)) {
+                @for (record of records(); track trackByRecord($index, record)) {
                     <tr>
-                        <td><button class="select-btn" (click)="onSelect(record)">Select</button></td>
-                        @for (column of displayedColumns; track column) {
+                        <td><button matButton type="button" (click)="onSelect(record)">Select</button></td>
+                        @for (column of displayedColumns(); track column) {
                             <td>{{ displayValue(column, record[column]) }}</td>
                         }
                     </tr>

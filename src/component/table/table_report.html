@@ -1,7 +1,7 @@
 <h2>{{ reportTitle() }}</h2>
 
 @if (params().length > 0) {
-    <form class="report-params" (ngSubmit)="runReport()">
+    <form class="report-params" (submit)="onSubmit($event)">
         @for (param of params(); track param.Name) {
             @let opts = optionsFor(param);
             @if (opts) {
@@ -23,7 +23,7 @@
                     <mat-label>{{ titleCase(param.Name) }}</mat-label>
                     <input matInput [type]="inputTypeFor(param)"
                            [value]="paramValue(param.Name)"
-                           (input)="setParam(param.Name, $any($event.target).value)">
+                           (input)="onParamInput(param.Name, $event)">
                 </mat-form-field>
             }
         }

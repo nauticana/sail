@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, linkedSignal, OnInit, ViewEncapsulation } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { ActivatedRoute, Router } from "@angular/router";
+import { take } from "rxjs";
 import { BaseForm } from "../abstract/base_form";
 import { RecordForm } from "../form/form_record";
 import { ApplicationMenu } from "../../model/common";
@@ -26,11 +28,15 @@ export class TableSearch extends BaseForm implements OnInit {
     readonly apiName              = linkedSignal<string, string>({ source: () => this.apiNameInput(),     computation: (v, p) => v || p?.value || '' });
     readonly targetRoute          = linkedSignal<string, string>({ source: () => this.targetRouteInput(), computation: (v, p) => v || p?.value || '' });
 
-    searchColumns: string[] = [];
+    readonly searchColumns = computed<string[]>(() => {
+        this.cacheService.appDataVersion();
+        this.tableName();
+        return this.getDisplayedColumns();
+    });
 
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
-    private readonly cdr = inject(ChangeDetectorRef);
+    private readonly destroyRef = inject(DestroyRef);
 
     /**
      * Search screen surfaces only table-level actions; record-specific actions
@@ -43,30 +49,31 @@ export class TableSearch extends BaseForm implements OnInit {
         if (!this.tableName() && data['tableName']) this.tableName.set(data['tableName']);
         if (!this.apiName() && data['apiName']) this.apiName.set(data['apiName']);
         if (!this.targetRoute() && data['targetRoute']) this.targetRoute.set(data['targetRoute']);
-        this.title = this.getCaption() + ' Search';
+        this.title.set(this.getCaption() + ' Search');
         if (!this.targetRoute() && (this.apiName() || this.tableName())) {
-            this.cacheService.getMenus().subscribe((menus: ApplicationMenu[]) => {
-                const apiName = this.apiName();
-                const tableName = this.tableName();
-                for (const menu of menus) {
-                    for (const page of menu.ApplicationMenuItems!) {
-                        if (apiName.endsWith(page.RestUri!) ||
-                            (tableName && page.RestUri!.includes(tableName))
-                        ) {
-                            if (page.FilterOnList) {
-                                this.targetRoute.set('/' + menu.Id!.toLowerCase() + '/' + page.ItemId!);
-                            } else {
-                                this.targetRoute.set('/' + menu.Id!.toLowerCase() + '/' + page.ItemId! + '/list');
-                            }
-                            this.cdr.markForCheck();
-                            return;
-                        }
-                    }
-                }
-            });
+            this.cacheService.getMenus().pipe(
+                take(1),
+                takeUntilDestroyed(this.destroyRef),
+            ).subscribe((menus: ApplicationMenu[]) => this.resolveTargetRoute(menus));
         }
-        this.editableRecord = this.emptySearchRecord();
-        this.searchColumns = this.getDisplayedColumns();
+        this.editableRecord.set(this.emptySearchRecord());
+    }
+
+    /** Exact RestUri match only — substring matching routed `user` to `user_payment_method`. */
+    private resolveTargetRoute(menus: ApplicationMenu[]) {
+        const apiName = this.apiName();
+        const tableName = this.tableName();
+        for (const menu of menus) {
+            if (!menu.Id) continue;
+            for (const page of menu.ApplicationMenuItems ?? []) {
+                if (!page.ItemId || !page.RestUri) continue;
+                if (page.RestUri === apiName || (!apiName && tableName && page.RestUri === tableName)) {
+                    const base = '/' + menu.Id.toLowerCase() + '/' + page.ItemId;
+                    this.targetRoute.set(page.FilterOnList ? base : base + '/list');
+                    return;
+                }
+            }
+        }
     }
 
     onSearch() {
@@ -75,35 +82,23 @@ export class TableSearch extends BaseForm implements OnInit {
             alert('Navigation target not found for this table');
             return;
         }
-        this.router.navigate([targetRoute], {queryParams: this.buildSearchTerms(this.editableRecord)});
+        this.router.navigate([targetRoute], {queryParams: this.buildSearchTerms(this.editableRecord())});
     }
 
     onClear() {
-        this.editableRecord = this.emptySearchRecord();
+        this.editableRecord.set(this.emptySearchRecord());
     }
 
     /**
-     * Search-form variant of `emptyRecord()`. Boolean columns are forced to
-     * null so an unmodified Search click does not coerce filters from the
-     * table's HasDefault value (e.g. an `is_primary` column with a `FALSE`
-     * default would otherwise have the form submit `?IsPrimary=false` and
-     * silently exclude every primary-flag row).
-     *
-     * The user opts into a boolean filter by clicking the checkbox: first
-     * click sets it to `true`, a second click sets it to `false`, and the
-     * Clear button resets back to `null` (no filter). `buildSearchTerms`
-     * already skips `null` / `undefined` values, so the URL only carries
-     * filters the user explicitly toggled.
+     * emptyRecord() with every seeded default blanked (booleans to null), so an
+     * unmodified Search never ships implicit filters like `?Status=A`.
+     * buildSearchTerms skips null/'' — only user-set values reach the URL.
      */
-    private emptySearchRecord(): any {
+    private emptySearchRecord(): Record<string, unknown> {
         const rec = this.emptyRecord();
-        const tableDef = this.cacheService.getTableDefinition(this.tableName());
-        if (tableDef?.Columns) {
-            for (const col of tableDef.Columns) {
-                if (col.DataType === 'boolean') {
-                    rec[col.PascalName] = null;
-                }
-            }
+        for (const key of Object.keys(rec)) {
+            if (key === this.config.opField || Array.isArray(rec[key])) continue;
+            rec[key] = this.isBoolean(key) ? null : '';
         }
         return rec;
     }

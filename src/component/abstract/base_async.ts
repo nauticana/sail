@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 
 /**
@@ -10,6 +11,7 @@ import { Observable } from 'rxjs';
  * into the shared state automatically.
  */
 export abstract class BaseAsync {
+  private readonly destroyRef = inject(DestroyRef);
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   readonly successMessage = signal('');
@@ -27,8 +29,9 @@ export abstract class BaseAsync {
    * `detail` as the human-readable field), then `err.error.message` for
    * legacy / non-RFC-7807 endpoints, then the supplied fallback.
    */
-  protected setError(err: any, fallback: string): void {
-    this.errorMessage.set(err?.error?.detail ?? err?.error?.message ?? fallback);
+  protected setError(err: unknown, fallback: string): void {
+    const e = err as { error?: { detail?: string; message?: string } } | null | undefined;
+    this.errorMessage.set(e?.error?.detail ?? e?.error?.message ?? fallback);
     this.loading.set(false);
   }
 
@@ -37,6 +40,7 @@ export abstract class BaseAsync {
    * Clears messages, sets loading, invokes onSuccess on next, and routes
    * errors through setError with the given fallback message. Pass `onError`
    * when the component must also react to failures (e.g. emit an output).
+   * The subscription is torn down with the component.
    */
   protected run<T>(
     obs: Observable<T>,
@@ -46,7 +50,7 @@ export abstract class BaseAsync {
   ): void {
     this.clearMessages();
     this.loading.set(true);
-    obs.subscribe({
+    obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (value) => {
         this.loading.set(false);
         onSuccess(value);

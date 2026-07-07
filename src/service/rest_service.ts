@@ -135,6 +135,12 @@ export class BackendService extends BaseRestService {
         );
     }
 
+    /** GET a report endpoint (`{host}{api_prefix}{apiPath}`) — rows for TableReport. */
+    report<T = Record<string, unknown>>(apiPath: string, params?: {[key: string]: string}): Observable<T[]> {
+        return this.http.get<T[]>(this.apiUrl(apiPath), { params: this.toParams(params) })
+            .pipe(catchError((err) => this.handleError(err)));
+    }
+
     /**
      * Fire a TableAction button. `actionPath` is the resolved URL path
      * the keel REST engine pre-computed onto TableAction.method

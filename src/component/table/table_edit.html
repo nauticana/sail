@@ -1,8 +1,8 @@
 <h1 class="mat-h1 table-edit-title">
     <span class="table-edit-title-text">
-        @if (title) {
-            {{ title }}
-        } @else if (isNew) {
+        @if (title()) {
+            {{ title() }}
+        } @else if (isNew()) {
             New {{ getCaption() }} Record
         } @else {
             {{ getCaption() }} Details
@@ -18,7 +18,7 @@
 
 <div class="edit-container">
     <div class="actions-bar">
-        @if (isReadOnlyMode) {
+        @if (isReadOnlyMode()) {
             @if (canUpdate()) {
                 <button matButton="elevated" class="primary" (click)="onEdit()">Edit</button>
             }
@@ -28,7 +28,7 @@
             @if (canDelete()) {
                 <button matButton class="warn" (click)="onDelete()">Delete</button>
             }
-            @for (action of getActions(true); track action.action) {
+            @for (action of recordActions(); track action.action) {
                 @if (canExecuteAction(action)) {
                     <button matButton="outlined" type="button"
                             [title]="action.caption"
@@ -44,20 +44,24 @@
         }
     </div>
 
-    <sail-record-form [tableName]="tableName()" [record]="editableRecord" [isReadOnly]="isReadOnlyBound"></sail-record-form>
+    @if (saveError()) {
+        <p class="table-edit-error" role="alert">{{ saveError() }}</p>
+    }
 
-    @if (tabCount > 0) {
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord()" (recordChange)="editableRecord.set($event)" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
+
+    @if (tabFields().length > 0) {
         <mat-tab-group>
-        @for (key of tabFields; track key) {
+        @for (key of tabFields(); track key) {
             @if (cacheService.canRead(getTableName(key))) {
                 <mat-tab [label]="key">
                     <div class="tab-content">
                         <sail-table-detail
-                           [records]="editableRecord[key]"
+                           [records]="childRecords(key)"
                            [tableName]="getTableName(key)"
                            [parentTableName]="tableName()"
-                           [parentRecord]="editableRecord"
-                           [parentReadOnly]="isReadOnlyMode">
+                           [parentRecord]="editableRecord()"
+                           [parentReadOnly]="isReadOnlyMode()">
                         </sail-table-detail>
                     </div>
                 </mat-tab>

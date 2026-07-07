@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
-import { HttpParams } from "@angular/common/http";
-import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseAuthService } from "../../service/auth.service";
-import { BaseRestService } from "../../service/base_rest.service";
+import { BackendService } from "../../service/rest_service";
 import { ConstantValue } from "../../model/common";
 import { ReportParam } from "../../model/appdata";
 import { titleCase } from "../../util/text";
@@ -17,7 +15,6 @@ import { titleCase } from "../../util/text";
     templateUrl: './table_report.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        FormsModule,
         MatCheckboxModule,
         MatFormFieldModule,
         MatInputModule,
@@ -25,11 +22,12 @@ import { titleCase } from "../../util/text";
         MatButtonModule,
     ],
 })
-export class TableReport extends BaseRestService {
+export class TableReport {
     readonly apiName = input('');
     readonly tableName = input('');
 
     private readonly auth = inject(BaseAuthService);
+    private readonly backend = inject(BackendService);
 
     readonly records = signal<Record<string, unknown>[]>([]);
     readonly displayedColumns = signal<string[]>([]);
@@ -50,31 +48,31 @@ export class TableReport extends BaseRestService {
      */
     readonly reportId = computed(() => this.apiName().split('/').pop() ?? '');
 
-    /**
-     * Report header text — long-form description from rest_report_header.
-     * Falls back to the title-cased table name only if the lookup misses
-     * (e.g. a brand-new report whose row hasn't been seeded yet).
-     */
+    /** Long-form header from rest_report_header; falls back to the title-cased table name. */
     readonly reportTitle = computed(() => {
+        this.auth.appDataVersion();
         return this.auth.getReport(this.reportId())?.Description || titleCase(this.tableName());
     });
 
     /**
      * Param definitions for the current report. Empty when the report has
      * no rest_report_param rows — in that case we fetch immediately. With
-     * params we render an input form and wait for the user to click "Run",
-     * preserving the standard "filter then fetch" UX for parameterized
-     * reports.
+     * params we render an input form and wait for the user to click "Run".
      */
     readonly params = computed<ReportParam[]>(() => {
+        this.auth.appDataVersion();
         return this.auth.getReport(this.reportId())?.Params ?? [];
     });
 
     constructor() {
-        super();
         effect(() => {
             const api = this.apiName();
             if (!api) return;
+            // New report target: drop the previous report's rows and params.
+            this.records.set([]);
+            this.displayedColumns.set([]);
+            this.paramValues.set({});
+            this.errorMessage.set('');
 
             if (!this.auth.canReport(this.reportId())) {
                 this.errorMessage.set('You do not have permission to view this report.');
@@ -122,8 +120,17 @@ export class TableReport extends BaseRestService {
         this.paramValues.update((current) => ({ ...current, [name]: value }));
     }
 
+    onParamInput(name: string, event: Event) {
+        this.setParam(name, (event.target as HTMLInputElement).value);
+    }
+
     paramValue(name: string): string {
         return this.paramValues()[name] ?? '';
+    }
+
+    onSubmit(event: Event) {
+        event.preventDefault();
+        this.runReport();
     }
 
     runReport() {
@@ -131,27 +138,19 @@ export class TableReport extends BaseRestService {
     }
 
     private fetchReport(api: string, params: Record<string, string>) {
-        let httpParams = new HttpParams();
+        const filled: Record<string, string> = {};
         for (const [k, v] of Object.entries(params)) {
-            // Drop empty values so the URL doesn't carry `?param=` for
-            // unset fields — backends should treat absent and empty-string
-            // the same, sending neither is the cleanest signal.
-            if (v !== '' && v != null) {
-                httpParams = httpParams.set(k, v);
-            }
+            // Drop empty values so the URL doesn't carry `?param=` for unset fields.
+            if (v !== '' && v != null) filled[k] = v;
         }
-        this.http.get<Record<string, unknown>[]>(this.url('/api/' + api), { params: httpParams }).subscribe({
+        this.backend.report(api, filled).subscribe({
             next: (rows) => {
                 this.records.set(rows ?? []);
-                if (rows?.length) {
-                    this.displayedColumns.set(Object.keys(rows[0]));
-                } else {
-                    this.displayedColumns.set([]);
-                }
+                this.displayedColumns.set(rows?.length ? Object.keys(rows[0]) : []);
                 this.errorMessage.set('');
             },
             error: (err) => {
-                this.errorMessage.set(err?.error?.detail ?? err?.error?.message ?? 'Failed to load report data.');
+                this.errorMessage.set(err instanceof Error && err.message ? err.message : 'Failed to load report data.');
             },
         });
     }

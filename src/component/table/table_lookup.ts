@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, inject, OnInit, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogRef, MatDialogTitle } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
-import { take } from "rxjs";
+import { map, Observable, of, switchMap, take } from "rxjs";
 import { RecordForm } from "../form/form_record";
 import { BaseView } from "../abstract/base_view";
 
@@ -22,67 +22,78 @@ import { BaseView } from "../abstract/base_view";
     ],
 })
 export class TableLookup extends BaseView implements OnInit {
-    searchRecord: any = {};
-    searchColumns: string[] = [];
+    override readonly tableName = signal('');
+    readonly searchRecord = signal<Record<string, unknown>>({});
+    readonly searchColumns = computed<string[]>(() => {
+        this.cacheService.appDataVersion();
+        this.tableName();
+        return this.getDisplayedColumns();
+    });
 
     private readonly dialogRef = inject(MatDialogRef<TableLookup>);
     private readonly data = inject<{tableName?: string; apiName?: string}>(MAT_DIALOG_DATA);
-    protected readonly cdr = inject(ChangeDetectorRef);
+
+    /** A lookup only selects — no edit/delete, so no appended "actions" column. */
+    protected override includeActionsColumn(): boolean {
+        return false;
+    }
 
     ngOnInit() {
         if (this.data) {
             this.tableName.set(this.data.tableName ?? '');
             this.apiName.set(this.data.apiName   ?? '');
         }
-        this.searchColumns = this.getDisplayedColumns();
-        this.searchRecord  = this.emptyRecord();
-        this.resolveApi();
+        this.searchRecord.set(this.emptyRecord());
+        this.resolveApi().subscribe();
     }
 
-    private resolveApi() {
+    /** Resolve (and cache) the api serving this table; '' when none matches. */
+    private resolveApi(): Observable<string> {
+        const apiName = this.apiName();
+        if (apiName) return of(apiName);
         const tableName = this.tableName();
-        if (!this.apiName() && tableName) {
-            this.cacheService.getAppData().pipe(take(1)).subscribe((data) => {
-                if (data.Apis) {
-                    for (const api in data.Apis) {
-                        const entry = data.Apis[api];
-                        if (entry.Table.TableName === tableName) {
-                            this.apiName.set(api); // bare RestUri; BackendService.crudUrl resolves the version
-                            break;
-                        }
+        return this.cacheService.getAppData().pipe(
+            take(1),
+            map((data) => {
+                for (const api in data.Apis ?? {}) {
+                    if (data.Apis[api].Table?.TableName === tableName) {
+                        this.apiName.set(api); // bare RestUri; BackendService.crudUrl resolves the version
+                        return api;
                     }
                 }
-            });
-        }
+                return '';
+            }),
+        );
     }
 
     onSearch() {
-        this.resolveApi();
-        const apiName = this.apiName();
-        if (!apiName) {
-            console.error('API name not found for table ' + this.tableName());
-            return;
-        }
-        this.backendService.list<{[key: string]: any}>(apiName, this.buildSearchTerms(this.searchRecord)).subscribe({
+        // Chained on resolveApi so an early click waits instead of silently no-oping.
+        this.resolveApi().pipe(
+            switchMap((apiName) => {
+                if (!apiName) {
+                    this.viewError.set(`No API found for table ${this.tableName()}`);
+                    return of<Record<string, unknown>[]>([]);
+                }
+                return this.backendService.list<Record<string, unknown>>(apiName, this.buildSearchTerms(this.searchRecord()));
+            }),
+        ).subscribe({
             next: (records) => {
-                this.records = records;
+                this.records.set(records);
                 this.updateDisplayedColumns(records);
-                this.cdr.markForCheck();
             },
-            error: (err) => console.error('Lookup search failed', err),
+            error: (err) => {
+                console.error('Lookup search failed', err);
+                this.viewError.set(this.errorText(err, 'Search failed.'));
+            },
         });
     }
 
-    onSelect(record: any) {
+    onSelect(record: Record<string, unknown>) {
         this.dialogRef.close(record);
     }
 
     onClear() {
-        this.searchRecord = this.emptyRecord();
-        this.records = [];
+        this.searchRecord.set(this.emptyRecord());
+        this.records.set([]);
     }
-
-    protected handleDelete(_record: {[key: string]: any}): void {}
-
-    protected handleUpdate(_result: {[key: string]: any}, _isNew: boolean, _original: {[key: string]: any}): void {}
 }

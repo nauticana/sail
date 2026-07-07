@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, linkedSignal, OnInit, output, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, signal, ViewEncapsulation } from "@angular/core";
 import { DynamicField } from "../form/form_field";
 import { MatButtonModule } from "@angular/material/button";
 import { BaseForm } from "../abstract/base_form";
@@ -19,11 +19,11 @@ import { OpCode } from "../../model/common";
         MatIconModule,
     ],
 })
-export class TableDetail extends BaseForm implements OnInit {
+export class TableDetail extends BaseForm {
     readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly recordsInput   = input<any[]>([], { alias: 'records' });
+    readonly recordsInput   = input<Record<string, unknown>[]>([], { alias: 'records' });
     readonly parentTableName = input('');
-    readonly parentRecord = input<any>({});
+    readonly parentRecord = input<Record<string, unknown>>({});
     /** When true, the parent view is in read-only mode — disable all child row editing. */
     readonly parentReadOnly = input(false);
     /** Fires after any grid mutation (add/edit/delete/undelete/cancel) so a parent
@@ -32,19 +32,42 @@ export class TableDetail extends BaseForm implements OnInit {
 
     override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
-    records: any[] = [];
-    editingRecord: any = null;
-    originalRecord: any = null;
-    displayedColumns: string[] = [];
-    fkColumns: string[] = [];
+    // The parent owns the rows array (TableEdit saves it verbatim), so mutations
+    // happen in place; recordsChanged versions them for the template.
+    records: Record<string, unknown>[] = [];
+    private readonly recordsChanged = signal(0);
+    readonly visibleRecords = computed(() => {
+        this.recordsChanged();
+        return [...this.records];
+    });
+
+    readonly editingRecord = signal<Record<string, unknown> | null>(null);
+    private originalRecord: Record<string, unknown> | null = null;
+
+    readonly displayedColumns = computed(() => {
+        this.cacheService.appDataVersion();
+        this.visibleRecords();
+        return this.getDisplayedColumns(this.records);
+    });
+
+    readonly fkColumns = computed(() => {
+        this.cacheService.appDataVersion();
+        const fkCfg = this.getForeignKeyConfig(this.parentTableName());
+        return fkCfg?.fk?.Columns?.map((col) => col.PascalName) ?? [];
+    });
 
     private readonly dialog = inject(MatDialog);
 
     constructor() {
         super();
-        // records is a writable array (push/splice in event handlers); keep it in sync with the input
-        // via effect rather than linkedSignal so mutations work on the consumer's array reference.
-        effect(() => { this.records = this.recordsInput(); });
+        effect(() => {
+            this.records = this.recordsInput() ?? [];
+            this.recordsChanged.update((v) => v + 1);
+        });
+    }
+
+    private bump() {
+        this.recordsChanged.update((v) => v + 1);
     }
 
     /**
@@ -64,21 +87,17 @@ export class TableDetail extends BaseForm implements OnInit {
     override canUpdate() { return !this.parentReadOnly() && super.canUpdate(); }
     override canDelete() { return !this.parentReadOnly() && super.canDelete(); }
 
-    ngOnInit(): void {
-        this.displayedColumns = this.getDisplayedColumns(this.records);
-        const fkCfg = this.getForeignKeyConfig(this.parentTableName());
-        if (fkCfg && fkCfg.fk && fkCfg.fk.Columns) {
-            for (const col of fkCfg.fk.Columns) {
-                this.fkColumns.push(col.PascalName);
-            }
-        }
+    protected override readOnlyDeps(): void {
+        super.readOnlyDeps();
+        this.fkColumns();
+        this.parentReadOnly();
     }
 
     override isReadOnly(fieldName: string): boolean {
-        return (this.fkColumns.includes(fieldName) || super.isReadOnly(fieldName));
+        return (this.fkColumns().includes(fieldName) || super.isReadOnly(fieldName));
     }
 
-    openEditDialog(record: any, isNew: boolean, readOnlyColumns: string[]) {
+    openEditDialog(record: Record<string, unknown>, isNew: boolean, readOnlyColumns: string[]) {
         const dialogRef = this.dialog.open(TableForm, {
             width: this.dialogWidth,
             disableClose: true,
@@ -91,46 +110,59 @@ export class TableDetail extends BaseForm implements OnInit {
                 } else {
                     Object.assign(record, result);
                 }
+                this.bump();
                 this.changed.emit();
             }
         });
     }
 
+    /** Finish an in-progress inline edit before starting another (its values are
+     * already in the row; leaving it un-finalized would drop them on save). */
+    private finalizeInlineEdit() {
+        if (this.editingRecord()) this.saveRow();
+    }
+
     addRecord() {
+        this.finalizeInlineEdit();
         const newRecord = this.emptyRecord();
         newRecord[this.config.opField] = OpCode.Insert;
         this.initializeForeignKeys(newRecord, this.parentTableName(), this.parentRecord());
 
-        if (this.displayedColumns.length > 6) {
-            this.openEditDialog(newRecord, true, this.fkColumns);
+        if (this.displayedColumns().length > 6) {
+            this.openEditDialog(newRecord, true, this.fkColumns());
         } else {
             this.records.push(newRecord);
-            this.isNew = true;
+            this.isNew.set(true);
             this.originalRecord = null;
-            this.editingRecord = newRecord;
+            this.editingRecord.set(newRecord);
+            this.bump();
         }
     }
 
-    editRow(record: any) {
-        if (this.displayedColumns.length > 6) {
-            this.openEditDialog(record, false, this.fkColumns);
+    editRow(record: Record<string, unknown>) {
+        if (this.displayedColumns().length > 6) {
+            this.openEditDialog(record, false, this.fkColumns());
         } else {
-            this.editingRecord = record;
-            this.isNew = record[this.config.opField] === OpCode.Insert;
+            this.finalizeInlineEdit();
+            this.isNew.set(record[this.config.opField] === OpCode.Insert);
             this.originalRecord = {...record};
             this.formatRecordTimeStamp(record);
+            this.editingRecord.set(record);
+            this.bump();
         }
     }
 
     saveRow() {
-        this.readyToSave(this.editingRecord);
-        this.editingRecord = null;
+        const editing = this.editingRecord();
+        if (editing) this.readyToSave(editing, this.originalRecord);
+        this.editingRecord.set(null);
         this.originalRecord = null;
-        this.isNew = false;
+        this.isNew.set(false);
+        this.bump();
         this.changed.emit();
     }
 
-    cancelRow(record: any) {
+    cancelRow(record: Record<string, unknown>) {
         if (this.originalRecord) {
             Object.assign(record, this.originalRecord);
         } else {
@@ -139,13 +171,14 @@ export class TableDetail extends BaseForm implements OnInit {
                 this.records.splice(index, 1);
             }
         }
-        this.editingRecord = null;
+        this.editingRecord.set(null);
         this.originalRecord = null;
-        this.isNew = false;
+        this.isNew.set(false);
+        this.bump();
         this.changed.emit();
     }
 
-    deleteRow(record: any) {
+    deleteRow(record: Record<string, unknown>) {
         if (record[this.config.opField] === OpCode.Insert) {
             const index = this.records.indexOf(record);
             if (index > -1) {
@@ -154,13 +187,15 @@ export class TableDetail extends BaseForm implements OnInit {
         } else {
             record[this.config.opField] = OpCode.Delete;
         }
+        this.bump();
         this.changed.emit();
     }
 
-    unDeleteRow(record: any) {
+    unDeleteRow(record: Record<string, unknown>) {
         if (record[this.config.opField] === OpCode.Delete) {
             record[this.config.opField] = OpCode.Update;
         }
+        this.bump();
         this.changed.emit();
     }
 }

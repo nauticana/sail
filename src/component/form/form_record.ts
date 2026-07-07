@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output, ViewEncapsulation } from "@angular/core";
 import { DynamicField } from "./form_field";
 import { BaseAuthService } from "../../service/auth.service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
@@ -13,10 +13,15 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
 export class RecordForm {
     private readonly auth = inject(BaseAuthService);
     private readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
-    readonly record = input<{[key: string]: any}>({});
+    readonly record = input<{[key: string]: unknown}>({});
     readonly tableName = input('');
     readonly fields = input<string[]>([]);
     readonly isReadOnly = input<(key: string) => boolean>(() => false);
+    /** Full updated record on every field edit. The input object is never mutated. */
+    readonly recordChange = output<{[key: string]: unknown}>();
+
+    /** Local working copy — resets whenever the parent binds a new record object. */
+    readonly working = linkedSignal(() => ({...this.record()}));
 
     private get hiddenFields(): Set<string> {
         const global = this.guiConfig.hiddenFields;
@@ -25,18 +30,19 @@ export class RecordForm {
     }
 
     readonly computedFields = computed(() => {
+        this.auth.appDataVersion();
         const f = this.fields();
         const hidden = this.hiddenFields;
         if (f.length > 0) {
             return f.filter(key => !hidden.has(key));
         }
         const tableDef = this.auth.getTableDefinition(this.tableName());
-        const recordKeys = new Set(Object.keys(this.record()));
+        const record = this.working();
+        const recordKeys = new Set(Object.keys(record));
         const editableTimestamps = new Set(
             this.guiConfig.tableOverrides?.[this.tableName()]?.editableTimestamps ?? []
         );
         if (tableDef && tableDef.Columns && tableDef.Columns.length > 0) {
-            const record = this.record();
             return tableDef.Columns
                 .filter(col => !(col.HasDefault && col.DataType === 'timestamp'
                                  && !editableTimestamps.has(col.PascalName)))
@@ -55,15 +61,25 @@ export class RecordForm {
         return [...recordKeys].filter(key => !hidden.has(key));
     });
 
-    isArray(value: any): boolean {
+    isArray(value: unknown): boolean {
         return Array.isArray(value);
     }
 
-    private isEmpty(value: any): boolean {
+    private isEmpty(value: unknown): boolean {
         return value === null || value === undefined || value === '';
     }
 
-    onRecordUpdate(updates: {[key: string]: any}) {
-        Object.assign(this.record(), updates);
+    onFieldChange(key: string, value: unknown) {
+        this.applyUpdates({[key]: value});
+    }
+
+    onRecordUpdate(updates: {[key: string]: unknown}) {
+        this.applyUpdates(updates);
+    }
+
+    private applyUpdates(updates: {[key: string]: unknown}) {
+        const updated = {...this.working(), ...updates};
+        this.working.set(updated);
+        this.recordChange.emit(updated);
     }
 }
