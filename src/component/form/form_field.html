@@ -1,8 +1,9 @@
 @if (isLookupTableSearch()) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
-        <input matInput [value]="isReadonly ? displayCaption : value()" [required]="required" [readonly]="isReadonly">
-        <button matIconButton matSuffix (click)="openLookup()" [disabled]="isReadonly">
+        <input matInput [value]="isReadonly ? displayCaption : inputValue" [required]="required" readonly>
+        <button matIconButton matSuffix type="button" (click)="openLookup()" [disabled]="isReadonly"
+                [attr.aria-label]="'Look up ' + colCaption(field())">
             <mat-icon>search</mat-icon>
         </button>
     </mat-form-field>
@@ -14,7 +15,7 @@
 } @else if (inputType === 'select') {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
-        <mat-select [value]="value()" (selectionChange)="onSelectChange($event);">
+        <mat-select [value]="value()" [required]="required" (selectionChange)="onSelectChange($event);">
             @for (option of options; track option.Value) {
                 <mat-option [value]="option.Value">{{option.Caption}}</mat-option>
             }
@@ -31,7 +32,7 @@
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <textarea matInput
-         [value]="value()"
+         [value]="inputValue"
          (input)="onInputChange($event);"
          [disabled]="isReadonly"
          [required]="required"
@@ -44,7 +45,7 @@
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <input matInput
          [type]="inputType"
-         [value]="value()"
+         [value]="inputValue"
          (input)="onInputChange($event);"
          [disabled]="isReadonly"
          [required]="required"

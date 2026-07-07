@@ -46,17 +46,11 @@ export class TwoFactorVerifyComponent extends BaseAsync {
     const { code, trustDevice } = this.verifyForm.value;
 
     if (this.useBackupCode()) {
+      // verifyBackupCode completes the login inside BaseAuthService.
       this.run(
         this.auth.verifyBackupCode(code!),
         (res) => {
-          if (res.valid && res.token) {
-            localStorage.removeItem('loginToken');
-            this.auth.token = res.token;
-            this.auth.isLoggedIn.set(true);
-            localStorage.setItem('jwt', res.token);
-            this.auth.loadAppData();
-            this.auth.initRoutes();
-          } else {
+          if (!res.valid || !res.token) {
             this.errorMessage.set('Invalid backup code.');
           }
         },

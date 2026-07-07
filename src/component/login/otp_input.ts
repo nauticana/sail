@@ -1,12 +1,14 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewEncapsulation,
+  ChangeDetectionStrategy, Component, DestroyRef, ViewEncapsulation,
   computed, effect, inject, input, output, signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 /**
- * OtpInput — pure-presentational numeric OTP keypad with resend countdown.
+ * OtpInput — numeric OTP entry with resend countdown. A real (styleable)
+ * input drives the digit boxes, so typing, paste, and one-time-code
+ * autofill all work; the keypad is a touch-friendly supplement.
  *
  * Owns no service layer. The parent component sends the OTP (via
  * BaseAuthService.sendOtp) and subscribes to `codeComplete` / `resend` to
@@ -19,17 +21,14 @@ import { MatIconModule } from '@angular/material/icon';
   encapsulation: ViewEncapsulation.None,
   imports: [MatButtonModule, MatIconModule],
 })
-export class OtpInputComponent implements OnInit {
+export class OtpInputComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly length = input(6);
   readonly contact = input('');
   // Fallback only. Consumers should pass the value returned by
-  // /public/otp/send in `resendCountdownSec` on the response — that is
-  // the authoritative value (sourced from the keel server's
-  // --otp_token_ttl_seconds flag and matches the lifetime of the OTP
-  // code itself). 300s is the legacy default, kept so existing callers
-  // without the new field don't break.
+  // /public/otp/send in `resendCountdownSec` — the authoritative TTL from
+  // keel's --otp_token_ttl_seconds. The countdown restarts when it changes.
   readonly resendCountdownSec = input(300);
   readonly disabled = input(false);
 
@@ -48,48 +47,56 @@ export class OtpInputComponent implements OnInit {
     return idx === -1 ? d.length - 1 : idx;
   });
 
+  readonly code = computed(() => this.digits().join(''));
+
   readonly keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'] as const;
 
   constructor() {
-    // Reset the digits array whenever `length` input changes.
     effect(() => { this.digits.set(Array(this.length()).fill('')); });
+    // Restarts when the parent binds the authoritative TTL (arrives async).
+    effect(() => {
+      const ttl = this.resendCountdownSec();
+      this.startCountdown(ttl);
+    });
     this.destroyRef.onDestroy(() => this.clearTimer());
   }
 
-  ngOnInit() {
-    this.startCountdown();
+  onCodeInput(event: Event) {
+    if (this.disabled()) return;
+    const target = event.target as HTMLInputElement;
+    const raw = target.value.replace(/\D/g, '').slice(0, this.length());
+    target.value = raw;
+    this.setCode(raw);
+  }
+
+  private setCode(raw: string) {
+    const d = Array<string>(this.length()).fill('');
+    for (let i = 0; i < raw.length; i++) d[i] = raw[i];
+    this.digits.set(d);
+    if (raw.length === this.length()) this.codeComplete.emit(raw);
   }
 
   onKeyPress(key: string) {
     if (this.disabled()) return;
-    const d = [...this.digits()];
-    const idx = d.findIndex((v) => v === '');
-    if (idx === -1) return;
-    d[idx] = key;
-    this.digits.set(d);
-    if (idx === this.length() - 1) this.codeComplete.emit(d.join(''));
+    const current = this.code();
+    if (current.length >= this.length()) return;
+    this.setCode(current + key);
   }
 
   onBackspace() {
     if (this.disabled()) return;
-    const d = [...this.digits()];
-    let idx = d.findIndex((v) => v === '');
-    if (idx === -1) idx = d.length;
-    if (idx > 0) {
-      d[idx - 1] = '';
-      this.digits.set(d);
-    }
+    this.setCode(this.code().slice(0, -1));
   }
 
   onResend() {
     this.resend.emit();
     this.digits.set(Array(this.length()).fill(''));
-    this.startCountdown();
+    this.startCountdown(this.resendCountdownSec());
   }
 
-  private startCountdown() {
+  private startCountdown(seconds: number) {
     this.clearTimer();
-    this.countdown.set(this.resendCountdownSec());
+    this.countdown.set(seconds);
     this.canResend.set(false);
     this.countdownTimer = setInterval(() => {
       const next = this.countdown() - 1;

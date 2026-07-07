@@ -197,8 +197,9 @@ export interface PartnerRegistration {
 	Zipcode:              string;
 	Country:              string;
 	Phone:                string;
-	Latitude:             number;
-	Longitude:            number;
+	// null when geocoding is disabled or the address wasn't verified.
+	Latitude:             number | null;
+	Longitude:            number | null;
 	DomainURL:            string;
 	PlanID:               string;
 }

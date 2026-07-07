@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, output, ViewEncapsulation } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
-import { MatCheckboxModule } from "@angular/material/checkbox";
+import { MatCheckboxChange, MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog } from "@angular/material/dialog";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
-import { MatSelectModule } from "@angular/material/select";
+import { MatSelectChange, MatSelectModule } from "@angular/material/select";
 import { BaseTable } from "../abstract/base_table";
 import { ConstantValue, LookupStyle } from "../../model/common";
 import { TableLookup } from "../table/table_lookup";
@@ -32,9 +32,9 @@ import { TableLookup } from "../table/table_lookup";
 })
 export class DynamicField extends BaseTable {
     readonly tableNameInput = input('', { alias: 'tableName' });
-    readonly value = input<any>(undefined);
-    readonly valueChange = output<any>();
-    readonly recordUpdate = output<{[key: string]: any}>();
+    readonly value = input<unknown>(undefined);
+    readonly valueChange = output<unknown>();
+    readonly recordUpdate = output<{[key: string]: unknown}>();
     readonly field = input('');
     readonly label = input('');
     readonly readonlyField = input(false, {alias: 'readonly'});
@@ -103,9 +103,17 @@ export class DynamicField extends BaseTable {
         return !!(this.col && this.col.LookupTable && this.col.LookupStyle === LookupStyle.Search);
     }
 
-    get maxLength() {
-        if (!this.col) return 0;
-        return this.col.Size;
+    /** null when metadata is missing/zero — [attr.maxLength] then omits the
+     * attribute (maxlength="0" would block all typing). */
+    get maxLength(): number | null {
+        const size = this.col?.Size ?? 0;
+        return size > 0 ? size : null;
+    }
+
+    /** Input-safe string form of the bound value. */
+    get inputValue(): string {
+        const v = this.value();
+        return v === null || v === undefined ? '' : String(v);
     }
 
     get scale() {
@@ -132,27 +140,37 @@ export class DynamicField extends BaseTable {
         return this.displayValue(this.field(), this.value());
     }
 
-    onInputChange(event: any) {
-        if (event && event.target) this.valueChange.emit(event.target.value);
+    onInputChange(event: Event) {
+        const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
+        if (target) this.valueChange.emit(this.coerce(target.value));
     }
 
-    onSelectChange(event: any) {
-        if (event) this.valueChange.emit(event.value);
+    /** Numeric columns emit numbers, not the input's raw string. */
+    private coerce(raw: string): unknown {
+        if (raw !== '' && this.isNumber(this.field())) {
+            const n = Number(raw);
+            if (!isNaN(n)) return n;
+        }
+        return raw;
     }
 
-    onCheckboxChange(event: any) {
-        if (event) this.valueChange.emit(event.checked);
+    onSelectChange(event: MatSelectChange) {
+        this.valueChange.emit(event.value);
     }
 
-    updateForeignKeys(parentRecord: any) {
+    onCheckboxChange(event: MatCheckboxChange) {
+        this.valueChange.emit(event.checked);
+    }
+
+    updateForeignKeys(parentRecord: Record<string, unknown>) {
         if (!this.col || !this.col.LookupTable) return;
         const fk = this.getForeignKeyConfig(this.col.LookupTable);
-        const updates: {[key: string]: any} = {};
-        if (fk && fk.fk) {
-            fk.fk.Columns.forEach((column, index) => {
-                updates[column.PascalName] = parentRecord[fk.parent.Keys[index].PascalName];
-            });
-        }
+        // No FK config → nothing to map; emitting would wipe the current value.
+        if (!fk?.fk || fk.fk.Columns.length !== fk.parent.Keys.length) return;
+        const updates: {[key: string]: unknown} = {};
+        fk.fk.Columns.forEach((column, index) => {
+            updates[column.PascalName] = parentRecord[fk.parent.Keys[index].PascalName];
+        });
         this.recordUpdate.emit(updates);
         this.valueChange.emit(updates[this.field()]);
     }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal, ViewEncapsulation } from '@angular/core';
 import { BaseAuthService } from '../../service/auth.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,6 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BaseAsync } from '../abstract/base_async';
+import { toDataURL } from 'qrcode';
 
 @Component({
   selector: 'sail-twofactor-setup',
@@ -24,8 +25,13 @@ export class TwoFactorSetupComponent extends BaseAsync {
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
 
+  /** keel has no 2FA-status endpoint — the app tells us whether 2FA is already
+   * on so returning users land on the manage/disable view, not a fresh setup
+   * (which would rotate their seed and revoke all refresh tokens). */
+  readonly twoFactorEnabled = input(false);
+
   readonly step = signal<'init' | 'qr' | 'verify' | 'done'>('init');
-  readonly qrUri = signal('');
+  readonly qrDataUrl = signal('');
   readonly secret = signal('');
   readonly backupCodes = signal<string[]>([]);
   readonly showCodes = signal(false);
@@ -46,13 +52,25 @@ export class TwoFactorSetupComponent extends BaseAsync {
     code: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]],
   });
 
+  constructor() {
+    super();
+    // Only flips between the two idle states; never yanks a user out of a flow.
+    effect(() => {
+      const enabled = this.twoFactorEnabled();
+      this.step.update((s) => (s === 'init' || s === 'done') ? (enabled ? 'done' : 'init') : s);
+    });
+  }
+
   startSetup() {
     if (this.initForm.invalid) return;
     const password = this.initForm.value.password!;
     this.run(
       this.auth.setup2FA({ password }),
       (res) => {
-        this.qrUri.set(res.qrUri);
+        // keel returns an otpauth:// provisioning URI, not an image — render it.
+        toDataURL(res.qrUri, { width: 200, margin: 1 })
+          .then((url) => this.qrDataUrl.set(url))
+          .catch(() => this.qrDataUrl.set(''));
         this.secret.set(res.secret);
         this.backupCodes.set(res.backupCodes);
         this.step.set('qr');

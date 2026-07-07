@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -51,11 +51,23 @@ export class LoginComponent {
     password: ['', Validators.required],
   });
 
+  protected readonly loading = signal(false);
+  protected readonly loginError = signal('');
+
   login(): void {
-    if (this.loginForm.valid) {
-      const { username, password } = this.loginForm.value;
-      this.auth.login(username!, password!);
-    }
+    if (!this.loginForm.valid) return;
+    const { username, password } = this.loginForm.value;
+    this.loading.set(true);
+    this.loginError.set('');
+    this.auth.login(username!, password!).subscribe({
+      next: () => this.loading.set(false),
+      error: (err) => {
+        this.loading.set(false);
+        this.loginError.set(err?.status === 401
+          ? 'Invalid username or password.'
+          : 'Login failed. Please try again.');
+      },
+    });
   }
 
   /**

@@ -79,7 +79,6 @@ export class ChpassComponent extends BaseAsync {
       request,
       () => {
         if (isForgot) {
-          this.successMessage.set('A confirmation code has been sent to your email.');
           this.router.navigate(['/confirm/password'], { queryParams: { username } });
         } else {
           this.successMessage.set('Password changed successfully.');

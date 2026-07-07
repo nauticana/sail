@@ -52,9 +52,10 @@ export class AccountDeletionComponent extends BaseAsync {
   });
 
   readonly typedValue = signal('');
+  private readonly passwordValue = signal('');
   readonly canSubmit = computed(() =>
     this.typedValue() === this.confirmationText() &&
-    !!this.form.controls.password.value &&
+    !!this.passwordValue() &&
     !this.loading(),
   );
 
@@ -63,6 +64,9 @@ export class AccountDeletionComponent extends BaseAsync {
     this.form.controls.confirm.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((v) => this.typedValue.set(v ?? ''));
+    this.form.controls.password.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((v) => this.passwordValue.set(v ?? ''));
   }
 
   onDelete() {
@@ -71,11 +75,7 @@ export class AccountDeletionComponent extends BaseAsync {
     const reason = this.form.controls.reason.value?.trim() || undefined;
     this.run(
       this.auth.deleteAccount({ password }, reason),
-      () => {
-        this.successMessage.set('Account deleted.');
-        const route = this.guiConfig.accountDeletedRoute ?? '/login/local';
-        this.router.navigateByUrl(route);
-      },
+      () => this.router.navigateByUrl(this.guiConfig.accountDeletedRoute ?? '/login/local'),
       'Failed to delete account. Please try again.',
     );
   }

@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ViewEncapsulation,
+  ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewEncapsulation,
   computed, effect, inject, input, output, signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -28,7 +28,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
   encapsulation: ViewEncapsulation.None,
   imports: [ReactiveFormsModule, MatCheckboxModule],
 })
-export class ConsentGateComponent {
+export class ConsentGateComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly guiConfig: SailGuiConfig =
     inject(SAIL_GUI_CONFIG, { optional: true }) ?? DEFAULT_CONFIG;
@@ -74,7 +74,9 @@ export class ConsentGateComponent {
   }));
 
   constructor() {
-    // Register optional consent controls dynamically when the input changes.
+    // Register optional consent controls when the input changes. add/removeControl
+    // fire valueChanges, so the subscriptions below emit — never emit from an
+    // effect: its microtask scheduling is unreliable for outputs in AOT builds.
     effect(() => {
       const options = this.optionalConsents();
       for (const opt of options) {
@@ -85,33 +87,24 @@ export class ConsentGateComponent {
           );
         }
       }
-      // Drop controls for options that were removed.
       for (const key of Object.keys(this.form.controls)) {
         if (key === ConsentType.PRIVACY_POLICY || key === ConsentType.CROSS_BORDER) continue;
         if (!options.some((o) => o.id === key)) this.form.removeControl(key);
       }
-      this.formValue.set(this.form.getRawValue());
-      this.formValid.set(this.form.valid);
-      this.consentStateChange.emit(this.state());
     });
 
-    // Emit on every form change. We emit explicitly here rather than via a
-    // standalone `effect(() => emit(state()))` because output emission
-    // from inside an effect is unreliable in production AOT builds: the
-    // effect's scheduler runs in a microtask outside the user-event CD
-    // tick, and parent OnPush views can miss the propagated signal write.
-    // Emitting inside the RxJS subscription puts the emission on the
-    // synchronous click-handler path, where Angular's zone-aware CD
-    // picks up the parent's `consents` signal write deterministically.
-    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      this.formValue.set(this.form.getRawValue());
-      this.formValid.set(this.form.valid);
-      this.consentStateChange.emit(this.state());
-    });
-    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-      this.formValid.set(this.form.valid);
-      this.consentStateChange.emit(this.state());
-    });
+    this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.syncAndEmit());
+    this.form.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.syncAndEmit());
+  }
+
+  ngOnInit() {
+    this.syncAndEmit();
+  }
+
+  private syncAndEmit() {
+    this.formValue.set(this.form.getRawValue());
+    this.formValid.set(this.form.valid);
+    this.consentStateChange.emit(this.state());
   }
 
   protected readonly ConsentType = ConsentType;

@@ -13,34 +13,51 @@
       <div class="form-row">
         <mat-form-field appearance="outline">
           <mat-label>First Name</mat-label>
-          <input matInput type="text" formControlName="FirstName" required>
+          <input matInput type="text" formControlName="FirstName" autocomplete="given-name" required>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Last Name</mat-label>
-          <input matInput type="text" formControlName="LastName" required>
+          <input matInput type="text" formControlName="LastName" autocomplete="family-name" required>
         </mat-form-field>
       </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Email</mat-label>
-        <input matInput type="email" formControlName="Email" required>
+        <input matInput type="email" formControlName="Email" autocomplete="email" required>
+        @if (registerForm.controls.Email.hasError('email')) {
+          <mat-error>Enter a valid email address.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput type="text" formControlName="UserName" autocomplete="username" required>
       </mat-form-field>
 
       <div class="form-row">
         <mat-form-field appearance="outline">
-          <mat-label>Username</mat-label>
-          <input matInput type="text" formControlName="UserName" required>
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="Password" autocomplete="new-password" required>
+          @if (registerForm.controls.Password.hasError('minlength')) {
+            <mat-error>At least 6 characters.</mat-error>
+          }
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>Password</mat-label>
-          <input matInput type="password" formControlName="Password" required>
+          <mat-label>Confirm Password</mat-label>
+          <input matInput type="password" formControlName="ConfirmPassword" autocomplete="new-password" required>
         </mat-form-field>
       </div>
+      @if (registerForm.hasError('passwordMismatch') && registerForm.controls.ConfirmPassword.touched) {
+        <div class="geocode-status geocode-error" role="alert">Passwords do not match.</div>
+      }
 
       <div class="auth-section-label">Plan</div>
 
+      @if (plansError()) {
+        <div class="geocode-status geocode-error" role="alert">{{ plansError() }}</div>
+      }
       <mat-form-field appearance="outline">
         <mat-label>Subscription plan</mat-label>
         <mat-select formControlName="PlanID" required>
@@ -62,12 +79,12 @@
       <div class="form-row">
         <mat-form-field appearance="outline">
           <mat-label>Phone</mat-label>
-          <input matInput type="tel" formControlName="Phone" required>
+          <input matInput type="tel" formControlName="Phone" autocomplete="tel" required>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Website URL</mat-label>
-          <input matInput type="url" formControlName="DomainURL" required>
+          <input matInput type="url" formControlName="DomainURL" autocomplete="url" required>
         </mat-form-field>
       </div>
 
@@ -75,30 +92,30 @@
 
       <mat-form-field appearance="outline">
         <mat-label>Address (Street and Number)</mat-label>
-        <input matInput type="text" formControlName="Address" required>
+        <input matInput type="text" formControlName="Address" autocomplete="address-line1" required>
       </mat-form-field>
 
       <div class="form-row">
         <mat-form-field appearance="outline">
           <mat-label>City</mat-label>
-          <input matInput type="text" formControlName="City" required>
+          <input matInput type="text" formControlName="City" autocomplete="address-level2" required>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>State</mat-label>
-          <input matInput type="text" formControlName="State" required>
+          <input matInput type="text" formControlName="State" autocomplete="address-level1" required>
         </mat-form-field>
       </div>
 
       <div class="form-row">
         <mat-form-field appearance="outline">
           <mat-label>Zipcode</mat-label>
-          <input matInput type="text" formControlName="Zipcode" required>
+          <input matInput type="text" formControlName="Zipcode" autocomplete="postal-code" required>
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Country</mat-label>
-          <input matInput type="text" formControlName="Country" required>
+          <input matInput type="text" formControlName="Country" autocomplete="country-name" required>
         </mat-form-field>
       </div>
 

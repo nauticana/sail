@@ -4,17 +4,25 @@
     <p class="otp-contact">{{ contact() }}</p>
   }
 
-  <div class="otp-digits" role="group" aria-label="Verification code">
+  <input class="otp-input-field"
+         type="text"
+         inputmode="numeric"
+         autocomplete="one-time-code"
+         [attr.maxlength]="length()"
+         [value]="code()"
+         (input)="onCodeInput($event)"
+         [disabled]="disabled()"
+         aria-label="Verification code">
+
+  <div class="otp-digits" aria-hidden="true">
     @for (digit of digits(); track $index) {
-      <div class="otp-digit"
-           [class.active]="$index === currentIndex()"
-           [attr.aria-label]="'Digit ' + ($index + 1)">
+      <div class="otp-digit" [class.active]="$index === currentIndex()">
         {{ digit }}
       </div>
     }
   </div>
 
-  <p class="otp-resend">
+  <p class="otp-resend" aria-live="polite">
     @if (canResend()) {
       <button matButton class="resend-btn" type="button" (click)="onResend()">Resend code</button>
     } @else {

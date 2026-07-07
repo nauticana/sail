@@ -71,7 +71,6 @@ export class TrustedDevicesComponent extends BaseAsync implements OnInit {
     this.run(
       this.auth.logoutEverywhere({ password }),
       () => {
-        this.successMessage.set('Signed out of all devices.');
         this.logoutForm.reset();
         this.logoutOpen.set(false);
         this.auth.logout();

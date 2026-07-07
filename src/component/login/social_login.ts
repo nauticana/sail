@@ -1,6 +1,6 @@
 import {
-  ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, ViewEncapsulation,
-  inject, input, output,
+  ChangeDetectionStrategy, Component, computed, ElementRef, OnInit, ViewEncapsulation,
+  inject, input, output, viewChild,
 } from '@angular/core';
 import { BaseAsync } from '../abstract/base_async';
 import { BaseAuthService } from '../../service/auth.service';
@@ -45,15 +45,14 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
   readonly loginSuccess = output<LoginResponseSocial>();
   readonly loginError = output<Error>();
 
-  @ViewChild('googleBtn', { static: false }) googleBtn?: ElementRef<HTMLDivElement>;
+  private readonly googleBtn = viewChild<ElementRef<HTMLDivElement>>('googleBtn');
 
-  protected googleEnabled = false;
-  protected appleEnabled = false;
+  protected readonly googleEnabled = computed(() =>
+    this.providers().includes('google') && !!this.guiConfig.googleClientId);
+  protected readonly appleEnabled = computed(() =>
+    this.providers().includes('apple') && !!this.guiConfig.appleServiceId);
 
   ngOnInit() {
-    this.googleEnabled = this.providers().includes('google') && !!this.guiConfig.googleClientId;
-    this.appleEnabled  = this.providers().includes('apple')  && !!this.guiConfig.appleServiceId;
-
     if (this.providers().includes('google') && !this.guiConfig.googleClientId) {
       console.warn('SocialLoginComponent: googleClientId missing from SailGuiConfig — Google button hidden');
     }
@@ -61,8 +60,15 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
       console.warn('SocialLoginComponent: appleServiceId missing from SailGuiConfig — Apple button hidden');
     }
 
-    if (this.googleEnabled) this.initGoogle();
-    if (this.appleEnabled)  this.initApple();
+    // SDK load failures (CSP, ad-blockers) must surface, not leave a blank area.
+    if (this.googleEnabled()) this.initGoogle().catch((err) => this.onInitError('Google', err));
+    if (this.appleEnabled())  this.initApple().catch((err) => this.onInitError('Apple', err));
+  }
+
+  private onInitError(provider: string, err: unknown) {
+    console.error(`${provider} sign-in init failed:`, err);
+    this.errorMessage.set(`${provider} sign-in is unavailable right now.`);
+    this.loginError.emit(err instanceof Error ? err : new Error(String(err)));
   }
 
   private async initGoogle() {
@@ -75,8 +81,9 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
     });
     // Render into the template anchor once the view is ready.
     queueMicrotask(() => {
-      if (this.googleBtn?.nativeElement) {
-        google.accounts.id.renderButton(this.googleBtn.nativeElement, { theme: 'outline', size: 'large' });
+      const anchor = this.googleBtn()?.nativeElement;
+      if (anchor) {
+        google.accounts.id.renderButton(anchor, { theme: 'outline', size: 'large' });
       }
     });
   }
@@ -98,7 +105,7 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
       const res = await AppleID.auth.signIn();
       const token = res?.authorization?.id_token;
       if (token) this.onIdToken('apple', token);
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.loginError.emit(err instanceof Error ? err : new Error(String(err)));
     }
   }

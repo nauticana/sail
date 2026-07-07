@@ -96,7 +96,7 @@ export class ProfileEditorComponent implements OnInit {
     this.loading.set(true);
     this.emailErr.set('');
     this.auth.confirmEmailChange(this.newEmail.value!, Number(this.emailCode.value)).subscribe({
-      next: () => { this.loading.set(false); this.email.set(this.newEmail.value!); this.cancelEmailChange(); this.profileMsg.set('Email updated.'); },
+      next: () => { this.loading.set(false); this.email.set(this.newEmail.value!); this.cancelEmailChange(); this.emailMsg.set('Email updated.'); },
       error: (e) => { this.loading.set(false); this.emailErr.set(this.msg(e, 'Invalid or expired code.')); },
     });
   }
@@ -128,7 +128,7 @@ export class ProfileEditorComponent implements OnInit {
     this.loading.set(true);
     this.phoneErr.set('');
     this.auth.confirmPhoneChange(this.newPhone.value!, Number(this.phoneCode.value)).subscribe({
-      next: () => { this.loading.set(false); this.phone.set(this.newPhone.value!); this.cancelPhoneChange(); this.profileMsg.set('Phone updated.'); },
+      next: () => { this.loading.set(false); this.phone.set(this.newPhone.value!); this.cancelPhoneChange(); this.phoneMsg.set('Phone updated.'); },
       error: (e) => { this.loading.set(false); this.phoneErr.set(this.msg(e, 'Invalid or expired code.')); },
     });
   }

@@ -15,14 +15,17 @@
     <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
       <mat-form-field appearance="outline">
         <mat-label>Username</mat-label>
-        <input matInput type="text" formControlName="username" required>
+        <input matInput type="text" formControlName="username" autocomplete="username" required>
       </mat-form-field>
       <mat-form-field appearance="outline">
         <mat-label>Password</mat-label>
-        <input matInput type="password" formControlName="password" required>
+        <input matInput type="password" formControlName="password" autocomplete="current-password" required>
       </mat-form-field>
-      <button matButton="elevated" class="primary" type="submit" [disabled]="!loginForm.valid">
-        Login
+      @if (loginError()) {
+        <p class="auth-error" role="alert">{{ loginError() }}</p>
+      }
+      <button matButton="elevated" class="primary" type="submit" [disabled]="!loginForm.valid || loading()">
+        {{ loading() ? 'Signing in…' : 'Login' }}
       </button>
     </form>
     @if (showSocialLogin()) {

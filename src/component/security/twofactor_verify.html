@@ -36,7 +36,8 @@
       </button>
     </form>
     <div class="auth-actions">
-      <a tabindex="0" role="button" (click)="toggleBackupCode()" (keydown.enter)="toggleBackupCode()">
+      <a tabindex="0" role="button" (click)="toggleBackupCode()" (keydown.enter)="toggleBackupCode()"
+         (keydown.space)="$event.preventDefault(); toggleBackupCode()">
         {{ useBackupCode() ? 'Use authenticator code' : 'Use a backup code instead' }}
       </a>
       <a routerLink="/login/local">Back to Login</a>

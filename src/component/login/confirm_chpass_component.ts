@@ -54,10 +54,7 @@ export class ConfirmChpassComponent extends BaseAsync implements OnInit {
 
     this.run(
       this.auth.confirmChpass(username!, code!, new_password!),
-      () => {
-        this.successMessage.set('Password changed successfully. Redirecting to login...');
-        this.router.navigate(['/login/local']);
-      },
+      () => this.router.navigate(['/login/local']),
       'Confirmation failed. Please try again.',
     );
   }

@@ -15,10 +15,14 @@
       }
       @case ('qr') {
         <p class="auth-instructions">Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy).</p>
-        <div class="twofactor-qr">
-          <img [src]="qrUri()" alt="2FA QR Code" width="200" height="200">
-        </div>
-        <p class="auth-instructions">Or enter this secret manually: <code>{{ secret() }}</code></p>
+        @if (qrDataUrl()) {
+          <div class="twofactor-qr">
+            <img [src]="qrDataUrl()" alt="2FA QR Code" width="200" height="200">
+          </div>
+          <p class="auth-instructions">Or enter this secret manually: <code>{{ secret() }}</code></p>
+        } @else {
+          <p class="auth-instructions">Enter this secret in your authenticator app: <code>{{ secret() }}</code></p>
+        }
 
         @if (backupCodes().length > 0) {
           <div class="twofactor-backup">

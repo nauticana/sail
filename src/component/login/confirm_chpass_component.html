@@ -10,22 +10,22 @@
     <form [formGroup]="confirmForm" (ngSubmit)="confirm()" class="auth-form">
       <mat-form-field appearance="outline">
         <mat-label>Username</mat-label>
-        <input matInput type="text" formControlName="username" required>
+        <input matInput type="text" formControlName="username" autocomplete="username" required>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Confirmation Code</mat-label>
-        <input matInput type="text" formControlName="code" required>
+        <input matInput type="text" formControlName="code" autocomplete="one-time-code" required>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>New Password</mat-label>
-        <input matInput type="password" formControlName="new_password" required>
+        <input matInput type="password" formControlName="new_password" autocomplete="new-password" required>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Confirm New Password</mat-label>
-        <input matInput type="password" formControlName="confirm_password" required>
+        <input matInput type="password" formControlName="confirm_password" autocomplete="new-password" required>
       </mat-form-field>
 
       @if (errorMessage()) {

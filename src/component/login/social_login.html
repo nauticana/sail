@@ -1,8 +1,8 @@
 <div class="social-login">
-  @if (googleEnabled) {
+  @if (googleEnabled()) {
     <div #googleBtn class="social-google"></div>
   }
-  @if (appleEnabled) {
+  @if (appleEnabled()) {
     <button type="button" class="social-apple-btn" (click)="onAppleClick()" [disabled]="loading()">
       Sign in with Apple
     </button>
