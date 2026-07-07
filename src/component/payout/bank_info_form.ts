@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -29,8 +29,7 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
  * `(submitted)` — the consumer decides whether to POST directly to
  * /api/v1/user_bank_info or pipe through its own registration service.
  *
- * `[provider]` defaults to "AW" (Airwallex) to match keel/payout's
- * default --payout_provider flag. Override per deployment if needed.
+ * Ships no CSS — the consuming app styles the classes globally.
  *
  * Selector: <sail-payout-bank-info-form>
  */
@@ -42,18 +41,6 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
     MatFormFieldModule, MatInputModule, MatSelectModule,
   ],
   templateUrl: './bank_info_form.html',
-  styles: `
-    .bank-info-form { display: flex; flex-direction: column; gap: 4px; padding: 0 24px 32px; }
-    .bank-info-form__title { margin: 0 0 16px; }
-    .bank-info-form__intro { font-size: 14px; color: var(--mat-app-on-surface-variant, #555); margin: 0 0 16px; }
-    .full-width { width: 100%; }
-    .hint { font-size: 12px; color: var(--mat-app-on-surface-variant, #555); margin: -4px 0 8px; }
-    .provider-note { font-size: 13px; color: var(--mat-app-on-surface-variant, #555); background: rgba(0,0,0,0.04); padding: 12px; border-radius: 4px; margin: 12px 0; }
-    .agreement { margin: 12px 0 16px; font-size: 14px; }
-    .nav-buttons { display: flex; gap: 12px; margin-top: 8px; }
-    .pill-btn { border-radius: 24px; height: 48px; font-size: 15px; font-weight: 600; flex: 1; }
-    .primary-btn { background: var(--mat-app-primary, #1976d2); color: white; }
-  `,
 })
 export class PayoutBankInfoFormComponent {
   /** Step title rendered above the form. */
@@ -62,8 +49,8 @@ export class PayoutBankInfoFormComponent {
   readonly intro = input('Tax + payout details. Bank account itself is set up with the payout provider in a separate step — only tax-reporting and dispute-correspondence fields are collected here.');
   /** Override the list of supported countries — keep the default for most apps. */
   readonly countryProfiles = input<CountryProfile[]>(DEFAULT_COUNTRY_PROFILES);
-  /** Provider code persisted on user_bank_info.provider. Default AW (Airwallex) matches keel's default --payout_provider. */
-  readonly provider = input('AW');
+  /** Provider code persisted on user_bank_info.provider — must match the app's keel --payout_provider. */
+  readonly provider = input.required<string>();
   /** Wording on the provider-agreement checkbox. Override to name the live provider. */
   readonly agreementLabel = input('I agree to the payout provider account agreement');
   /** Submit-button label — wizards usually use "Next >". */
@@ -79,33 +66,42 @@ export class PayoutBankInfoFormComponent {
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.group({
-    countryCode:       ['CA', Validators.required],
+    countryCode:       ['', Validators.required],
     accountHolderName: ['', Validators.required],
     taxId:             ['', Validators.required],
     billingAddress:    ['', Validators.required],
     providerAgreement: [false, Validators.requiredTrue],
   });
 
-  private readonly selectedCountry = signal<CountryProfile>(this.countryProfiles()[0]);
+  // linkedSignal, not a field initializer: the bound countryProfiles input
+  // isn't available yet during construction.
+  private readonly selectedCountry = linkedSignal<CountryProfile | undefined>(() => this.countryProfiles()[0]);
 
-  readonly taxIdLabel       = computed(() => this.selectedCountry().taxIdLabel);
-  readonly taxIdPlaceholder = computed(() => this.selectedCountry().taxIdPlaceholder);
-  readonly taxIdHint        = computed(() => this.selectedCountry().taxIdHint);
+  readonly taxIdLabel       = computed(() => this.selectedCountry()?.taxIdLabel ?? '');
+  readonly taxIdPlaceholder = computed(() => this.selectedCountry()?.taxIdPlaceholder ?? '');
+  readonly taxIdHint        = computed(() => this.selectedCountry()?.taxIdHint ?? '');
 
   constructor() {
+    // Keep the form's country in the bound profile list (never a phantom default).
+    effect(() => {
+      const profiles = this.countryProfiles();
+      const current = this.form.controls.countryCode.value;
+      if (!profiles.some((c) => c.code === current)) {
+        this.form.controls.countryCode.setValue(profiles[0]?.code ?? '');
+      }
+    });
     this.form.controls.countryCode.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((code) => {
         const profiles = this.countryProfiles();
-        const profile = profiles.find((c) => c.code === code) ?? profiles[0];
-        this.selectedCountry.set(profile);
+        this.selectedCountry.set(profiles.find((c) => c.code === code) ?? profiles[0]);
       });
   }
 
   submit() {
-    if (this.form.invalid) return;
-    const v = this.form.value;
     const country = this.selectedCountry();
+    if (this.form.invalid || !country) return;
+    const v = this.form.value;
     this.submitted.emit({
       countryCode:       country.code,
       currency:          country.currency,

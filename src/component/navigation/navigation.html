@@ -9,7 +9,7 @@
                 [attr.aria-label]="guiConfig.appTitle ? guiConfig.appTitle + ' home' : 'Home'">
                 @if (guiConfig.appLogoUrl) {
                     <img class="sail-navigation-logo"
-                        [src]="guiConfig.appLogoUrl"
+                        [ngSrc]="guiConfig.appLogoUrl"
                         width="40"
                         height="40"
                         alt="">
@@ -44,7 +44,7 @@
         <mat-toolbar class="primary">
             @if (isHandset()) {
                 <button type="button" aria-label="Toggle sidenav" matIconButton (click)="sidenav.toggle()">
-                    <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
+                    <mat-icon>menu</mat-icon>
                 </button>
             }
             <ng-content select="[toolbar-title]"></ng-content>

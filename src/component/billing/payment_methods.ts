@@ -7,8 +7,7 @@ import { PaymentMethod } from '../../model/appdata';
 
 /**
  * Lists the partner's saved payment methods. Inherits loading/error state
- * from BaseAsyncView. The "Manage in Stripe" button is a placeholder — pass
- * `[portalUrl]` to show it; otherwise the button is hidden.
+ * from BaseAsync. Pair with `<sail-portal-button>` for provider-side management.
  */
 @Component({
   selector: 'sail-payment-methods',

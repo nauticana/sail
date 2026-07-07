@@ -7,7 +7,7 @@
 
   <form [formGroup]="form" (ngSubmit)="submit()">
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Country *</mat-label>
+      <mat-label>Country</mat-label>
       <mat-select formControlName="countryCode">
         @for (c of countryProfiles(); track c.code) {
           <mat-option [value]="c.code">{{ c.label }} ({{ c.currency }})</mat-option>
@@ -17,19 +17,19 @@
     <p class="hint">Sets your tax ID format + payout currency</p>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Account holder name *</mat-label>
+      <mat-label>Account holder name</mat-label>
       <input matInput formControlName="accountHolderName">
     </mat-form-field>
     <p class="hint">Legal name on the bank account (must match government ID)</p>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>{{ taxIdLabel() }} *</mat-label>
+      <mat-label>{{ taxIdLabel() }}</mat-label>
       <input matInput formControlName="taxId" [placeholder]="taxIdPlaceholder()">
     </mat-form-field>
     <p class="hint">{{ taxIdHint() }}</p>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Billing address *</mat-label>
+      <mat-label>Billing address</mat-label>
       <input matInput formControlName="billingAddress">
     </mat-form-field>
     <p class="hint">Business or home address — used for tax correspondence</p>

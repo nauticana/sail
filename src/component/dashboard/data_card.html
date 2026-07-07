@@ -3,7 +3,7 @@
 
   @switch (state()) {
     @case ('loading') {
-      <div class="data-card-loading"><mat-spinner diameter="28"></mat-spinner></div>
+      <div class="data-card-loading"><mat-spinner diameter="28" [attr.aria-label]="(heading() || 'Card') + ' loading'"></mat-spinner></div>
     }
     @case ('ready') {
       <p class="sr-only">{{ description() }}</p>

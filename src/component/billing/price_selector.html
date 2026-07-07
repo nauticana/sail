@@ -1,9 +1,10 @@
-<div class="price-selector" role="radiogroup" aria-label="Billing options">
+<div class="price-selector" role="radiogroup" aria-label="Billing options" (keydown)="onKeydown($event)">
   @for (offer of offers(); track offer.key) {
     <button class="price-offer" type="button"
             role="radio"
             [class.price-selected]="offer.key === selected()"
             [attr.aria-checked]="offer.key === selected()"
+            [attr.tabindex]="tabIndexFor(offer, $index)"
             (click)="onSelect(offer)">
       <span class="price-amount">{{ offer.amountText }}</span>
       <span class="price-cycle">/ {{ offer.cycleText }}</span>

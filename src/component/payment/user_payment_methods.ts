@@ -16,6 +16,8 @@ import { UserPaymentMethod } from '../../model/appdata';
  * the consumer routes to its own SetupIntent flow (sail does not bundle
  * a SetupIntent UI today — providers vary too much).
  *
+ * Ships no CSS — the consuming app styles the classes globally.
+ *
  * Selector: <sail-user-payment-methods>
  */
 @Component({
@@ -24,20 +26,6 @@ import { UserPaymentMethod } from '../../model/appdata';
   encapsulation: ViewEncapsulation.None,
   imports: [MatButtonModule, MatCardModule, MatIconModule],
   templateUrl: './user_payment_methods.html',
-  styles: `
-    .user-payment-methods { display: flex; flex-direction: column; gap: 12px; }
-    .user-payment-methods__title { margin: 0; }
-    .user-payment-methods__add { align-self: flex-start; }
-    .user-payment-methods__empty { color: var(--mat-app-on-surface-variant, #555); }
-    .user-payment-methods__item { background: var(--mat-app-surface, #fff); }
-    .user-payment-methods__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .user-payment-methods__info { display: flex; align-items: center; gap: 8px; }
-    .user-payment-methods__brand { font-weight: 600; }
-    .user-payment-methods__last4 { color: var(--mat-app-on-surface-variant, #555); }
-    .user-payment-methods__default { color: var(--mat-app-primary, #1976d2); margin-left: 8px; font-size: 12px; font-weight: 600; }
-    .user-payment-methods__actions { display: flex; align-items: center; gap: 4px; }
-    .user-payment-methods__error { color: var(--mat-app-error, #b00020); font-size: 13px; margin: 0; }
-  `,
 })
 export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
   readonly title = input('Payment Methods');
@@ -55,7 +43,6 @@ export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
   private readonly service = inject(UserPaymentMethodService);
 
   readonly methods = signal<UserPaymentMethod[]>([]);
-  readonly errorMsg = signal<string>('');
 
   ngOnInit(): void {
     this.load();
@@ -77,25 +64,27 @@ export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
   }
 
   setDefault(m: UserPaymentMethod): void {
-    this.service.setDefault(m.Id).subscribe({
-      next: () => {
+    this.run(
+      this.service.setDefault(m.Id),
+      () => {
         this.methods.update((list) =>
           list.map((row) => ({ ...row, IsDefault: row.Id === m.Id })),
         );
         this.defaultChanged.emit(m);
       },
-      error: (err) => this.errorMsg.set(err?.error?.detail ?? 'Failed to set default'),
-    });
+      'Failed to set default.',
+    );
   }
 
   remove(m: UserPaymentMethod): void {
-    this.service.delete(m.Id).subscribe({
-      next: () => {
+    this.run(
+      this.service.delete(m.Id),
+      () => {
         this.methods.update((list) => list.filter((row) => row.Id !== m.Id));
         this.deleted.emit(m);
       },
-      error: (err) => this.errorMsg.set(err?.error?.detail ?? 'Failed to delete'),
-    });
+      'Failed to delete.',
+    );
   }
 
   iconFor(m: UserPaymentMethod): string {

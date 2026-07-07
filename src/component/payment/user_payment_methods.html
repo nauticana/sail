@@ -40,7 +40,7 @@
     </mat-card>
   }
 
-  @if (errorMsg()) {
-    <p class="user-payment-methods__error">{{ errorMsg() }}</p>
+  @if (errorMessage()) {
+    <p class="user-payment-methods__error" role="alert">{{ errorMessage() }}</p>
   }
 </div>

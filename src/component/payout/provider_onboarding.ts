@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MatRadioModule } from '@angular/material/radio';
+import { MatRadioChange, MatRadioModule } from '@angular/material/radio';
 import { PayoutService } from '../../service/payout.service';
 import { ReusableAccount } from '../../model/appdata';
 
@@ -13,12 +14,14 @@ import { ReusableAccount } from '../../model/appdata';
  * two paths:
  *   1. Reuse an existing provider account from another partner row
  *      (zero-KYC; calls /api/v1/payout/reusable/link).
- *   2. Launch the provider's hosted-KYC page in a new tab
+ *   2. Hand off to the provider's hosted-KYC page
  *      (/api/v1/payout/onboard/start).
  *
  * Routing is consumer-owned via the `(linked)` / `(skipped)` outputs —
  * the component itself never calls Router. Optional `title` and
  * `skipLabel` inputs cover the common UX strings.
+ *
+ * Ships no CSS — the consuming app styles the classes globally.
  *
  * Selector: <sail-payout-provider-onboarding>
  */
@@ -27,18 +30,6 @@ import { ReusableAccount } from '../../model/appdata';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatButtonModule, MatCardModule, MatIconModule, MatRadioModule],
   templateUrl: './provider_onboarding.html',
-  styles: `
-    .payout-onboarding { display: flex; flex-direction: column; gap: 16px; padding: 0 24px 32px; }
-    .payout-onboarding__title { margin: 0; }
-    .payout-onboarding__intro { font-size: 14px; color: var(--mat-app-on-surface-variant, #555); margin: 0; }
-    .reuse-card { background: var(--mat-app-surface-variant, #f5f5f5); }
-    .reuse-option { display: block; margin: 8px 0; }
-    .hint { font-size: 13px; color: var(--mat-app-on-surface-variant, #555); margin: 0 0 12px; }
-    .payout-onboarding__error { color: var(--mat-app-error, #b00020); font-size: 13px; margin: 0 0 12px; }
-    .payout-onboarding__nav { display: flex; gap: 12px; margin-top: 8px; }
-    .payout-onboarding__btn { border-radius: 24px; height: 48px; font-size: 15px; font-weight: 600; flex: 1; }
-    .payout-onboarding__btn--primary { background: var(--mat-app-primary, #1976d2); color: white; }
-  `,
 })
 export class PayoutProviderOnboardingComponent implements OnInit {
   /** Step title — defaults match the most common payout-step framing. */
@@ -54,10 +45,11 @@ export class PayoutProviderOnboardingComponent implements OnInit {
   readonly skipped = output<void>();
   /** Emitted when the user clicks Back. */
   readonly back = output<void>();
-  /** Emitted after the hosted page is opened in a new tab. Consumers can route away or show a "waiting on provider" screen. */
+  /** Emitted just before handing off to the hosted-KYC page. */
   readonly started = output<void>();
 
   private readonly payoutService = inject(PayoutService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly reusable = signal<ReusableAccount[]>([]);
   readonly selectedAccountId = signal<string>('');
@@ -65,21 +57,24 @@ export class PayoutProviderOnboardingComponent implements OnInit {
   readonly errorMsg = signal<string>('');
 
   ngOnInit() {
-    this.payoutService.listReusable().subscribe({
+    this.payoutService.listReusable().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ accounts }) => this.reusable.set(accounts ?? []),
-      error: () => this.reusable.set([]),
+      error: () => {
+        this.reusable.set([]);
+        this.errorMsg.set('Could not check for reusable accounts.');
+      },
     });
   }
 
-  selectAccount(id: string) {
-    this.selectedAccountId.set(id);
+  onAccountChange(event: MatRadioChange) {
+    this.selectedAccountId.set(String(event.value));
   }
 
   linkExisting() {
     const id = this.selectedAccountId();
     if (!id) return;
     this.busy.set(true);
-    this.payoutService.linkReusable(id).subscribe({
+    this.payoutService.linkReusable(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.busy.set(false);
         this.linked.emit();
@@ -93,14 +88,14 @@ export class PayoutProviderOnboardingComponent implements OnInit {
 
   startProviderKyc() {
     this.busy.set(true);
-    this.payoutService.startOnboarding().subscribe({
+    this.payoutService.startOnboarding().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.busy.set(false);
-        // Open in the platform browser. Mobile webview wrappers
-        // intercept this and pop the system browser so the provider
-        // page works in its expected environment.
-        window.open(res.url, '_blank');
         this.started.emit();
+        // Same-tab handoff: window.open from an async callback is popup-blocked
+        // (always on Safari), which used to leave users on a "waiting" screen
+        // with nothing open. Mobile webview wrappers intercept the navigation.
+        window.location.assign(res.url);
       },
       error: (err) => {
         this.errorMsg.set(err?.error?.detail ?? 'Failed to start onboarding');

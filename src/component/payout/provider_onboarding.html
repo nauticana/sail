@@ -18,7 +18,7 @@
           {{ reusable().length === 1 ? 'another partner' : 'other partners' }}.
           You can reuse it here (no KYC redo) if the currency matches.
         </p>
-        <mat-radio-group [value]="selectedAccountId()" (change)="selectAccount($any($event.value))">
+        <mat-radio-group [value]="selectedAccountId()" (change)="onAccountChange($event)">
           @for (acc of reusable(); track acc.providerAccountId) {
             <mat-radio-button [value]="acc.providerAccountId" class="reuse-option">
               <strong>{{ acc.partnerCaption }}</strong>

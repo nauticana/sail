@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation } from "@angular/core";
+import { NgOptimizedImage } from "@angular/common";
 import { toSignal } from "@angular/core/rxjs-interop";
 import { RouterLink, RouterOutlet } from "@angular/router";
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -24,6 +25,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
     MatListModule,
     MatIconModule,
     MatButtonModule,
+    NgOptimizedImage,
     RouterOutlet,
     RouterLink,
     MatExpansionModule,

@@ -13,17 +13,24 @@ export function formatCurrency(amount: number, currency: string): string {
   }
 }
 
+/** PERIOD_TYPE code → months, for cross-cycle price comparison. */
+const CYCLE_MONTHS: Record<string, number> = { D: 1 / 30, W: 7 / 30, M: 1, Q: 3, A: 12 };
+const CYCLE_SUFFIX: Record<string, string> = { D: '/day', W: '/wk', M: '/mo', Q: '/qtr', A: '/yr' };
+
 /**
- * "From" price teaser for a plan card / dropdown — the lowest priced offer,
- * currency-formatted, prefixed "from " when the plan sells more than one priced
- * offer. Returns '' when the plan has no priced offers (free/trial), so callers
- * can omit the price line entirely. The exact offer is chosen later via
- * `<sail-price-selector>`.
+ * "From" price teaser for a plan card / dropdown — the cheapest offer once
+ * normalized per month (a $2 daily offer must not undercut a $30 monthly one),
+ * compared within one currency, rendered with its cycle ("from $30.00/mo").
+ * Returns '' when the plan has no priced offers (free/trial). The exact offer
+ * is chosen later via `<sail-price-selector>`.
  */
 export function fromPriceLabel(prices: PlanPrice[] | undefined): string {
   const priced = (prices ?? []).filter((p) => p.amount > 0);
   if (priced.length === 0) return '';
-  const lowest = priced.reduce((a, b) => (b.amount < a.amount ? b : a));
-  const formatted = formatCurrency(lowest.amount, lowest.currency);
+  const currency = priced[0].currency;
+  const comparable = priced.filter((p) => p.currency === currency);
+  const perMonth = (p: PlanPrice) => p.amount / (CYCLE_MONTHS[p.billingCycle] ?? 1);
+  const lowest = comparable.reduce((a, b) => (perMonth(b) < perMonth(a) ? b : a));
+  const formatted = formatCurrency(lowest.amount, lowest.currency) + (CYCLE_SUFFIX[lowest.billingCycle] ?? '');
   return priced.length > 1 ? `from ${formatted}` : formatted;
 }

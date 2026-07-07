@@ -1,28 +1,32 @@
 import {
+  registerDecorator,
+  ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
   ValidationArguments,
 } from 'class-validator';
 
-@ValidatorConstraint({ name: 'isNumeric', async: false })
-export class IsNumericConstraint implements ValidatorConstraintInterface {
-  validate(value: any, args: ValidationArguments) {
-    if (typeof value !== 'number') {
+// Plain decimal only — exponential notation ('1e21') must not slip past
+// the precision/scale digit counts.
+const DECIMAL = /^-?\d+(\.\d+)?$/;
+
+@ValidatorConstraint({ name: 'isSailNumeric', async: false })
+export class IsSailNumericConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown, args: ValidationArguments) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
       return false;
     }
 
     const [precision, scale] = args.constraints;
     const valueString = value.toString();
+    if (!DECIMAL.test(valueString)) {
+      return false;
+    }
     const parts = valueString.split('.');
     const integerPart = parts[0].startsWith('-') ? parts[0].substring(1) : parts[0];
     const decimalPart = parts[1] || '';
 
-    // Check total digits vs precision and decimal digits vs scale
-    if (integerPart.length + decimalPart.length > precision || decimalPart.length > scale) {
-      return false;
-    }
-
-    return true;
+    return integerPart.length + decimalPart.length <= precision && decimalPart.length <= scale;
   }
 
   defaultMessage(_args: ValidationArguments) {
@@ -30,9 +34,9 @@ export class IsNumericConstraint implements ValidatorConstraintInterface {
   }
 }
 
-@ValidatorConstraint({ name: 'IsString', async: false })
-export class IsStringConstraint implements ValidatorConstraintInterface {
-  validate(value: any, args: ValidationArguments) {
+@ValidatorConstraint({ name: 'isSailString', async: false })
+export class IsSailStringConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown, args: ValidationArguments) {
     const [maxLength] = args.constraints;
 
     if (typeof value !== 'string') {
@@ -47,28 +51,28 @@ export class IsStringConstraint implements ValidatorConstraintInterface {
   }
 }
 
-import { registerDecorator, ValidationOptions } from 'class-validator';
-
-export function IsNumeric(precision: number, scale: number, validationOptions?: ValidationOptions) {
-  return function (object: Record<string, any>, propertyName: string) {
+// Named IsSail* so they can't be confused with class-validator's own
+// IsString/IsNumber on import.
+export function IsSailNumeric(precision: number, scale: number, validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
       constraints: [precision, scale],
-      validator: IsNumericConstraint,
+      validator: IsSailNumericConstraint,
     });
   };
 }
 
-export function IsString(maxLength: number, validationOptions?: ValidationOptions) {
-  return function (object: Record<string, any>, propertyName: string) {
+export function IsSailString(maxLength: number, validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
       constraints: [maxLength],
-      validator: IsStringConstraint,
+      validator: IsSailStringConstraint,
     });
   };
 }

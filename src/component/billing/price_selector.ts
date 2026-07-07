@@ -35,6 +35,14 @@ export class PriceSelectorComponent {
     A: 'Annual',
   };
 
+  private static readonly TERM_NOUN: Record<string, string> = {
+    D: 'day',
+    W: 'week',
+    M: 'month',
+    Q: 'quarter',
+    A: 'year',
+  };
+
   readonly prices = input<PlanPrice[]>([]);
   /** Selected offer key — a `priceId`, or the composite key when priceId is empty. */
   readonly selected = input<string | undefined>(undefined);
@@ -46,6 +54,8 @@ export class PriceSelectorComponent {
     const labels = this.cycleLabels();
     const cycleLabel = (code: string) =>
       labels[code] ?? PriceSelectorComponent.DEFAULT_CYCLE[code] ?? code;
+    const termNoun = (code: string) =>
+      PriceSelectorComponent.TERM_NOUN[code] ?? cycleLabel(code).toLowerCase();
     return this.prices().map((p) => {
       const singleCycle = p.termCount === 1 && p.termType === p.billingCycle;
       return {
@@ -53,14 +63,35 @@ export class PriceSelectorComponent {
         price:      p,
         amountText: formatCurrency(p.amount, p.currency),
         cycleText:  cycleLabel(p.billingCycle),
-        termText:   singleCycle
-          ? ''
-          : `${p.termCount} ${cycleLabel(p.termType)}${p.termCount > 1 ? 's' : ''} commitment`,
+        termText:   singleCycle ? '' : `${p.termCount}-${termNoun(p.termType)} commitment`,
       };
     });
   });
 
   onSelect(offer: OfferRow): void {
     this.selectionChange.emit(offer.price);
+  }
+
+  /** Roving-radio tabindex: the selected offer (or the first) is the tab stop. */
+  tabIndexFor(offer: OfferRow, index: number): number {
+    const sel = this.selected();
+    if (sel) return offer.key === sel ? 0 : -1;
+    return index === 0 ? 0 : -1;
+  }
+
+  /** Arrow-key navigation required by the radio pattern (WCAG 4.1.2). */
+  onKeydown(event: KeyboardEvent): void {
+    const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown';
+    const backward = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+    if (!forward && !backward) return;
+    event.preventDefault();
+    const group = event.currentTarget as HTMLElement;
+    const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    if (!buttons.length) return;
+    const current = buttons.indexOf(event.target as HTMLButtonElement);
+    const next = (current + (forward ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next].focus();
+    const offer = this.offers()[next];
+    if (offer) this.onSelect(offer);
   }
 }

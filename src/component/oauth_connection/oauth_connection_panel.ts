@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
@@ -40,6 +40,8 @@ export class OAuthConnectionPanelComponent implements OnInit {
   private readonly fieldValues = signal<Record<string, Record<string, string>>>({});
   private readonly pendingSuccess = signal<Set<string>>(new Set());
   private reloadSub?: Subscription;
+  private successRetries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   // The list is already scoped to entityId(), so a per-provider match is correct.
   readonly views = computed<OAuthConnectionView[]>(() => {
@@ -54,6 +56,10 @@ export class OAuthConnectionPanelComponent implements OnInit {
   constructor() {
     // Reload on init and whenever the entity scope changes.
     effect(() => this.reload(this.entityId()));
+    inject(DestroyRef).onDestroy(() => {
+      this.reloadSub?.unsubscribe();
+      if (this.retryTimer) clearTimeout(this.retryTimer);
+    });
   }
 
   // After an OAuth round-trip keel redirects back with ?<provider>=success. Record
@@ -91,13 +97,28 @@ export class OAuthConnectionPanelComponent implements OnInit {
     });
   }
 
-  // Emit `connected` only for a returned provider whose row is actually present now.
+  // Emit `connected` only for a returned provider whose row is actually present.
+  // Rows can lag the redirect (webhook/commit); retry twice before giving up loudly.
   private confirmSuccess(): void {
     const pending = this.pendingSuccess();
     if (!pending.size) return;
     const present = new Set(this.connections().map((c) => c.Provider));
+    const missing = [...pending].filter((code) => !present.has(code));
     for (const code of pending) if (present.has(code)) this.connected.emit(code);
-    this.pendingSuccess.set(new Set());
+    if (!missing.length) {
+      this.pendingSuccess.set(new Set());
+      this.successRetries = 0;
+      return;
+    }
+    this.pendingSuccess.set(new Set(missing));
+    if (this.successRetries < 2) {
+      this.successRetries++;
+      this.retryTimer = setTimeout(() => this.reload(this.entityId()), 1500 * this.successRetries);
+    } else {
+      this.pendingSuccess.set(new Set());
+      this.successRetries = 0;
+      this.error.set('The connection completed but is not visible yet — refresh to check.');
+    }
   }
 
   isIconUrl(icon?: string): boolean {

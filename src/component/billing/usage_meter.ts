@@ -34,9 +34,9 @@ export class UsageMeterComponent {
       return {
         resource:  m.resource,
         hasBar,
-        percent:   hasBar ? Math.min(100, Math.round((m.used / m.limit) * 100)) : 0,
+        percent:   hasBar ? Math.min(100, Math.max(0, Math.round((m.used / m.limit) * 100))) : 0,
         ariaMax:   m.limit,
-        ariaNow:   hasBar ? Math.min(m.used, m.limit) : m.used,
+        ariaNow:   hasBar ? Math.min(Math.max(0, m.used), m.limit) : m.used,
         valueText: `${m.used} / ${m.limit < 0 ? 'Unlimited' : m.limit}`,
       };
     }),

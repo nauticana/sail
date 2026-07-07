@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewEncapsulation, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewEncapsulation, effect, input, linkedSignal, output } from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { EntityOption } from '../../model/dashboard';
@@ -21,29 +21,39 @@ export class EntitySelectorComponent {
   readonly label = input<string>('Business');
   readonly selectionChange = output<string | undefined>();
 
-  readonly value = signal<string | undefined>(undefined);
+  /**
+   * Re-resolves only when the INPUTS change (a user pick via `.set()` sticks —
+   * an unchanged `[selected]` binding can never snap the selection back):
+   * a newly-changed valid `selected` wins, else the current pick if still
+   * valid, else the first active entity, else undefined (host clears stale data).
+   */
+  readonly value = linkedSignal<{ opts: EntityOption[]; sel?: string }, string | undefined>({
+    source: () => ({ opts: this.entities(), sel: this.selected() }),
+    computation: (src, prev) => {
+      const isActive = (id?: string) => !!id && src.opts.some((e) => e.id === id && e.active !== false);
+      const selChanged = src.sel !== prev?.source.sel;
+      if (selChanged && isActive(src.sel)) return src.sel;
+      if (isActive(prev?.value)) return prev?.value;
+      if (isActive(src.sel)) return src.sel;
+      return src.opts.find((e) => e.active !== false)?.id;
+    },
+  });
+
+  private lastEmitted: string | undefined;
 
   constructor() {
-    // Explicit selection wins; else keep the current pick if still valid; else the
-    // first active entity. "Valid" means present AND active, so a scope that goes
-    // inactive (or vanishes) is dropped. Emit on every change, including a clear
-    // (undefined) when no active option remains, so the host stops showing stale data.
+    // Emits input-driven re-resolutions; user picks already emitted in onChange.
     effect(() => {
-      const opts = this.entities();
-      const isActive = (id?: string) => !!id && opts.some((e) => e.id === id && e.active !== false);
-      const cur = this.value();
-      const resolved =
-        isActive(this.selected()) ? this.selected()
-          : isActive(cur) ? cur
-            : opts.find((e) => e.active !== false)?.id;
-      if (resolved !== cur) {
-        this.value.set(resolved);
-        this.selectionChange.emit(resolved);
+      const v = this.value();
+      if (v !== this.lastEmitted) {
+        this.lastEmitted = v;
+        this.selectionChange.emit(v);
       }
     });
   }
 
   onChange(id: string): void {
+    this.lastEmitted = id;
     this.value.set(id);
     this.selectionChange.emit(id);
   }
