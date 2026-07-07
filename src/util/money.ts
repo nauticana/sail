@@ -13,9 +13,14 @@ export function formatCurrency(amount: number, currency: string): string {
   }
 }
 
-/** PERIOD_TYPE code → months, for cross-cycle price comparison. */
-const CYCLE_MONTHS: Record<string, number> = { D: 1 / 30, W: 7 / 30, M: 1, Q: 3, A: 12 };
-const CYCLE_SUFFIX: Record<string, string> = { D: '/day', W: '/wk', M: '/mo', Q: '/qtr', A: '/yr' };
+/** PERIOD_TYPE code vocabulary — the single source for cycle labels/durations. */
+export const PERIOD_TYPE_INFO: Record<string, { label: string; noun: string; suffix: string; months: number }> = {
+  D: { label: 'Daily',     noun: 'day',     suffix: '/day', months: 1 / 30 },
+  W: { label: 'Weekly',    noun: 'week',    suffix: '/wk',  months: 7 / 30 },
+  M: { label: 'Monthly',   noun: 'month',   suffix: '/mo',  months: 1 },
+  Q: { label: 'Quarterly', noun: 'quarter', suffix: '/qtr', months: 3 },
+  A: { label: 'Annual',    noun: 'year',    suffix: '/yr',  months: 12 },
+};
 
 /**
  * "From" price teaser for a plan card / dropdown — the cheapest offer once
@@ -29,8 +34,8 @@ export function fromPriceLabel(prices: PlanPrice[] | undefined): string {
   if (priced.length === 0) return '';
   const currency = priced[0].currency;
   const comparable = priced.filter((p) => p.currency === currency);
-  const perMonth = (p: PlanPrice) => p.amount / (CYCLE_MONTHS[p.billingCycle] ?? 1);
+  const perMonth = (p: PlanPrice) => p.amount / (PERIOD_TYPE_INFO[p.billingCycle]?.months ?? 1);
   const lowest = comparable.reduce((a, b) => (perMonth(b) < perMonth(a) ? b : a));
-  const formatted = formatCurrency(lowest.amount, lowest.currency) + (CYCLE_SUFFIX[lowest.billingCycle] ?? '');
+  const formatted = formatCurrency(lowest.amount, lowest.currency) + (PERIOD_TYPE_INFO[lowest.billingCycle]?.suffix ?? '');
   return priced.length > 1 ? `from ${formatted}` : formatted;
 }

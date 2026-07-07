@@ -1,6 +1,8 @@
 import { HttpErrorResponse, HttpEventType, HttpInterceptorFn } from '@angular/common/http';
+import { inject, Injector } from '@angular/core';
 import { catchError, tap, throwError } from 'rxjs';
 import { isKeelApiUrl } from './rest_url';
+import { BaseAuthService } from './auth.service';
 
 // Auth-loop breaker: repeated 401s on token-bearing API calls (a stale session) can
 // drive the app to hammer the API/CDN. After AUTH_FAIL_THRESHOLD within
@@ -18,15 +20,13 @@ const OPEN_KEY = 'keel_auth_circuit_until';
  *  real 401 and from a network failure (status 0). */
 export const AUTH_CIRCUIT_OPEN_CODE = 'sail_auth_circuit_open';
 
-// Set by BaseAuthService at construction. Called once when the circuit opens:
-// the stored session is dead, so the service clears it and routes to login
-// instead of letting the app oscillate through cooldown cycles forever.
-let sessionExpiredHandler: (() => void) | null = null;
-export function registerSessionExpiredHandler(fn: () => void): void {
-  sessionExpiredHandler = fn;
-}
-
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  // Resolved lazily per event to avoid a DI cycle (BaseAuthService → HttpClient
+  // → interceptors) and so an open circuit clears the dead session even when it
+  // was opened by a previous page load.
+  const injector = inject(Injector);
+  const expireSession = () => injector.get(BaseAuthService, null, { optional: true })?.sessionExpired();
+
   const token = localStorage.getItem('jwt');
   const authedApi = !!token && isKeelApiUrl(req.url);
   if (authedApi) {
@@ -34,6 +34,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   if (authedApi && authCircuitOpen()) {
+    expireSession();
     return throwError(() => new HttpErrorResponse({
       url: req.url,
       status: 401,
@@ -52,8 +53,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
     }),
     catchError((err: HttpErrorResponse) => {
-      if (authedApi && err.status === 401) {
-        recordAuthFailure();
+      if (authedApi && err.status === 401 && recordAuthFailure()) {
+        expireSession();
       }
       return throwError(() => err);
     }),
@@ -64,7 +65,8 @@ function authCircuitOpen(): boolean {
   return Date.now() < Number(sessionStorage.getItem(OPEN_KEY) ?? 0);
 }
 
-function recordAuthFailure(): void {
+/** Returns true when this failure crossed the threshold and opened the circuit. */
+function recordAuthFailure(): boolean {
   const now = Date.now();
   let times: number[];
   try {
@@ -77,10 +79,10 @@ function recordAuthFailure(): void {
   if (times.length >= AUTH_FAIL_THRESHOLD) {
     sessionStorage.setItem(OPEN_KEY, String(now + AUTH_CIRCUIT_COOLDOWN_MS));
     sessionStorage.removeItem(FAIL_KEY);
-    sessionExpiredHandler?.();
-  } else {
-    sessionStorage.setItem(FAIL_KEY, JSON.stringify(times));
+    return true;
   }
+  sessionStorage.setItem(FAIL_KEY, JSON.stringify(times));
+  return false;
 }
 
 function clearAuthFailures(): void {

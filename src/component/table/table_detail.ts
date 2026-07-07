@@ -33,28 +33,20 @@ export class TableDetail extends BaseForm {
     override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
     // The parent owns the rows array (TableEdit saves it verbatim), so mutations
-    // happen in place; recordsChanged versions them for the template.
+    // happen in place; refresh() snapshots them for the template.
     records: Record<string, unknown>[] = [];
-    private readonly recordsChanged = signal(0);
-    readonly visibleRecords = computed(() => {
-        this.recordsChanged();
-        return [...this.records];
-    });
+    readonly visibleRecords = signal<Record<string, unknown>[]>([]);
 
     readonly editingRecord = signal<Record<string, unknown> | null>(null);
     private originalRecord: Record<string, unknown> | null = null;
 
     readonly displayedColumns = computed(() => {
-        this.cacheService.appDataVersion();
         this.visibleRecords();
         return this.getDisplayedColumns(this.records);
     });
 
-    readonly fkColumns = computed(() => {
-        this.cacheService.appDataVersion();
-        const fkCfg = this.getForeignKeyConfig(this.parentTableName());
-        return fkCfg?.fk?.Columns?.map((col) => col.PascalName) ?? [];
-    });
+    readonly fkColumns = computed(() =>
+        this.getForeignKeyConfig(this.parentTableName())?.fk?.Columns?.map((col) => col.PascalName) ?? []);
 
     private readonly dialog = inject(MatDialog);
 
@@ -62,12 +54,12 @@ export class TableDetail extends BaseForm {
         super();
         effect(() => {
             this.records = this.recordsInput() ?? [];
-            this.recordsChanged.update((v) => v + 1);
+            this.refresh();
         });
     }
 
-    private bump() {
-        this.recordsChanged.update((v) => v + 1);
+    private refresh() {
+        this.visibleRecords.set([...this.records]);
     }
 
     /**
@@ -87,12 +79,6 @@ export class TableDetail extends BaseForm {
     override canUpdate() { return !this.parentReadOnly() && super.canUpdate(); }
     override canDelete() { return !this.parentReadOnly() && super.canDelete(); }
 
-    protected override readOnlyDeps(): void {
-        super.readOnlyDeps();
-        this.fkColumns();
-        this.parentReadOnly();
-    }
-
     override isReadOnly(fieldName: string): boolean {
         return (this.fkColumns().includes(fieldName) || super.isReadOnly(fieldName));
     }
@@ -110,7 +96,7 @@ export class TableDetail extends BaseForm {
                 } else {
                     Object.assign(record, result);
                 }
-                this.bump();
+                this.refresh();
                 this.changed.emit();
             }
         });
@@ -135,7 +121,7 @@ export class TableDetail extends BaseForm {
             this.isNew.set(true);
             this.originalRecord = null;
             this.editingRecord.set(newRecord);
-            this.bump();
+            this.refresh();
         }
     }
 
@@ -148,7 +134,7 @@ export class TableDetail extends BaseForm {
             this.originalRecord = {...record};
             this.formatRecordTimeStamp(record);
             this.editingRecord.set(record);
-            this.bump();
+            this.refresh();
         }
     }
 
@@ -158,7 +144,7 @@ export class TableDetail extends BaseForm {
         this.editingRecord.set(null);
         this.originalRecord = null;
         this.isNew.set(false);
-        this.bump();
+        this.refresh();
         this.changed.emit();
     }
 
@@ -174,7 +160,7 @@ export class TableDetail extends BaseForm {
         this.editingRecord.set(null);
         this.originalRecord = null;
         this.isNew.set(false);
-        this.bump();
+        this.refresh();
         this.changed.emit();
     }
 
@@ -187,7 +173,7 @@ export class TableDetail extends BaseForm {
         } else {
             record[this.config.opField] = OpCode.Delete;
         }
-        this.bump();
+        this.refresh();
         this.changed.emit();
     }
 
@@ -195,7 +181,7 @@ export class TableDetail extends BaseForm {
         if (record[this.config.opField] === OpCode.Delete) {
             record[this.config.opField] = OpCode.Update;
         }
-        this.bump();
+        this.refresh();
         this.changed.emit();
     }
 }

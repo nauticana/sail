@@ -66,6 +66,11 @@ export function configureRestUrls(httpHost: string, overrides?: Partial<typeof R
   if (overrides) {
     Object.assign(RestURL, overrides);
   }
+  // A trailing slash would make url() produce host//api/... while the
+  // interceptor matchers look for host/api/... — normalize once here.
+  if (RestURL.httpHost.endsWith('/')) {
+    RestURL.httpHost = RestURL.httpHost.slice(0, -1);
+  }
 }
 
 /** Configured host without a trailing slash, so `host + '/api/'` never yields `//api/`. */

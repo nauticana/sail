@@ -2,7 +2,7 @@
   "package": "@nauticana/sail",
   "from": "1.1.9",
   "to": "1.1.10",
-  "summary": "Full correctness/architecture release: signal migration of the base classes, error-path overhaul, session-lifecycle fixes, timezone-correct timestamps, working 2FA QR. Downstream apps MUST complete every 'breaking' action and review every 'behavioral' entry before pushing to test or prod.",
+  "summary": "Full correctness/architecture release: signal migration of the base classes, reactive appdata cache, error-path overhaul with a typed error, session-lifecycle fixes, timezone-correct timestamps, working 2FA QR. Consumers MUST complete every 'breaking' action and review every 'behavioral' entry before pushing to test or prod.",
   "changes": [
     {
       "id": "base-state-signals",
@@ -10,8 +10,7 @@
       "area": "tables/base-classes",
       "before": "BaseView/BaseForm/table components exposed plain mutable fields: records, displayedColumns, searchTerms, editableRecord, isNew, title, isReadOnlyMode, tabFields, searchColumns, dialogComponent.",
       "after": "All of these are signals (or computed). Read with call syntax — records(), editableRecord(), isNew() — and write with .set()/.update(). Manual ChangeDetectorRef.markForCheck() calls are unnecessary and removed.",
-      "action": "In subclasses (e.g. seo RemediationReview extends TableList, daxoom BusinessChild extends TableDetail) replace field reads/writes with signal calls; delete any markForCheck() calls tied to these fields.",
-      "appliesTo": ["seo", "daxoom", "trvoo", "bdsrest"]
+      "action": "In subclasses, replace field reads/writes with signal calls; delete markForCheck() calls tied to these fields."
     },
     {
       "id": "baseview-split",
@@ -19,17 +18,15 @@
       "area": "tables/base-classes",
       "before": "BaseView carried abstract handleDelete/handleUpdate plus the dialog opener; read-only views had to stub them.",
       "after": "BaseView is the read-only listing surface (no abstract members); editing views extend the new AbstractEditableView which owns dialogComponent, addRecord/editRecord/deleteRecord and the abstract handlers.",
-      "action": "Subclasses that implement handleDelete/handleUpdate now extend AbstractEditableView instead of BaseView. Read-only subclasses extend BaseView and delete their no-op stubs.",
-      "appliesTo": ["all"]
+      "action": "Subclasses that implement handleDelete/handleUpdate now extend AbstractEditableView instead of BaseView. Read-only subclasses extend BaseView and delete their no-op stubs."
     },
     {
       "id": "isreadonlybound-removed",
       "type": "breaking",
       "area": "tables/forms",
       "before": "Templates bound [isReadOnly]=\"isReadOnlyBound\" and handlers re-assigned this.isReadOnlyBound = this.isReadOnly.bind(this) to force OnPush refreshes.",
-      "after": "isReadOnlyBound is gone. Bind [isReadOnly]=\"isReadOnlyFn()\" — a computed whose identity changes when readOnlyDeps() signals change. Override protected readOnlyDeps() to register extra signals your isReadOnly() override reads.",
-      "action": "Replace all isReadOnlyBound bindings and delete rebinding assignments.",
-      "appliesTo": ["all"]
+      "after": "isReadOnlyBound is gone. Bind [isReadOnly]=\"isReadOnlyFn\" — a stable arrow property; signal reads inside isReadOnly() overrides are tracked by the invoking template, so mode flips re-render automatically.",
+      "action": "Replace all isReadOnlyBound bindings with isReadOnlyFn and delete rebinding assignments."
     },
     {
       "id": "recordform-immutable",
@@ -37,8 +34,7 @@
       "area": "forms",
       "before": "RecordForm mutated the bound [record] object in place.",
       "after": "RecordForm keeps an internal working copy and emits the full updated object via (recordChange); the input object is never mutated.",
-      "action": "Add (recordChange)=\"yourRecordSignal.set($event)\" (or equivalent) next to every [record] binding whose edits you consume.",
-      "appliesTo": ["all"]
+      "action": "Add (recordChange)=\"yourRecordSignal.set($event)\" (or equivalent) next to every [record] binding whose edits you consume."
     },
     {
       "id": "login-returns-observable",
@@ -46,17 +42,15 @@
       "area": "auth",
       "before": "BaseAuthService.login()/loginWithGoogle() subscribed internally and returned void; errors went to console only.",
       "after": "Both return Observable<LoginResponse2FA>. Nothing happens until you subscribe; the error channel carries login failures for the UI.",
-      "action": "Audit every call site: append .subscribe({ next, error }) and surface errors. A call without subscribe silently does nothing.",
-      "appliesTo": ["all"]
+      "action": "Audit every call site: append .subscribe({ next, error }) and surface errors. A call without subscribe silently does nothing."
     },
     {
       "id": "backend-error-type",
       "type": "breaking",
       "area": "services",
       "before": "BackendService.handleError rethrew the string 'error occurred, see console log and try again'.",
-      "after": "CRUD errors are SailApiError (extends Error) with .status, .problem (keel RFC 7807 ProblemDetail) and .response (original HttpErrorResponse). handleError(error: unknown) is bound-safe for overrides.",
-      "action": "Error handlers that matched the old string must switch to SailApiError (err instanceof SailApiError; err.status; err.problem?.detail).",
-      "appliesTo": ["all"]
+      "after": "CRUD errors are SailApiError (extends Error) with .status, .problem (keel RFC 7807 ProblemDetail) and .response (original HttpErrorResponse). handleError(error: unknown) is bound-safe for overrides. The new errorDetail(err, fallback) util maps SailApiError / HttpErrorResponse / Error to a display message.",
+      "action": "Error handlers that matched the old string must switch to SailApiError or route messages through errorDetail()."
     },
     {
       "id": "decorator-rename",
@@ -64,8 +58,23 @@
       "area": "models",
       "before": "sail exported IsString/IsNumeric decorators shadowing class-validator names.",
       "after": "Renamed IsSailString/IsSailNumeric (constraints IsSailStringConstraint/IsSailNumericConstraint). IsSailNumeric also rejects exponential notation.",
-      "action": "Rename imports/usages, e.g. daxoom web/src/model/daxdb.ts.",
-      "appliesTo": ["daxoom", "all"]
+      "action": "Rename imports/usages in model files."
+    },
+    {
+      "id": "authsummary-removed",
+      "type": "breaking",
+      "area": "models",
+      "before": "The AuthSummary interface described the permission index's internal escaped-pattern shape.",
+      "after": "Removed — the permission index is an internal detail (compiled RegExp) and no public API produces AuthSummary values.",
+      "action": "Delete imports of AuthSummary; no replacement is needed."
+    },
+    {
+      "id": "sessionexpired-public",
+      "type": "breaking",
+      "area": "auth",
+      "before": "No public way to react to a dead session; the interceptor only counted 401s.",
+      "after": "BaseAuthService.sessionExpired() is public — the auth interceptor calls it (via lazy injection) when the 401 circuit opens or is found already open, clearing the session and routing to login?sessionExpired=true.",
+      "action": "Subclasses may override sessionExpired() for custom handling; call super to keep the clear+redirect."
     },
     {
       "id": "bank-info-provider-required",
@@ -73,8 +82,7 @@
       "area": "payout",
       "before": "<sail-payout-bank-info-form> defaulted provider to 'AW' and countryCode to 'CA'.",
       "after": "[provider] is a required input; the country default is the first entry of [countryProfiles]. No hardcoded provider/country can leak into user_bank_info.",
-      "action": "Pass [provider] explicitly, matching your keel --payout_provider.",
-      "appliesTo": ["all"]
+      "action": "Pass [provider] explicitly, matching your keel --payout_provider."
     },
     {
       "id": "labelservice-camelcase",
@@ -82,53 +90,47 @@
       "area": "services",
       "before": "LabelService.GetLabel/LoadLabels (PascalCase); GetLabel returned '' for missing keys.",
       "after": "getLabel/loadLabels; getLabel falls back to the key so missing translations are visible.",
-      "action": "Rename call sites (trvoo imports LabelService).",
-      "appliesTo": ["trvoo", "all"]
+      "action": "Rename call sites."
     },
     {
       "id": "payout-payment-styles-removed",
       "type": "breaking",
       "area": "payout/payment",
       "before": "provider_onboarding, bank_info_form and user_payment_methods shipped styles: blocks (user_payment_methods leaked CSS globally via ViewEncapsulation.None).",
-      "after": "No CSS ships, matching the rest of the library. Class names are unchanged.",
-      "action": "Style the .payout-onboarding__*, .bank-info-form*, .user-payment-methods__* classes in the app's global stylesheet if you relied on the shipped look.",
-      "appliesTo": ["all"]
+      "after": "No CSS ships, matching the rest of the library. Class names are unchanged. provider_onboarding and user_payment_methods now expose BaseAsync's loading()/errorMessage() instead of busy()/errorMsg().",
+      "action": "Style the .payout-onboarding__*, .bank-info-form*, .user-payment-methods__* classes in the app's global stylesheet if you relied on the shipped look; update any bindings to busy()/errorMsg()."
     },
     {
       "id": "tablereport-composition",
       "type": "breaking",
       "area": "tables",
       "before": "TableReport extended BaseRestService and fetched via a hardcoded '/api/' prefix.",
-      "after": "TableReport injects BackendService and uses its new report() method (honours RestURL.api_prefix and typed errors). Report state resets when apiName changes.",
-      "action": "Only affects subclasses of TableReport relying on BaseRestService members.",
-      "appliesTo": ["all"]
+      "after": "TableReport injects BackendService and uses its new report() method (honours RestURL.api_prefix and typed errors). Report state resets when apiName changes; an appdata refresh no longer clears typed parameters.",
+      "action": "Only affects subclasses of TableReport relying on BaseRestService members."
     },
     {
       "id": "configurl-timing-fixed",
       "type": "behavioral",
       "area": "auth",
-      "before": "BaseAuthService captured every REST URL in field initializers, so configureRestUrls() in a subclass constructor ran too late — URLs baked in host-less (bdsrest's pattern was broken; daxoom/seo/trvoo worked around it with module-scope main.ts calls).",
-      "after": "URLs resolve lazily per request. Constructor-time configureRestUrls() is now safe; main.ts calls keep working.",
-      "action": "bdsrest: this fixes your constructor-only call. trvoo: the redundant constructor call can be removed.",
-      "appliesTo": ["bdsrest", "trvoo"]
+      "before": "BaseAuthService captured every REST URL in field initializers, so configureRestUrls() in a subclass constructor ran too late — URLs baked in host-less. A trailing slash on httpHost also broke interceptor matching (host//api/...).",
+      "after": "URLs resolve lazily per request and the configured host is normalized. Constructor-time configureRestUrls() is now safe; module-scope calls keep working.",
+      "action": "Redundant early-call workarounds can be removed."
     },
     {
       "id": "logout-clears-state",
       "type": "behavioral",
       "area": "auth",
-      "before": "logout() kept the appdata cache, permission index, appData$ replay and the authed route tree alive on the login screen.",
-      "after": "clearSession() drops cache/permissions/roles/loginToken, recreates the appdata streams and restores the pre-login route config. deleteAccount() clears the role too.",
-      "action": "None, unless app code relied on reading menus/permissions after logout.",
-      "appliesTo": ["all"]
+      "before": "logout() kept the appdata cache, permission index, appdata replay and the authed route tree alive on the login screen; in-flight appdata responses could hydrate the next session.",
+      "after": "clearSession() drops cache/permissions/roles/loginToken, bumps a session generation (stale in-flight responses are ignored), emits an empty menu state to live subscribers, and restores the pre-login route config. deleteAccount() clears the role too.",
+      "action": "None, unless app code relied on reading menus/permissions after logout."
     },
     {
       "id": "appdata-fails-loudly",
       "type": "behavioral",
       "area": "auth/services",
       "before": "A failed appdata load hung the app forever: guards never resolved and every BackendService CRUD call blocked silently.",
-      "after": "getAppData() errors while nothing is cached; guards redirect to /login/local; BaseAuthService.appDataError signal exposes the failure; repeated 401s clear the dead session and land on login?sessionExpired=true. Circuit-open rejections are a 401 with error.code === AUTH_CIRCUIT_OPEN_CODE.",
-      "action": "Optional: render appDataError in the app shell; handle the sessionExpired query param on the login page.",
-      "appliesTo": ["all"]
+      "after": "getAppData() errors while nothing is cached; guards redirect to /login/local; BaseAuthService.appDataError signal exposes the failure; repeated 401s clear the dead session and land on login?sessionExpired=true. Circuit-open rejections are a 401 with error.code === AUTH_CIRCUIT_OPEN_CODE. The appdata cache is reactive: computed()s reading table metadata recompute automatically when appdata loads.",
+      "action": "Optional: render appDataError in the app shell; handle the sessionExpired query param on the login page."
     },
     {
       "id": "datetime-local-timezone",
@@ -136,8 +138,7 @@
       "area": "tables",
       "before": "datetime-local fields displayed the UTC wall-clock labeled as local and stamped local input as UTC, shifting stored times by the user's UTC offset on every edit.",
       "after": "Display converts UTC ISO to local time; save converts local input back to UTC ISO. Name-suffix ('...Time') temporal guessing removed — only column metadata drives temporal handling.",
-      "action": "None. Expect displayed datetimes to change by the user's UTC offset relative to 1.1.9 (they are now correct).",
-      "appliesTo": ["all"]
+      "action": "None. Expect displayed datetimes to change by the user's UTC offset relative to 1.1.9 (they are now correct)."
     },
     {
       "id": "tablelist-pagination",
@@ -145,8 +146,7 @@
       "area": "tables",
       "before": "TableList silently showed the first 100 rows with no paginator and no sorting; stale search filters survived navigating to the bare list URL.",
       "after": "Server-side paging (default 25/page, mat-paginator when total exceeds 10) with per-page client-side sorting; bare-URL navigation clears filters; fetch/save/delete errors render in the view.",
-      "action": "None; style .table-list__error and the paginator if desired.",
-      "appliesTo": ["all"]
+      "action": "None; style .table-list__error and the paginator if desired."
     },
     {
       "id": "hidden-columns-enforced",
@@ -154,8 +154,7 @@
       "area": "tables",
       "before": "DisplayMode 'H'/'S' columns still rendered in lists, child grids and search/lookup forms; per-table hiddenFields leaked into search URLs; column defaults became implicit search filters.",
       "after": "H/S filtered everywhere; buildSearchTerms honours tableOverrides.hiddenFields; search forms blank every seeded default.",
-      "action": "None. If a column vanished from a screen, its column_display_attribute says it should never have been there.",
-      "appliesTo": ["all"]
+      "action": "None. If a column vanished from a screen, its column_display_attribute says it should never have been there."
     },
     {
       "id": "twofactor-qr-works",
@@ -163,44 +162,23 @@
       "area": "security",
       "before": "The 2FA setup QR never rendered (keel returns an otpauth:// URI; it was bound to <img src>).",
       "after": "The URI is encoded client-side via the new 'qrcode' dependency (ships with sail). New [twoFactorEnabled] input on <sail-twofactor-setup> routes returning users to the disable form instead of silently rotating their seed.",
-      "action": "npm install will pull qrcode automatically. Pass [twoFactorEnabled] where the app knows the user's 2FA state.",
-      "appliesTo": ["all"]
+      "action": "npm install pulls qrcode automatically. Pass [twoFactorEnabled] where the app knows the user's 2FA state."
     },
     {
       "id": "envelope-detection-tightened",
       "type": "behavioral",
       "area": "interceptors",
       "before": "Any same-host response containing a 'data' key was unwrapped; any URL under the backend host was intercepted.",
-      "after": "Unwrapping requires keel's {data, meta} envelope shape and only /api/ + /public/ paths are in scope (trailing-slash hosts normalized).",
-      "action": "None.",
-      "appliesTo": ["all"]
+      "after": "Unwrapping requires keel's {data, meta} envelope shape and only /api/ + /public/ paths are in scope.",
+      "action": "None."
     },
     {
-      "id": "adopt-accepttoken",
+      "id": "accepttoken-adoption",
       "type": "advisory",
       "area": "auth",
-      "before": "daxoom (6 sites: service/auth.service.ts:46, register-wizard.component.ts:137/157/193, step-claim-verify.component.ts:103, step-manual-verify.component.ts:164) and trvoo (service/auth.service.ts:58, service/tracking.service.ts:28) write localStorage['jwt'] directly.",
+      "before": "Apps that mint JWTs out-of-band sometimes write localStorage['jwt'] directly.",
       "after": "BaseAuthService.acceptToken(token) is the supported entry point (stores the token, resets the auth circuit, loads appdata, runs the OAuth return handoff).",
-      "action": "Replace raw localStorage writes with acceptToken().",
-      "appliesTo": ["daxoom", "trvoo"]
-    },
-    {
-      "id": "bdsrest-upgrade",
-      "type": "advisory",
-      "area": "app",
-      "before": "bdsrest pins sail 1.1.3 and maintains a local report surface (component/report/report_search.ts, report_list.ts, report_utils.ts, service/report_service.ts, ApplicationData extension in model/appdata.ts with a wrong array-shaped Reports type).",
-      "after": "sail 1.1.10 covers all of it: TableReport, BaseAuthService.getReports()/getReport(), auto-mounted report routes, and a correctly typed Reports map on ApplicationData.",
-      "action": "Upgrade to 1.1.10, delete the local report tree and model extensions, and remove the configureRestUrls workaround notes.",
-      "appliesTo": ["bdsrest"]
-    },
-    {
-      "id": "trvoo-cleanups",
-      "type": "advisory",
-      "area": "app",
-      "before": "trvoo carries 11 pure re-export shims (component/abstract/*, component/form/*, component/table/*, service/rest_service.ts, service/label.service.ts, service/auth.interceptor.ts), a near-fork of sail Navigation, and self-declared missing endpoints (forgot/reset password, verify email, refresh, logout) in service/rest_url.ts.",
-      "after": "Shims add nothing; the endpoint set is a candidate to upstream into sail's RestURL/BaseAuthService in a future release.",
-      "action": "Delete the shims and import from @nauticana/sail directly. Keep the endpoint list on your radar for upstreaming. Also verify TS ^6 compiles sail's shipped source (sail typechecks on ~5.9).",
-      "appliesTo": ["trvoo"]
+      "action": "Replace raw localStorage writes with acceptToken()."
     },
     {
       "id": "payout-url-version",
@@ -208,8 +186,7 @@
       "area": "payout",
       "before": "RestURL.payout*URL and paymentMethodSetDefaultURL default to '/api/v1/...'.",
       "after": "Unchanged — payout routes are not in the Apis dictionary, so the version cannot be derived at runtime.",
-      "action": "Apps mounting keel's payout handler under a different prefix must override these via configureRestUrls.",
-      "appliesTo": ["all"]
+      "action": "Apps mounting keel's payout handler under a different prefix must override these via configureRestUrls."
     }
   ]
 }

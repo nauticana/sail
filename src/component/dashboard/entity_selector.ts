@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, ViewEncapsulation, effect, input, linkedSignal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewEncapsulation, input, linkedSignal } from '@angular/core';
+import { outputFromObservable, toObservable } from '@angular/core/rxjs-interop';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { EntityOption } from '../../model/dashboard';
@@ -19,7 +20,6 @@ export class EntitySelectorComponent {
   readonly entities = input<EntityOption[]>([]);
   readonly selected = input<string | undefined>(undefined);
   readonly label = input<string>('Business');
-  readonly selectionChange = output<string | undefined>();
 
   /**
    * Re-resolves only when the INPUTS change (a user pick via `.set()` sticks —
@@ -39,22 +39,10 @@ export class EntitySelectorComponent {
     },
   });
 
-  private lastEmitted: string | undefined;
-
-  constructor() {
-    // Emits input-driven re-resolutions; user picks already emitted in onChange.
-    effect(() => {
-      const v = this.value();
-      if (v !== this.lastEmitted) {
-        this.lastEmitted = v;
-        this.selectionChange.emit(v);
-      }
-    });
-  }
+  // Single emission path — signals already dedupe unchanged values.
+  readonly selectionChange = outputFromObservable(toObservable(this.value));
 
   onChange(id: string): void {
-    this.lastEmitted = id;
     this.value.set(id);
-    this.selectionChange.emit(id);
   }
 }

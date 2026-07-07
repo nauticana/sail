@@ -48,7 +48,7 @@
         <p class="table-edit-error" role="alert">{{ saveError() }}</p>
     }
 
-    <sail-record-form [tableName]="tableName()" [record]="editableRecord()" (recordChange)="editableRecord.set($event)" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
+    <sail-record-form [tableName]="tableName()" [record]="editableRecord()" (recordChange)="editableRecord.set($event)" [isReadOnly]="isReadOnlyFn"></sail-record-form>
 
     @if (tabFields().length > 0) {
         <mat-tab-group>

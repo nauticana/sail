@@ -6,11 +6,6 @@ export abstract class BaseForm extends BaseTable {
     readonly isNew = signal(false);
     readonly title = signal('');
 
-    protected override readOnlyDeps(): void {
-        super.readOnlyDeps();
-        this.isNew();
-    }
-
     override isReadOnly(fieldName: string): boolean {
         // keel column_display_attribute: 'R' is always display-only; 'I'
         // (insert-only) is editable while creating, locked once it exists.

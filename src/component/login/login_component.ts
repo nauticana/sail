@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation } from '@angular/core';
+import { BaseAsync } from '../abstract/base_async';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -23,7 +24,7 @@ import { SocialLoginComponent } from './social_login';
     SocialLoginComponent,
   ],
 })
-export class LoginComponent {
+export class LoginComponent extends BaseAsync {
   private auth = inject(BaseAuthService);
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
@@ -51,23 +52,14 @@ export class LoginComponent {
     password: ['', Validators.required],
   });
 
-  protected readonly loading = signal(false);
-  protected readonly loginError = signal('');
-
   login(): void {
     if (!this.loginForm.valid) return;
     const { username, password } = this.loginForm.value;
-    this.loading.set(true);
-    this.loginError.set('');
-    this.auth.login(username!, password!).subscribe({
-      next: () => this.loading.set(false),
-      error: (err) => {
-        this.loading.set(false);
-        this.loginError.set(err?.status === 401
-          ? 'Invalid username or password.'
-          : 'Login failed. Please try again.');
-      },
-    });
+    this.run(
+      this.auth.login(username!, password!),
+      () => {},
+      'Invalid username or password.',
+    );
   }
 
   /**

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, input, output } from '@angular/core';
 import { PlanPrice } from '../../model/appdata';
-import { formatCurrency } from '../../util/money';
+import { formatCurrency, PERIOD_TYPE_INFO } from '../../util/money';
 
 /** Per-offer view model for accessible, currency-formatted rendering. */
 interface OfferRow {
@@ -27,22 +27,6 @@ interface OfferRow {
   encapsulation: ViewEncapsulation.None,
 })
 export class PriceSelectorComponent {
-  private static readonly DEFAULT_CYCLE: Record<string, string> = {
-    D: 'Daily',
-    W: 'Weekly',
-    M: 'Monthly',
-    Q: 'Quarterly',
-    A: 'Annual',
-  };
-
-  private static readonly TERM_NOUN: Record<string, string> = {
-    D: 'day',
-    W: 'week',
-    M: 'month',
-    Q: 'quarter',
-    A: 'year',
-  };
-
   readonly prices = input<PlanPrice[]>([]);
   /** Selected offer key — a `priceId`, or the composite key when priceId is empty. */
   readonly selected = input<string | undefined>(undefined);
@@ -53,9 +37,9 @@ export class PriceSelectorComponent {
   readonly offers = computed<OfferRow[]>(() => {
     const labels = this.cycleLabels();
     const cycleLabel = (code: string) =>
-      labels[code] ?? PriceSelectorComponent.DEFAULT_CYCLE[code] ?? code;
+      labels[code] ?? PERIOD_TYPE_INFO[code]?.label ?? code;
     const termNoun = (code: string) =>
-      PriceSelectorComponent.TERM_NOUN[code] ?? cycleLabel(code).toLowerCase();
+      PERIOD_TYPE_INFO[code]?.noun ?? cycleLabel(code).toLowerCase();
     return this.prices().map((p) => {
       const singleCycle = p.termCount === 1 && p.termType === p.billingCycle;
       return {

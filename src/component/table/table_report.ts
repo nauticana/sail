@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from "@angular/core";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
@@ -9,6 +9,7 @@ import { BackendService } from "../../service/rest_service";
 import { ConstantValue } from "../../model/common";
 import { ReportParam } from "../../model/appdata";
 import { titleCase } from "../../util/text";
+import { errorDetail } from "../../util/errors";
 
 @Component({
     selector: 'sail-table-report',
@@ -50,7 +51,6 @@ export class TableReport {
 
     /** Long-form header from rest_report_header; falls back to the title-cased table name. */
     readonly reportTitle = computed(() => {
-        this.auth.appDataVersion();
         return this.auth.getReport(this.reportId())?.Description || titleCase(this.tableName());
     });
 
@@ -60,26 +60,33 @@ export class TableReport {
      * params we render an input form and wait for the user to click "Run".
      */
     readonly params = computed<ReportParam[]>(() => {
-        this.auth.appDataVersion();
         return this.auth.getReport(this.reportId())?.Params ?? [];
     });
 
+    private lastApi: string | null = null;
+
     constructor() {
+        // Re-runs on apiName changes AND appdata (re)loads via params()/canReport;
+        // report state is only reset when the report actually changed, so an
+        // appdata refresh never wipes half-typed parameters.
         effect(() => {
             const api = this.apiName();
             if (!api) return;
-            // New report target: drop the previous report's rows and params.
-            this.records.set([]);
-            this.displayedColumns.set([]);
-            this.paramValues.set({});
+            const apiChanged = api !== this.lastApi;
+            this.lastApi = api;
+            if (apiChanged) {
+                this.records.set([]);
+                this.displayedColumns.set([]);
+                this.paramValues.set({});
+            }
             this.errorMessage.set('');
 
             if (!this.auth.canReport(this.reportId())) {
                 this.errorMessage.set('You do not have permission to view this report.');
                 return;
             }
-            // Auto-fetch only when the report takes no inputs.
-            if (this.params().length === 0) {
+            // Auto-fetch only when the report takes no inputs and nothing is shown yet.
+            if (this.params().length === 0 && (apiChanged || untracked(this.records).length === 0)) {
                 this.fetchReport(api, {});
             }
         });
@@ -150,7 +157,7 @@ export class TableReport {
                 this.errorMessage.set('');
             },
             error: (err) => {
-                this.errorMessage.set(err instanceof Error && err.message ? err.message : 'Failed to load report data.');
+                this.errorMessage.set(errorDetail(err, 'Failed to load report data.'));
             },
         });
     }

@@ -69,3 +69,4 @@ export * from './service/label.service';
 export * from './service/base_rest.service';
 export * from './util/text';
 export * from './util/money';
+export * from './util/errors';

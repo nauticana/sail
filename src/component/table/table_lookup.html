@@ -1,6 +1,6 @@
 <h2 mat-dialog-title>{{ getCaption() }} Search</h2>
 <div mat-dialog-content>
-    <sail-record-form [tableName]="tableName()" [record]="searchRecord()" (recordChange)="searchRecord.set($event)" [fields]="searchColumns()" [isReadOnly]="isReadOnlyFn()"></sail-record-form>
+    <sail-record-form [tableName]="tableName()" [record]="searchRecord()" (recordChange)="searchRecord.set($event)" [fields]="searchColumns()" [isReadOnly]="isReadOnlyFn"></sail-record-form>
     <div class="search-actions">
         <button matButton="elevated" class="primary" (click)="onSearch()">Search</button>
         <button matButton (click)="onClear()">Clear</button>

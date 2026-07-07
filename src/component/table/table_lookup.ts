@@ -4,6 +4,7 @@ import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, Ma
 import { MatIconModule } from "@angular/material/icon";
 import { map, Observable, of, switchMap, take } from "rxjs";
 import { RecordForm } from "../form/form_record";
+import { errorDetail } from "../../util/errors";
 import { BaseView } from "../abstract/base_view";
 
 @Component({
@@ -24,11 +25,7 @@ import { BaseView } from "../abstract/base_view";
 export class TableLookup extends BaseView implements OnInit {
     override readonly tableName = signal('');
     readonly searchRecord = signal<Record<string, unknown>>({});
-    readonly searchColumns = computed<string[]>(() => {
-        this.cacheService.appDataVersion();
-        this.tableName();
-        return this.getDisplayedColumns();
-    });
+    readonly searchColumns = this.metadataColumns;
 
     private readonly dialogRef = inject(MatDialogRef<TableLookup>);
     private readonly data = inject<{tableName?: string; apiName?: string}>(MAT_DIALOG_DATA);
@@ -83,7 +80,7 @@ export class TableLookup extends BaseView implements OnInit {
             },
             error: (err) => {
                 console.error('Lookup search failed', err);
-                this.viewError.set(this.errorText(err, 'Search failed.'));
+                this.viewError.set(errorDetail(err, 'Search failed.'));
             },
         });
     }

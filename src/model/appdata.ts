@@ -18,13 +18,6 @@ export interface LoginResponse {
   token: string;
 }
 
-export interface AuthSummary {
-    Obj: string;
-    Act: string;
-    Val: string;
-    Reg: string;
-}
-
 export interface ApplicationData {
     MainMenu: ApplicationMenu[];
     Permissions: AuthorizationRolePermission[];

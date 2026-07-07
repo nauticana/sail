@@ -1,10 +1,11 @@
-import { computed, inject, Injector, Signal, WritableSignal } from "@angular/core";
+import { computed, inject, Injector, WritableSignal } from "@angular/core";
 import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
 import { ConstantValue, LookupStyle, OpCode } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 import { BackendService } from "../../service/rest_service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
 import { titleCase } from "../../util/text";
+import { errorDetail } from "../../util/errors";
 import { MatDialog } from "@angular/material/dialog";
 import { RevealDialog } from "../table/reveal_dialog";
 
@@ -34,18 +35,9 @@ export abstract class BaseTable {
         return false;
     }
 
-    /** Function-input for `[isReadOnly]`; new closure identity whenever
-     * `readOnlyDeps()` signals change, so OnPush children re-render on mode flips. */
-    readonly isReadOnlyFn: Signal<(fieldName: string) => boolean> = computed(() => {
-        this.readOnlyDeps();
-        return (fieldName: string) => this.isReadOnly(fieldName);
-    });
-
-    /** Read every signal your `isReadOnly()` override depends on. */
-    protected readOnlyDeps(): void {
-        this.cacheService.appDataVersion();
-        this.tableName();
-    }
+    /** Stable function-input for `[isReadOnly]`. Signal reads inside isReadOnly()
+     * overrides are tracked by the invoking template, so mode flips re-render. */
+    readonly isReadOnlyFn = (fieldName: string): boolean => this.isReadOnly(fieldName);
 
     /** Re-exported on the class so templates can call `titleCase(x)` without an extra import in the consumer. */
     titleCase(str: string): string { return titleCase(str); }
@@ -97,17 +89,23 @@ export abstract class BaseTable {
         return actions.filter((a) => a.recordSpecific === recordSpecific).sort(this.sortActions);
     }
 
-    /** Table-level actions (toolbar buttons), memoized for templates. */
-    readonly tableActions = computed(() => {
-        this.cacheService.appDataVersion();
-        return this.getActions(false);
+    // Memoized for templates; the reactive appdata cache retriggers these.
+    readonly tableActions = computed(() => this.getActions(false));
+    readonly recordActions = computed(() => this.getActions(true));
+
+    /** Metadata-driven visible columns, memoized. */
+    readonly metadataColumns = computed(() => this.getDisplayedColumns());
+
+    private readonly columnMap = computed(() => {
+        const map = new Map<string, TableColumn>();
+        for (const col of this.cacheService.getTableDefinition(this.tableName())?.Columns ?? []) {
+            map.set(col.PascalName, col);
+        }
+        return map;
     });
 
-    /** Record-specific actions (per-row buttons), memoized for templates. */
-    readonly recordActions = computed(() => {
-        this.cacheService.appDataVersion();
-        return this.getActions(true);
-    });
+    private readonly keyColumns = computed(() =>
+        this.cacheService.getTableDefinition(this.tableName())?.Keys ?? []);
 
     private sortActions = (a: TableAction, b: TableAction) =>
         (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
@@ -161,7 +159,7 @@ export abstract class BaseTable {
             },
             error: (err) => {
                 console.error(`Action ${action.action} failed`, err);
-                alert(err?.problem?.detail ?? err?.error?.detail ?? `Failed to ${action.caption}`);
+                alert(errorDetail(err, `Failed to ${action.caption}`));
             },
         });
     }
@@ -202,9 +200,9 @@ export abstract class BaseTable {
 
     /** @for track key: joined PK values; index when keys are missing/unset. */
     trackByRecord(index: number, record: Record<string, unknown>): string | number {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName());
-        if (!tableDef?.Keys?.length) return index;
-        const values = tableDef.Keys.map((key) => record[key.PascalName]);
+        const keys = this.keyColumns();
+        if (!keys.length) return index;
+        const values = keys.map((key) => record[key.PascalName]);
         if (values.some((v) => v === undefined || v === null || v === '')) return index;
         return values.join('_');
     }
@@ -298,12 +296,9 @@ export abstract class BaseTable {
         return [];
     }
 
+    /** O(1) via a map memoized per table/appdata — called several times per cell per CD. */
     getColumn(fieldName: string): TableColumn | undefined {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName());
-        if (tableDef && tableDef.Columns) {
-            return tableDef.Columns.find((field) => field.PascalName === fieldName);
-        }
-        return undefined;
+        return this.columnMap().get(fieldName);
     }
 
     displayValue(fieldName: string, rawValue: unknown): string {

@@ -27,7 +27,7 @@
           }
         </mat-radio-group>
         <button matButton="filled" class="payout-onboarding__btn payout-onboarding__btn--primary"
-                [disabled]="!selectedAccountId() || busy()"
+                [disabled]="!selectedAccountId() || loading()"
                 (click)="linkExisting()">
           Use this account
         </button>
@@ -45,11 +45,11 @@
         for bank routing details and government ID. The process
         usually takes a few minutes.
       </p>
-      @if (errorMsg()) {
-        <p class="payout-onboarding__error">{{ errorMsg() }}</p>
+      @if (errorMessage()) {
+        <p class="payout-onboarding__error">{{ errorMessage() }}</p>
       }
       <button matButton="filled" class="payout-onboarding__btn payout-onboarding__btn--primary"
-              [disabled]="busy()"
+              [disabled]="loading()"
               (click)="startProviderKyc()">
         <mat-icon>open_in_new</mat-icon>
         Start onboarding

@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, input, output, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { BaseAsync } from '../abstract/base_async';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,7 +31,7 @@ import { ReusableAccount } from '../../model/appdata';
   imports: [MatButtonModule, MatCardModule, MatIconModule, MatRadioModule],
   templateUrl: './provider_onboarding.html',
 })
-export class PayoutProviderOnboardingComponent implements OnInit {
+export class PayoutProviderOnboardingComponent extends BaseAsync implements OnInit {
   /** Step title — defaults match the most common payout-step framing. */
   readonly title = input('Bank Account Setup');
   /** Skip-button label — covers wizards where skipping returns to the parent flow. */
@@ -49,21 +49,16 @@ export class PayoutProviderOnboardingComponent implements OnInit {
   readonly started = output<void>();
 
   private readonly payoutService = inject(PayoutService);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly reusable = signal<ReusableAccount[]>([]);
   readonly selectedAccountId = signal<string>('');
-  readonly busy = signal<boolean>(false);
-  readonly errorMsg = signal<string>('');
 
   ngOnInit() {
-    this.payoutService.listReusable().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: ({ accounts }) => this.reusable.set(accounts ?? []),
-      error: () => {
-        this.reusable.set([]);
-        this.errorMsg.set('Could not check for reusable accounts.');
-      },
-    });
+    this.run(
+      this.payoutService.listReusable(),
+      ({ accounts }) => this.reusable.set(accounts ?? []),
+      'Could not check for reusable accounts.',
+    );
   }
 
   onAccountChange(event: MatRadioChange) {
@@ -73,34 +68,24 @@ export class PayoutProviderOnboardingComponent implements OnInit {
   linkExisting() {
     const id = this.selectedAccountId();
     if (!id) return;
-    this.busy.set(true);
-    this.payoutService.linkReusable(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.linked.emit();
-      },
-      error: (err) => {
-        this.errorMsg.set(err?.error?.detail ?? 'Failed to link existing account');
-        this.busy.set(false);
-      },
-    });
+    this.run(
+      this.payoutService.linkReusable(id),
+      () => this.linked.emit(),
+      'Failed to link existing account',
+    );
   }
 
   startProviderKyc() {
-    this.busy.set(true);
-    this.payoutService.startOnboarding().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res) => {
-        this.busy.set(false);
+    this.run(
+      this.payoutService.startOnboarding(),
+      (res) => {
         this.started.emit();
         // Same-tab handoff: window.open from an async callback is popup-blocked
         // (always on Safari), which used to leave users on a "waiting" screen
         // with nothing open. Mobile webview wrappers intercept the navigation.
         window.location.assign(res.url);
       },
-      error: (err) => {
-        this.errorMsg.set(err?.error?.detail ?? 'Failed to start onboarding');
-        this.busy.set(false);
-      },
-    });
+      'Failed to start onboarding',
+    );
   }
 }

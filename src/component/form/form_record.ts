@@ -30,7 +30,6 @@ export class RecordForm {
     }
 
     readonly computedFields = computed(() => {
-        this.auth.appDataVersion();
         const f = this.fields();
         const hidden = this.hiddenFields;
         if (f.length > 0) {

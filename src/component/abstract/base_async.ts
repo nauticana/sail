@@ -1,6 +1,7 @@
 import { DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
+import { errorDetail } from '../../util/errors';
 
 /**
  * Base class for components that perform async operations and need to show
@@ -22,16 +23,9 @@ export abstract class BaseAsync {
     this.successMessage.set('');
   }
 
-  /**
-   * Set errorMessage from an HTTP error object; falls back to `fallback`.
-   *
-   * Reads `err.error.detail` first (keel emits RFC 7807 ProblemDetail with
-   * `detail` as the human-readable field), then `err.error.message` for
-   * legacy / non-RFC-7807 endpoints, then the supplied fallback.
-   */
+  /** Set errorMessage from any sail error shape (SailApiError / HttpErrorResponse / Error). */
   protected setError(err: unknown, fallback: string): void {
-    const e = err as { error?: { detail?: string; message?: string } } | null | undefined;
-    this.errorMessage.set(e?.error?.detail ?? e?.error?.message ?? fallback);
+    this.errorMessage.set(errorDetail(err, fallback));
     this.loading.set(false);
   }
 

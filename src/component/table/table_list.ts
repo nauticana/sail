@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Params } from "@angular/router";
 import { catchError, EMPTY, Observable, switchMap, take, tap } from "rxjs";
+import { errorDetail } from "../../util/errors";
 import { AbstractEditableView } from "../abstract/base_view";
 import { TableEdit } from "./table_edit";
 import { MatButtonModule } from "@angular/material/button";
@@ -77,7 +78,7 @@ export class TableList extends AbstractEditableView implements OnInit {
                 next: () => this.fetchRecords(),
                 error: (err) => {
                     console.error('Delete failed', err);
-                    this.viewError.set(this.errorText(err, 'Delete failed.'));
+                    this.viewError.set(errorDetail(err, 'Delete failed.'));
                 },
             });
         }
@@ -90,7 +91,7 @@ export class TableList extends AbstractEditableView implements OnInit {
                 next: () => this.fetchRecords(),
                 error: (err) => {
                     console.error('Save failed', err);
-                    this.viewError.set(this.errorText(err, 'Save failed.'));
+                    this.viewError.set(errorDetail(err, 'Save failed.'));
                 },
             });
         }
@@ -116,7 +117,7 @@ export class TableList extends AbstractEditableView implements OnInit {
             }),
             catchError((err) => {
                 console.error('Fetch failed', err);
-                this.viewError.set(this.errorText(err, 'Failed to load records.'));
+                this.viewError.set(errorDetail(err, 'Failed to load records.'));
                 return EMPTY;
             }),
         );

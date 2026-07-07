@@ -12,11 +12,7 @@ export abstract class BaseView extends BaseTable {
     /** Last load/save failure shown by the view's template ('' when none). */
     readonly viewError = signal('');
 
-    protected readonly hasLinkPermission = computed(() => {
-        this.cacheService.appDataVersion();
-        this.tableName();
-        return this.canUpdate() || this.canRead();
-    });
+    protected readonly hasLinkPermission = computed(() => this.canUpdate() || this.canRead());
 
     /** Whether an "actions" column is appended for privileged users; lookup views return false. */
     protected includeActionsColumn(): boolean {
@@ -36,11 +32,6 @@ export abstract class BaseView extends BaseTable {
     isLinkColumn(column: string): boolean {
         const columns = this.displayedColumns();
         return (columns.length > 0 && columns[0] === column && this.hasLinkPermission());
-    }
-
-    /** Human-readable message for a failed view operation. */
-    protected errorText(err: unknown, fallback: string): string {
-        return err instanceof Error && err.message ? err.message : fallback;
     }
 }
 

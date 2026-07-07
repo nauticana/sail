@@ -6,7 +6,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows.
 
-> **v1.1.10 is a breaking release.** The base classes migrated to signals (`records()`, `editableRecord()`, `isNew()` …), `login()`/`loginWithGoogle()` now return Observables, CRUD errors are typed `SailApiError`, `BaseView` split into read-only `BaseView` + `AbstractEditableView`, the decorators are renamed `IsSailString`/`IsSailNumeric`, and `configureRestUrls()` is finally safe to call from a subclass constructor. The complete old→new mapping — including per-app advisories for daxoom, seo, trvoo and bdsrest — is machine-readable in [`migration_guide.json`](migration_guide.json). Downstream apps must fully migrate before pushing to test or prod.
+> **v1.1.10 is a breaking release.** The base classes migrated to signals (`records()`, `editableRecord()`, `isNew()` …), `login()`/`loginWithGoogle()` now return Observables, CRUD errors are typed `SailApiError`, `BaseView` split into read-only `BaseView` + `AbstractEditableView`, the decorators are renamed `IsSailString`/`IsSailNumeric`, and `configureRestUrls()` is finally safe to call from a subclass constructor. The complete old→new mapping is machine-readable in [`migration_guide.json`](migration_guide.json). Consumers must fully migrate before pushing to test or prod.
 
 ## What it provides
 

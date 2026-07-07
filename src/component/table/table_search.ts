@@ -28,11 +28,7 @@ export class TableSearch extends BaseForm implements OnInit {
     readonly apiName              = linkedSignal<string, string>({ source: () => this.apiNameInput(),     computation: (v, p) => v || p?.value || '' });
     readonly targetRoute          = linkedSignal<string, string>({ source: () => this.targetRouteInput(), computation: (v, p) => v || p?.value || '' });
 
-    readonly searchColumns = computed<string[]>(() => {
-        this.cacheService.appDataVersion();
-        this.tableName();
-        return this.getDisplayedColumns();
-    });
+    readonly searchColumns = this.metadataColumns;
 
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);

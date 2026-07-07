@@ -11,12 +11,12 @@ import {
   UserProfile,
 } from '../model/auth';
 import { RestURL } from './rest_url';
-import { Observable, ReplaySubject, catchError, defer, merge, of, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, ReplaySubject, catchError, defer, merge, of, throwError } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
-import { registerSessionExpiredHandler, resetAuthCircuit } from './auth.interceptor';
+import { resetAuthCircuit } from './auth.interceptor';
 
 /** Sort dropdown options by their visible label so long lookup lists are scannable. */
 const byCaption = (a: ConstantValue, b: ConstantValue) =>
@@ -43,18 +43,22 @@ interface PermissionRow {
 export abstract class BaseAuthService extends BaseRestService {
   protected readonly router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
-  protected cache?: ApplicationData;
-  private appData$ = new ReplaySubject<ApplicationData>(1);
+
+  // Reactive cache: computed()s that read metadata through `cache` (via
+  // getTableDefinition etc.) recompute automatically when appdata loads/clears.
+  private readonly appDataCache = signal<ApplicationData | undefined>(undefined);
+  protected get cache(): ApplicationData | undefined { return this.appDataCache(); }
+  protected set cache(value: ApplicationData | undefined) { this.appDataCache.set(value); }
+
+  // Stable stream identity: subscribers survive logout (they see menus clear via
+  // the null) and a session generation guards in-flight responses (see loadAppData).
+  private readonly appData$ = new BehaviorSubject<ApplicationData | null>(null);
   private appDataFail$ = new ReplaySubject<unknown>(1);
+  private sessionGeneration = 0;
   private readonly authIndex = new Map<string, CompiledPermission[]>();
   /** The route config active before the first initRoutes() — restored on logout
    *  so the login screen doesn't keep the previous user's route tree. */
   private preLoginRoutes: Routes | null = null;
-
-  constructor() {
-    super();
-    registerSessionExpiredHandler(() => this.onSessionExpired());
-  }
 
   // Lazy getters, not field initializers: fields would snapshot during super(),
   // before a subclass constructor can call configureRestUrls().
@@ -92,9 +96,6 @@ export abstract class BaseAuthService extends BaseRestService {
 
   /** Last appdata load failure (null when none). */
   readonly appDataError = signal<unknown>(null);
-
-  /** Bumped on cache load/clear so computed()s over the non-reactive `cache` recompute. */
-  readonly appDataVersion = signal(0);
 
   /** Set when the OAuth session-cookie handoff fails; the UI shows it and lets the
    *  user retry instead of being redirected into a cookieless login loop. */
@@ -137,15 +138,17 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   loadAppData() {
+    const generation = this.sessionGeneration;
     this.appDataError.set(null);
     this.http.get<ApplicationData>(this.appdataUrl).subscribe({
         next: (data) => {
+            if (generation !== this.sessionGeneration) return; // response outlived its session
             this.cache = data;
             this.buildAuthIndex();
-            this.appDataVersion.update((v) => v + 1);
             this.appData$.next(data);
         },
         error: (err) => {
+            if (generation !== this.sessionGeneration) return;
             console.error('loadAppData failed:', err);
             this.appDataError.set(err);
             this.appDataFail$.next(err);
@@ -489,19 +492,17 @@ export abstract class BaseAuthService extends BaseRestService {
     this.cache = undefined;
     this.authIndex.clear();
     this.appDataError.set(null);
-    this.appDataVersion.update((v) => v + 1);
-    // Fresh subjects so stale appdata never replays into the next session.
-    this.appData$.complete();
+    this.sessionGeneration++;           // in-flight loads from this session are ignored
+    this.appData$.next(null);           // live subscribers see menus clear; identity stays stable
     this.appDataFail$.complete();
-    this.appData$ = new ReplaySubject<ApplicationData>(1);
     this.appDataFail$ = new ReplaySubject<unknown>(1);
     if (this.preLoginRoutes) {
       this.router.resetConfig(this.preLoginRoutes);
     }
   }
 
-  /** Auth circuit opened (repeated 401s) — the stored session is dead. */
-  protected onSessionExpired(): void {
+  /** Called by the auth interceptor when the 401 circuit is open — the stored session is dead. */
+  sessionExpired(): void {
     if (!this.isLoggedIn()) return;
     this.clearSession();
     this.router.navigate(['/login/local'], { queryParams: { sessionExpired: 'true' } });
@@ -535,14 +536,16 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   /** Appdata stream. Errors on load failure while nothing is cached yet, so
-   * waiters fail loudly instead of hanging; defer binds to the current session's subjects. */
+   * waiters fail loudly instead of hanging; defer binds the failure channel
+   * to the current session's subject. */
   getAppData(): Observable<ApplicationData> {
     return defer(() => {
       const failures = this.appDataFail$.pipe(
         filter(() => !this.cache),
         mergeMap((err) => throwError(() => err)),
       );
-      return merge(this.appData$, failures);
+      const data = this.appData$.pipe(filter((d): d is ApplicationData => d !== null));
+      return merge(data, failures);
     });
   }
 
@@ -574,9 +577,10 @@ export abstract class BaseAuthService extends BaseRestService {
     } as unknown as ConstantValue)).sort(byCaption);
   }
 
-  /** Menu stream for navigation UIs; never errors (failures surface via appDataError). */
+  /** Menu stream for navigation UIs; never errors (failures surface via
+   * appDataError) and emits [] on logout so menus clear. */
   getMenus(): Observable<ApplicationMenu[]> {
-    return defer(() => this.appData$).pipe(map((data: ApplicationData) => data?.MainMenu ?? []));
+    return this.appData$.pipe(map((data) => data?.MainMenu ?? []));
   }
 
   getTableDefinition(tableName: string): TableDefinition | undefined {

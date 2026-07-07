@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, OnInit, signal, ViewEncapsulation } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, OnInit, signal, ViewEncapsulation } from "@angular/core";
 import { BaseForm } from "../abstract/base_form";
+import { errorDetail } from "../../util/errors";
 import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
 import { MatTabsModule } from "@angular/material/tabs";
 import { TableDetail } from "./table_detail";
@@ -42,15 +43,13 @@ export class TableEdit extends BaseForm implements OnInit {
     private readonly dialogRef = inject(MatDialogRef<TableEdit>, {optional: true});
     private readonly dialogData = inject<TableEditDialogData | null>(MAT_DIALOG_DATA, {optional: true});
 
-    protected readonly tabFields = signal<string[]>([]);
+    /** Tabs are the table's child relations (rest_api_child metadata). */
+    protected readonly tabFields = computed(() =>
+        (this.cacheService.getTableDefinition(this.tableName())?.Children ?? []).map((child) => child.PascalName));
+
     protected get isDialog(): boolean { return !!this.dialogRef; }
     /** Snapshot taken when the user enters edit mode; used for dirty-tracking on save. */
     private originalSnapshot: Record<string, unknown> | null = null;
-
-    protected override readOnlyDeps(): void {
-        super.readOnlyDeps();
-        this.isReadOnlyMode();
-    }
 
     ngOnInit(): void {
         if (this.dialogData) {
@@ -61,32 +60,18 @@ export class TableEdit extends BaseForm implements OnInit {
             this.isReadOnlyMode.set(!this.isNew());
         }
         if (this.isNew()) {
-            this.initializeNewRecord();
-            this.buildTabs();
+            this.setEditableRecord(Object.assign(this.emptyRecord(), this.record()));
         } else {
             this.fetchFullRecord();
         }
     }
 
-    private initializeNewRecord() {
-        const record = this.emptyRecord();
-        Object.assign(record, this.record());
-        this.editableRecord.set(record);
-    }
-
-    /**
-     * Tabs are the table's child relations (rest_api_child metadata), not just
-     * whatever array fields the backend happened to embed. Seed an empty array
-     * for any child the response omitted so its grid renders (and accepts new rows).
-     */
-    private buildTabs() {
-        const tableDef = this.cacheService.getTableDefinition(this.tableName());
-        const fields = (tableDef?.Children ?? []).map((child) => child.PascalName);
-        const record = this.editableRecord();
-        for (const field of fields) {
+    /** Single entry point: seeds an empty array for any child relation the record lacks. */
+    private setEditableRecord(record: Record<string, unknown>) {
+        for (const field of this.tabFields()) {
             if (!this.isArray(record[field])) record[field] = [];
         }
-        this.tabFields.set(fields);
+        this.editableRecord.set(record);
     }
 
     /** Child rows for a tab; buildTabs guarantees the array exists. */
@@ -104,7 +89,7 @@ export class TableEdit extends BaseForm implements OnInit {
         const rec = this.record();
         const provisional = {...rec};
         this.formatRecordTimeStamp(provisional);
-        this.editableRecord.set(provisional);
+        this.setEditableRecord(provisional);
 
         const filter = this.getKeyFilters(rec);
         if (!filter) {
@@ -120,12 +105,11 @@ export class TableEdit extends BaseForm implements OnInit {
                 }
                 const full = Array.isArray(record) ? record[0] : record;
                 this.formatRecordTimeStamp(full);
-                this.editableRecord.set(full);
-                this.buildTabs();
+                this.setEditableRecord(full);
             },
             error: (error) => {
                 console.error('failed to fetch full record details', error);
-                this.saveError.set('Failed to load record details.');
+                this.saveError.set(errorDetail(error, 'Failed to load record details.'));
             },
         });
     }
@@ -146,8 +130,7 @@ export class TableEdit extends BaseForm implements OnInit {
         this.isReadOnlyMode.set(false);
         this.isNew.set(true);
         this.originalSnapshot = null;
-        this.editableRecord.set(this.emptyRecord());
-        this.buildTabs();
+        this.setEditableRecord(this.emptyRecord());
     }
 
     onSave() {
@@ -181,7 +164,7 @@ export class TableEdit extends BaseForm implements OnInit {
             },
             error: (err) => {
                 console.error('Save failed', err);
-                this.saveError.set(err instanceof Error && err.message ? err.message : 'Save failed.');
+                this.saveError.set(errorDetail(err, 'Save failed.'));
             },
         });
     }
@@ -197,7 +180,7 @@ export class TableEdit extends BaseForm implements OnInit {
                 },
                 error: (err) => {
                     console.error('Delete failed', err);
-                    this.saveError.set(err instanceof Error && err.message ? err.message : 'Delete failed.');
+                    this.saveError.set(errorDetail(err, 'Delete failed.'));
                 },
             });
         }
@@ -215,8 +198,7 @@ export class TableEdit extends BaseForm implements OnInit {
         if (Object.keys(this.record()).length > 0) {
             this.fetchFullRecord();
         } else {
-            this.editableRecord.set(this.emptyRecord());
-            this.buildTabs();
+            this.setEditableRecord(this.emptyRecord());
         }
     }
 }

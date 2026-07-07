@@ -14,6 +14,7 @@ import { HttpClient } from '@angular/common/http';
 import { PartnerRegistration, PublicPlan } from '../../model/appdata';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import { fromPriceLabel } from '../../util/money';
+import { errorDetail } from '../../util/errors';
 
 const passwordsMatch = (group: AbstractControl): ValidationErrors | null =>
   group.get('Password')?.value === group.get('ConfirmPassword')?.value ? null : { passwordMismatch: true };
@@ -178,7 +179,7 @@ export class RegisterComponent implements OnInit {
     this.auth.register(partnerReg).subscribe({
       // Pass the email along so the confirm page pre-fills it.
       next: () => this.router.navigate(['/confirm/register'], { queryParams: { email: formValue.Email } }),
-      error: (err) => this.registerError.set(err?.error?.message ?? 'Registration failed. Please try again.'),
+      error: (err) => this.registerError.set(errorDetail(err, 'Registration failed. Please try again.')),
     });
   }
 }
