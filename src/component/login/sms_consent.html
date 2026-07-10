@@ -1,0 +1,11 @@
+<p class="sail-sms-consent">
+  By providing your phone number and tapping &ldquo;{{ action() }},&rdquo; you agree to receive
+  recurring automated text messages ({{ messagePurpose() }}) from {{ brandName() }} at that number.
+  Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
+  @if (terms() || privacy()) {
+    See our
+    @if (terms()) { <a [href]="terms()" target="_blank" rel="noopener">Terms</a> }
+    @if (terms() && privacy()) { and }
+    @if (privacy()) { <a [href]="privacy()" target="_blank" rel="noopener">Privacy Policy</a> }.
+  }
+</p>

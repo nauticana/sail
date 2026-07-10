@@ -55,6 +55,10 @@ export interface SailGuiConfig {
   appleRedirectUri?: string;
   /** Public URL of your privacy policy. Shown as a link in ConsentGateComponent. */
   privacyPolicyUrl?: string;
+  /** Public URL of your terms of service. Shown in the SMS-consent disclosure. */
+  termsUrl?: string;
+  /** Brand name shown in the SMS/10DLC consent disclosure (e.g. "Daxoom"). */
+  appName?: string;
   /** Content hash / version of the currently-deployed privacy policy. */
   defaultPolicyVersion?: string;
   /** ISO 639-1 language code of the policy variant shown ('en', 'fr', ...). */
