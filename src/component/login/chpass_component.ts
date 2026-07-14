@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { Router, RouterLink } from '@angular/router';
@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import { BaseAsync } from '../abstract/base_async';
+import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password_policy';
 
 @Component({
   selector: 'sail-chpass',
@@ -34,9 +35,20 @@ export class ChpassComponent extends BaseAsync {
   chpassForm = this.fb.group({
     username: ['', Validators.required],
     old_password: ['', Validators.required],
-    new_password: ['', [Validators.required, Validators.minLength(6)]],
+    new_password: ['', [Validators.required, passwordPolicyValidator(() => this.auth.passwordRules())]],
     confirm_password: ['', Validators.required],
   });
+
+  protected readonly passwordHint = computed(() => passwordPolicyHint(this.auth.passwordRules()));
+
+  constructor() {
+    super();
+    this.auth.ensurePasswordPolicy();
+    effect(() => {
+      this.auth.passwordRules();
+      this.chpassForm.controls.new_password.updateValueAndValidity({ emitEvent: false });
+    });
+  }
 
   toggleForgotPassword(checked: boolean) {
     this.forgotPassword.set(checked);
@@ -52,7 +64,7 @@ export class ChpassComponent extends BaseAsync {
       confirmPw.setValue('');
     } else {
       oldPw.setValidators(Validators.required);
-      newPw.setValidators([Validators.required, Validators.minLength(6)]);
+      newPw.setValidators([Validators.required, passwordPolicyValidator(() => this.auth.passwordRules())]);
       confirmPw.setValidators(Validators.required);
     }
     oldPw.updateValueAndValidity();

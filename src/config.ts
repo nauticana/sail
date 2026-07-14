@@ -74,6 +74,11 @@ export interface SailGuiConfig {
   /** Hostnames a post-login `?return=` may redirect to (open-redirect allowlist),
    * e.g. ['mcp.example.com']. Anything not listed is ignored. */
   allowedReturnHosts?: string[];
+
+  /** Public route serving the password policy (keel PublicHandler.GetPasswordPolicy),
+   * e.g. '/public/v1/auth/password/policy'. When set, sail fetches it once and
+   * password inputs validate against it. Omitted → policy validation is skipped. */
+  passwordPolicyUrl?: string;
 }
 
 export const SAIL_GUI_CONFIG = new InjectionToken<SailGuiConfig>('SailGuiConfig');

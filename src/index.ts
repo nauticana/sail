@@ -71,3 +71,4 @@ export * from './service/base_rest.service';
 export * from './util/text';
 export * from './util/money';
 export * from './util/errors';
+export * from './util/password_policy';

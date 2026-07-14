@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import { BaseAsync } from '../abstract/base_async';
+import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password_policy';
 
 @Component({
   selector: 'sail-confirm-chpass',
@@ -31,11 +32,23 @@ export class ConfirmChpassComponent extends BaseAsync implements OnInit {
   confirmForm = this.fb.group({
     username: ['', Validators.required],
     code: ['', Validators.required],
-    new_password: ['', [Validators.required, Validators.minLength(6)]],
+    new_password: ['', [Validators.required, passwordPolicyValidator(() => this.auth.passwordRules())]],
     confirm_password: ['', Validators.required],
   });
 
+  protected readonly passwordHint = computed(() => passwordPolicyHint(this.auth.passwordRules()));
+
+  constructor() {
+    super();
+    // Re-validate the new-password field once the policy arrives.
+    effect(() => {
+      this.auth.passwordRules();
+      this.confirmForm.controls.new_password.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
   ngOnInit() {
+    this.auth.ensurePasswordPolicy();
     const username = this.route.snapshot.queryParamMap.get('username');
     if (username) {
       this.confirmForm.patchValue({ username });

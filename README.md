@@ -4,7 +4,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 
 > **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x** (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
-**Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows.
+**Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
 > **v1.1.10 is a breaking release.** The base classes migrated to signals (`records()`, `editableRecord()`, `isNew()` …), `login()`/`loginWithGoogle()` now return Observables, CRUD errors are typed `SailApiError`, `BaseView` split into read-only `BaseView` + `AbstractEditableView`, the decorators are renamed `IsSailString`/`IsSailNumeric`, and `configureRestUrls()` is finally safe to call from a subclass constructor. The complete old→new mapping is machine-readable in [`migration_guide.json`](migration_guide.json). Consumers must fully migrate before pushing to test or prod.
 
@@ -277,8 +277,18 @@ interface SailGuiConfig {
   defaultPolicyVersion?: string;      // Content hash of the deployed policy
   defaultPolicyLanguage?: string;     // ISO 639-1 fallback language
   accountDeletedRoute?: string;       // Route after account deletion (default '/login/local')
+  passwordPolicyUrl?: string;         // Public route serving keel's password policy (see below)
 }
 ```
+
+### Password-policy validation
+
+Set `passwordPolicyUrl` to the app's public route for keel's `PublicHandler.GetPasswordPolicy`
+(e.g. `'/public/v1/auth/password/policy'`). `BaseAuthService.ensurePasswordPolicy()` fetches it
+once into the `passwordRules` signal, and `passwordPolicyValidator(() => auth.passwordRules())`
+validates new-password inputs against the real policy before submit (`passwordPolicyHint(rules)`
+builds the matching hint text). Built into `chpass` / `confirm-chpass`; reuse in app signup forms.
+Omit the URL to skip client-side policy checks. The server stays the authoritative gate.
 
 ## Backend endpoints (keel v1.0)
 

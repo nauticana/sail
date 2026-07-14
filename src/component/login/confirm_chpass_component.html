@@ -21,6 +21,10 @@
       <mat-form-field appearance="outline">
         <mat-label>New Password</mat-label>
         <input matInput type="password" formControlName="new_password" autocomplete="new-password" required>
+        @if (passwordHint(); as hint) { <mat-hint>{{ hint }}</mat-hint> }
+        @if (confirmForm.controls.new_password.hasError('passwordPolicy')) {
+          <mat-error>{{ confirmForm.controls.new_password.getError('passwordPolicy').message }}</mat-error>
+        }
       </mat-form-field>
 
       <mat-form-field appearance="outline">

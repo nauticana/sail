@@ -1,6 +1,7 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { filter, map, mergeMap, take, tap } from 'rxjs/operators';
+import { PasswordRules } from '../util/password_policy';
 import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
@@ -93,6 +94,22 @@ export abstract class BaseAuthService extends BaseRestService {
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
+
+  /** keel password policy for pre-submit validation; undefined until loaded
+   *  (or when guiConfig.passwordPolicyUrl is unset). Fed via ensurePasswordPolicy(). */
+  readonly passwordRules = signal<PasswordRules | undefined>(undefined);
+  private passwordPolicyLoading = false;
+
+  /** Fetch the policy once (public route, safe pre-login). No-op if already
+   *  loaded/loading or no URL configured. */
+  ensurePasswordPolicy(): void {
+    if (this.passwordRules() || this.passwordPolicyLoading || !this.guiConfig.passwordPolicyUrl) return;
+    this.passwordPolicyLoading = true;
+    this.http.get<PasswordRules>(this.url(this.guiConfig.passwordPolicyUrl)).subscribe({
+      next: (rules) => this.passwordRules.set(rules),
+      error: () => { this.passwordPolicyLoading = false; },
+    });
+  }
 
   /** Last appdata load failure (null when none). */
   readonly appDataError = signal<unknown>(null);
