@@ -38,10 +38,16 @@
     <div class="auth-actions">
       <a routerLink="/login/chpass">I forgot my password</a>
     </div>
-    @if (guiConfig.loginFooterLinks && guiConfig.loginFooterLinks.length > 0) {
+    @if (guiConfig.loginFooterLinks?.length || guiConfig.termsUrl || guiConfig.privacyPolicyUrl) {
       <div class="auth-footer">
-        @for (link of guiConfig.loginFooterLinks; track link.routerLink) {
+        @for (link of guiConfig.loginFooterLinks ?? []; track link.routerLink) {
           <a [routerLink]="link.routerLink">{{ link.label }}</a>
+        }
+        @if (guiConfig.termsUrl) {
+          <a [href]="guiConfig.termsUrl" target="_blank" rel="noopener">Terms of Service</a>
+        }
+        @if (guiConfig.privacyPolicyUrl) {
+          <a [href]="guiConfig.privacyPolicyUrl" target="_blank" rel="noopener">Privacy Policy</a>
         }
       </div>
     }

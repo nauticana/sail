@@ -53,9 +53,9 @@ export interface SailGuiConfig {
   appleServiceId?: string;
   /** Apple Sign-In redirect URI. Must match the Services ID configuration. */
   appleRedirectUri?: string;
-  /** Public URL of your privacy policy. Shown as a link in ConsentGateComponent. */
+  /** Public URL of your privacy policy. Linked from ConsentGateComponent and the login footer. */
   privacyPolicyUrl?: string;
-  /** Public URL of your terms of service. Shown in the SMS-consent disclosure. */
+  /** Public URL of your terms of service. Linked from the SMS-consent disclosure and the login footer. */
   termsUrl?: string;
   /** Brand name shown in the SMS/10DLC consent disclosure (e.g. "Daxoom"). */
   appName?: string;

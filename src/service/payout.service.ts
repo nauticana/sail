@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { RestURL } from './rest_url';
 import { BaseRestService } from './base_rest.service';
 import {
+  BankInfoFormValue,
   PayoutOnboardingSession,
   ReusableAccount,
 } from '../model/appdata';
@@ -20,7 +21,11 @@ import {
  */
 @Injectable({ providedIn: 'root' })
 export class PayoutService extends BaseRestService {
-  /** Launch the hosted-KYC flow. Returns a URL to open + provider-side handle. */
+  /**
+   * Start provider onboarding. A non-empty URL is the hosted-KYC handoff;
+   * an empty URL means confirmation continues asynchronously (for example,
+   * a Wise recipient confirming from email).
+   */
   startOnboarding(): Observable<PayoutOnboardingSession> {
     return this.http.post<PayoutOnboardingSession>(this.url(RestURL.payoutOnboardStartURL), {});
   }
@@ -38,5 +43,26 @@ export class PayoutService extends BaseRestService {
   /** True when the calling user has a populated provider_account_id on the active partner row. */
   status(): Observable<{ complete: boolean }> {
     return this.http.post<{ complete: boolean }>(this.url(RestURL.payoutStatusURL), {});
+  }
+
+  /**
+   * Replace the payout destination with a new bank-info version
+   * (atomic supersede + insert on the backend). Identity changes go
+   * through this, never through generic CRUD edits. `provider` and
+   * `providerAgreement` are server-owned and ignored here.
+   */
+  replaceBankInfo(value: BankInfoFormValue): Observable<{ message: string }> {
+    const { countryCode, currency, accountHolderName, billingAddress, taxIdType, taxId } = value;
+    return this.http.post<{ message: string }>(this.url(RestURL.payoutBankReplaceURL),
+      { countryCode, currency, accountHolderName, billingAddress, taxIdType, taxId });
+  }
+
+  /**
+   * Register a payout beneficiary from provider-collected details
+   * (Airwallex embedded beneficiary component). The payload passes
+   * through to the provider; the backend links the returned id.
+   */
+  registerBeneficiary(beneficiary: unknown): Observable<{ beneficiaryId: string }> {
+    return this.http.post<{ beneficiaryId: string }>(this.url(RestURL.payoutBeneficiaryURL), { beneficiary });
   }
 }

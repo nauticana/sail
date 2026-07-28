@@ -14,12 +14,13 @@ import { ReusableAccount } from '../../model/appdata';
  * two paths:
  *   1. Reuse an existing provider account from another partner row
  *      (zero-KYC; calls /api/v1/payout/reusable/link).
- *   2. Hand off to the provider's hosted-KYC page
- *      (/api/v1/payout/onboard/start).
+ *   2. Start provider onboarding (/api/v1/payout/onboard/start), then
+ *      either hand off to a hosted-KYC page or emit `pending` when the
+ *      provider continues asynchronously without a hosted URL.
  *
- * Routing is consumer-owned via the `(linked)` / `(skipped)` outputs —
- * the component itself never calls Router. Optional `title` and
- * `skipLabel` inputs cover the common UX strings.
+ * Routing is consumer-owned via the `(linked)`, `(pending)`, and
+ * `(skipped)` outputs — the component itself never calls Router.
+ * Optional `title` and `skipLabel` inputs cover the common UX strings.
  *
  * Ships no CSS — the consuming app styles the classes globally.
  *
@@ -47,6 +48,13 @@ export class PayoutProviderOnboardingComponent extends BaseAsync implements OnIn
   readonly back = output<void>();
   /** Emitted just before handing off to the hosted-KYC page. */
   readonly started = output<void>();
+  /**
+   * Emitted when onboarding started but there is no hosted page to open
+   * (Wise email recipients: the account is linked and awaits the
+   * recipient's email confirmation). Consumers show a "linked, awaiting
+   * confirmation" state instead of navigating.
+   */
+  readonly pending = output<void>();
 
   private readonly payoutService = inject(PayoutService);
 
@@ -79,6 +87,10 @@ export class PayoutProviderOnboardingComponent extends BaseAsync implements OnIn
     this.run(
       this.payoutService.startOnboarding(),
       (res) => {
+        if (!res.url) {
+          this.pending.emit();
+          return;
+        }
         this.started.emit();
         // Same-tab handoff: window.open from an async callback is popup-blocked
         // (always on Safari), which used to leave users on a "waiting" screen

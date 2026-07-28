@@ -377,18 +377,22 @@ export interface ReusableAccount {
 	onboardedAt:       string;
 }
 
-// Result of PayoutService.startOnboarding(). url is opened in a webview /
-// external browser; the provider posts back via webhook when activation
-// lands.
+// Result of PayoutService.startOnboarding(). A non-empty url is opened in a
+// webview / external browser. Some providers have no hosted flow (for example,
+// Wise email recipients); in that case url and expiresAt are empty and
+// PayoutProviderOnboardingComponent emits `pending` while confirmation
+// continues asynchronously.
 export interface PayoutOnboardingSession {
 	url:               string;
 	externalAccountId: string;
 	expiresAt:         string;
 }
 
-// Payload the bank-info form emits. Maps 1:1 to basis user_bank_info
-// columns. The consumer decides where to POST it — typically a direct
-// generic-CRUD insert against /api/v1/user_bank_info.
+// Application-layer payload emitted by the bank-info form. It is not a
+// generic-CRUD row: taxId must be sealed into basis.user_bank_info's
+// tax_id_encrypted column. First-time setup goes through the consuming app's
+// registration service; changes use PayoutService.replaceBankInfo so keel can
+// atomically supersede the active destination version.
 export interface BankInfoFormValue {
 	countryCode:       string;
 	currency:          string;

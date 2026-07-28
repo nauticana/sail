@@ -273,7 +273,8 @@ interface SailGuiConfig {
   googleClientId?: string;            // Google Identity Services client ID
   appleServiceId?: string;            // Apple Services ID
   appleRedirectUri?: string;          // Apple Sign-In redirect URI
-  privacyPolicyUrl?: string;          // Linked from ConsentGateComponent
+  privacyPolicyUrl?: string;          // Linked from ConsentGateComponent and the login footer
+  termsUrl?: string;                  // Linked from the SMS-consent disclosure and the login footer
   defaultPolicyVersion?: string;      // Content hash of the deployed policy
   defaultPolicyLanguage?: string;     // ISO 639-1 fallback language
   accountDeletedRoute?: string;       // Route after account deletion (default '/login/local')
@@ -1138,8 +1139,8 @@ The v0.6 / v0.7 line introduced three additive feature groups against keel v0.7.
 
 | From | Export | Purpose |
 |---|---|---|
-| `@nauticana/sail` | `PayoutService` | keel/payout API client — hosted-KYC launch, reuse flow, status |
-| `@nauticana/sail` | `PayoutProviderOnboardingComponent` (`<sail-payout-provider-onboarding>`) | Drop-in onboarding step with reuse picker + hosted-KYC launcher |
+| `@nauticana/sail` | `PayoutService` | keel/payout API client — onboarding, reuse, status, bank-version replacement, beneficiary registration |
+| `@nauticana/sail` | `PayoutProviderOnboardingComponent` (`<sail-payout-provider-onboarding>`) | Drop-in onboarding step with reuse picker, hosted-KYC handoff, and asynchronous-confirmation output |
 | `@nauticana/sail` | `PayoutBankInfoFormComponent` (`<sail-payout-bank-info-form>`) | Tax + payout details form (country / currency / tax ID / billing address / agreement) |
 | `@nauticana/sail` | `UserPaymentMethodService` | Saved-card list / delete / set-default API client |
 | `@nauticana/sail` | `UserPaymentMethodsComponent` (`<sail-user-payment-methods>`) | List of saved cards/wallets with set-default + delete |
@@ -1151,10 +1152,12 @@ Make sure your keel deployment exposes these — they're all under `/api/v1/`:
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/v1/payout/onboard/start` | POST | Open hosted-KYC; returns `{ url, externalAccountId, expiresAt }` |
+| `/api/v1/payout/onboard/start` | POST | Start provider onboarding; returns `{ url, externalAccountId, expiresAt }` (`url` is empty when confirmation continues asynchronously) |
 | `/api/v1/payout/reusable` | POST | List provider accounts the user has on other partners |
 | `/api/v1/payout/reusable/link` | POST | Copy a `providerAccountId` onto the active partner's `user_bank_info` row |
 | `/api/v1/payout/status` | POST | `{ complete: true }` once the active partner's row has a `providerAccountId` |
+| `/api/v1/payout/bank/replace` | POST | Supersede the active bank-info version and insert its replacement atomically; the app must wire the handler's `SealTaxID` hook |
+| `/api/v1/payout/beneficiary/register` | POST | Create and link a provider beneficiary from provider-collected details |
 | `/api/v1/payment-methods/set-default` | POST | Atomic multi-row UPDATE — sets one row as default, clears the rest |
 | `/api/v1/{table}/{action_name}` | POST | Per-table custom actions resolved from `basis.table_action` |
 
@@ -1176,6 +1179,7 @@ Drop the two components into a wizard step. Routing between them stays in the co
     <sail-payout-provider-onboarding
         (linked)="step.set('done')"
         (started)="step.set('waiting')"
+        (pending)="step.set('awaiting-confirmation')"
         (skipped)="step.set('done')"
         (back)="step.set('bank')">
     </sail-payout-provider-onboarding>
@@ -1183,7 +1187,9 @@ Drop the two components into a wizard step. Routing between them stays in the co
 }
 ```
 
-`BankInfoFormValue` maps 1:1 to `basis.user_bank_info` columns. The consumer decides where to POST it — typically a direct generic-CRUD insert against `/api/v1/user_bank_info`. The provider account itself is created by `<sail-payout-provider-onboarding>` via `PayoutService.startOnboarding()` → hosted KYC → webhook back to keel.
+`BankInfoFormValue` is application-layer input, not a generic-CRUD row. In particular, its plaintext `taxId` must be sealed into the `tax_id_encrypted` column and must never be sent through the generic `/api/v1/user_bank_info` CRUD surface. First-time setup goes through the consuming app's registration service. Changes to an existing destination use `PayoutService.replaceBankInfo()`, which calls keel's atomic version-replacement endpoint; wire `PayoutHandler.SealTaxID` so that endpoint seals the plaintext before persistence.
+
+`PayoutService.startOnboarding()` returns a `PayoutOnboardingSession`. When `url` is non-empty, the component emits `started` and navigates to the provider's hosted flow. When `url` is empty, as with Wise email recipients, it emits `pending` instead; consumers must show an awaiting-confirmation state while the recipient completes the provider's email flow. Airwallex apps can pass details collected by the embedded beneficiary component to `PayoutService.registerBeneficiary()`.
 
 For apps that operate on a single keel partner, the reuse picker stays empty and only the "Start onboarding" CTA renders. Multi-partner apps get the picker for free.
 

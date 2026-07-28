@@ -53,6 +53,8 @@ export const RestURL = {
   payoutReusableURL:     '/api/v1/payout/reusable',
   payoutReusableLinkURL: '/api/v1/payout/reusable/link',
   payoutStatusURL:       '/api/v1/payout/status',
+  payoutBankReplaceURL:  '/api/v1/payout/bank/replace',
+  payoutBeneficiaryURL:  '/api/v1/payout/beneficiary/register',
   // User payment methods — list/delete go through keel's generic REST
   // CRUD against the UserSpecific basis table; set-default is a
   // TableAction (basis table_action row), mounted at the conventional

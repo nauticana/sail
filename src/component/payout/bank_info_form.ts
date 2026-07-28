@@ -26,8 +26,10 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
  *
  * Captures the basis `user_bank_info` fields (country, currency, account
  * holder, tax id, billing address, agreement). Emits the form value via
- * `(submitted)` — the consumer decides whether to POST directly to
- * /api/v1/user_bank_info or pipe through its own registration service.
+ * `(submitted)` — first-time setup POSTs through the app's registration
+ * service; CHANGES to an existing destination go through
+ * PayoutService.replaceBankInfo (atomic version replacement), never a
+ * generic CRUD edit.
  *
  * Ships no CSS — the consuming app styles the classes globally.
  *
@@ -58,7 +60,11 @@ export class PayoutBankInfoFormComponent {
   /** When true, the back button renders alongside submit. */
   readonly showBack = input(true);
 
-  /** Emitted on submit; payload maps 1:1 to basis user_bank_info columns. */
+  /**
+   * Emitted on submit as application-layer input. The consumer must use its
+   * registration service for first-time setup or PayoutService.replaceBankInfo
+   * for changes; never send this payload through generic CRUD.
+   */
   readonly submitted = output<BankInfoFormValue>();
   /** Emitted when the user clicks Back. */
   readonly back = output<void>();
