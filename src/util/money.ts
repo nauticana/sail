@@ -13,6 +13,21 @@ export function formatCurrency(amount: number, currency: string): string {
   }
 }
 
+/**
+ * Format an integer minor-unit amount using the currency's exponent reported
+ * by Intl (JPY 0, USD 2, BHD 3, ...). No hardcoded /100 assumption.
+ */
+export function formatMinorCurrency(minor: number, currency: string): string {
+  const code = currency.trim().toUpperCase();
+  try {
+    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
+    const exponent = formatter.resolvedOptions().maximumFractionDigits ?? 2;
+    return formatter.format(minor / 10 ** exponent);
+  } catch {
+    return `${minor} ${code}`;
+  }
+}
+
 /** PERIOD_TYPE code vocabulary — the single source for cycle labels/durations. */
 export const PERIOD_TYPE_INFO: Record<string, { label: string; noun: string; suffix: string; months: number }> = {
   D: { label: 'Daily',     noun: 'day',     suffix: '/day', months: 1 / 30 },

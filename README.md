@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x** (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -22,13 +22,14 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
 | **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
+| **Agency** | `AgencyClientsComponent`, `AgencyStatusBannerComponent`, `AgencyAcceptComponent`, `AgencyEarningsSummaryComponent`, `CommissionLedgerComponent`, `AgencyPayoutHistoryComponent`, `AgencyPayoutProfileComponent` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
-| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
 | **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
-| **Utils** | `titleCase()`, `fromPriceLabel()` |
+| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinorCurrency()` |
 
 ## Quick start
 
@@ -589,6 +590,74 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 <sail-portal-button></sail-portal-button>
 <!-- invoices: render listInvoices() rows directly -->
 ```
+
+## Agency / reseller UI (v1.1.14)
+
+sail v1.1.14 supplies composable, unstyled agency components over keel v1.2.41.
+The app owns routes, route guards, brand copy, global CSS, and any columns that
+refer to an app-specific managed entity.
+
+`AgencyService` covers profile enrollment, invitation staging/acceptance,
+delegation/revocation, per-client referral/wholesale selection, earnings, and
+payout-profile selection. Its DTOs use the upstream names
+`agency_client_invitation`, `agency_client_delegation`, and
+`agency_client_rate`; there is no client-side rule-schedule model.
+The enrollment method is `enroll()`; downstream `enrollReferral()` calls must
+be renamed when adopting this release.
+
+Compose an agency page from the pieces you need:
+
+```html
+<sail-agency-clients
+  [extraColumns]="clientColumns"
+  [showBillingModelControls]="true" />
+<sail-agency-earnings-summary [earnings]="earnings()" [activeClients]="activeClients()" />
+<sail-commission-ledger [entries]="earnings()?.entries ?? []" />
+<sail-agency-payout-history [payouts]="earnings()?.payouts ?? []" />
+<sail-agency-payout-profile />
+```
+
+`AgencyClientsComponent` renders status values through the shared
+`StatusChipComponent` and backend constant catalogues. It accepts app-specific
+columns rather than assuming the managed entity. Accepted clients begin in
+referral mode; wholesale controls appear only when the profile permits them and
+the app opts in with `showBillingModelControls`.
+
+Load keel's v1.2.40 basis seed so status chips receive these canonical domains:
+
+| Domain | Values |
+|---|---|
+| `agency_client_status` | `S` Staged, `I` Invited, `V` Client, `X` Cancelled |
+| `agency_billing_model` | `R` Referral, `W` Wholesale |
+| `agency_commission_status` | `H` Held, `P` Payable, `R` Reserved, `D` Paid, `O` Offset |
+| `agency_payout_status` | `C` Created, `P` Processing, `D` Paid, `F` Failed, `R` Returned, `V` Reversed, `M` Manual review |
+
+Do not substitute app-local domain names such as `billing_model` or
+`commission_status`; a missing canonical domain deliberately renders the raw
+code so configuration drift remains visible.
+
+`AgencyAcceptComponent` keeps consent explicit and persists an invitation token
+when the authenticated user still needs to create a business partner. Consumers
+handle its navigation outputs and route back after business setup. Other 409
+conflicts, such as an existing delegation or self-delegation, remain on the
+invitation screen as errors instead of entering the business-setup flow. The
+branch uses keel's stable RFC 7807 `code: "agency_no_partner"` (keel v1.2.41),
+not error prose.
+
+The payout-profile component composes the existing provider-onboarding surface
+and only allows a fully onboarded destination returned by keel. Mount it only
+for an approved, non-suspended agency; keel intentionally rejects its GET for a
+pending profile. The ledger and payout-history components show default empty
+messages; pass `[emptyMessage]="''"` when a composed page should omit empty
+regions entirely.
+
+All accounting values are integer minor units. `formatMinorCurrency()` uses the
+currency exponent reported by `Intl.NumberFormat`, so zero- and three-decimal
+currencies render correctly; earnings stay separated by currency rather than
+being summed into a misleading total.
+
+The agency URL defaults use `/api/v1/agency/*`. Apps mounting Keel elsewhere
+must override the `RestURL.agency*URL` values with `configureRestUrls()`.
 
 ## Off-session SCA / 3DS confirmation (v1.0.x)
 

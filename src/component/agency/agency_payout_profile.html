@@ -1,0 +1,49 @@
+@if (loading()) {
+  <mat-spinner diameter="36" aria-label="Loading payout profile"></mat-spinner>
+} @else {
+  <section class="agency-payout-profile__selection">
+    <h2>Payout destination</h2>
+    @if (profile(); as current) {
+      <p class="agency-payout-profile__current" role="status">
+        Current: {{ current.countryCode }} / {{ current.currency }} ({{ current.provider }})
+      </p>
+    }
+
+    @if (destinations().length > 0) {
+      <mat-form-field appearance="outline">
+        <mat-label>Destination</mat-label>
+        <mat-select [value]="selectedDestinationID()" (selectionChange)="choose($event)">
+          @for (destination of destinations(); track destination.userBankInfoId) {
+            <mat-option [value]="destination.userBankInfoId">
+              {{ destination.countryCode }} / {{ destination.currency }} ({{ destination.provider }})
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button matButton="filled" type="button" [disabled]="!selectedDestinationID() || saving()" (click)="save()">
+        Use for agency payouts
+      </button>
+    } @else if (!onboarding()) {
+      <p>No fully onboarded payout destination is available for this business.</p>
+    }
+
+    <button matButton type="button" [disabled]="saving()" (click)="onboarding.set(!onboarding())">
+      {{ onboarding() ? 'Hide account setup' : 'Set up a payout account' }}
+    </button>
+
+    @if (pending()) {
+      <p role="status">The provider is waiting for account confirmation.</p>
+    }
+    @if (errorMessage()) {
+      <p class="agency-payout-profile__error" role="alert">{{ errorMessage() }}</p>
+    }
+  </section>
+
+  @if (onboarding()) {
+    <sail-payout-provider-onboarding
+      [showBack]="false"
+      (linked)="onboardingComplete()"
+      (pending)="pending.set(true)"
+      (skipped)="onboarding.set(false)" />
+  }
+}

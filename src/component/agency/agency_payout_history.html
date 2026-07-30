@@ -1,0 +1,19 @@
+@if (payouts().length > 0) {
+  <div class="agency-payout-history__table-wrap">
+    <table class="agency-payout-history__table">
+      <thead><tr><th>Cycle</th><th>Amount</th><th>Status</th><th>Paid</th></tr></thead>
+      <tbody>
+        @for (payout of payouts(); track payout.id) {
+          <tr>
+            <td>{{ payout.cutoffAt | date: 'yyyy-MM':'UTC' }}</td>
+            <td>{{ format(payout.amountMinor, payout.currency) }}</td>
+            <td><sail-status-chip domain="agency_payout_status" [value]="payout.status" /></td>
+            <td>{{ payout.paidAt ? (payout.paidAt | date: 'mediumDate':'UTC') : '' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else if (emptyMessage()) {
+  <p class="agency-payout-history__empty">{{ emptyMessage() }}</p>
+}

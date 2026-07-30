@@ -1,0 +1,19 @@
+@if (entries().length > 0) {
+  <div class="commission-ledger__table-wrap">
+    <table class="commission-ledger__table">
+      <thead><tr><th>Client</th><th>Service period</th><th>Amount</th><th>Status</th></tr></thead>
+      <tbody>
+        @for (entry of entries(); track entry.id) {
+          <tr [class.commission-ledger__reversal]="entry.entryType === 'R'">
+            <td>{{ entry.clientName }}</td>
+            <td>{{ entry.periodStart | date: 'yyyy-MM-dd':'UTC' }} – {{ entry.periodEnd | date: 'yyyy-MM-dd':'UTC' }}</td>
+            <td>{{ format(entry.amountMinor, entry.currency) }}</td>
+            <td><sail-status-chip domain="agency_commission_status" [value]="entry.status" /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else if (emptyMessage()) {
+  <p class="commission-ledger__empty">{{ emptyMessage() }}</p>
+}

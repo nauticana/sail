@@ -1,8 +1,8 @@
 {
   "package": "@nauticana/sail",
   "from": "1.1.9",
-  "to": "1.1.10",
-  "summary": "Full correctness/architecture release: signal migration of the base classes, reactive appdata cache, error-path overhaul with a typed error, session-lifecycle fixes, timezone-correct timestamps, working 2FA QR. Consumers MUST complete every 'breaking' action and review every 'behavioral' entry before pushing to test or prod.",
+  "to": "1.1.14",
+  "summary": "Cumulative migration from 1.1.9 through 1.1.14. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action.",
   "changes": [
     {
       "id": "base-state-signals",
@@ -187,6 +187,54 @@
       "before": "RestURL.payout*URL and paymentMethodSetDefaultURL default to '/api/v1/...'.",
       "after": "Unchanged — payout routes are not in the Apis dictionary, so the version cannot be derived at runtime.",
       "action": "Apps mounting keel's payout handler under a different prefix must override these via configureRestUrls."
+    },
+    {
+      "id": "intervening-additive-releases",
+      "type": "additive",
+      "area": "release-history",
+      "before": "The cumulative guide did not explicitly account for versions 1.1.11 through 1.1.13.",
+      "after": "Those releases added payout API methods, password-policy validation, and consent improvements without a downstream API migration.",
+      "action": "None; the relevant behavior is included cumulatively in this guide."
+    },
+    {
+      "id": "agency-enroll-method",
+      "type": "breaking",
+      "area": "agency/service",
+      "before": "Downstream copies could call AgencyService.enrollReferral().",
+      "after": "The shared service exposes the commercial-model-neutral AgencyService.enroll() method only.",
+      "action": "Rename enrollReferral() calls to enroll(); no compatibility alias is shipped."
+    },
+    {
+      "id": "agency-status-domains",
+      "type": "breaking",
+      "area": "agency/status",
+      "before": "Downstream agency screens could use app-local status domain ids such as billing_model or commission_status.",
+      "after": "StatusChipComponent uses keel basis domains agency_client_status, agency_billing_model, agency_commission_status, and agency_payout_status.",
+      "action": "Load keel v1.2.40 basis_seed.yml and remove divergent app-local ids. Values are client S/I/V/X; billing R/W; commission H/P/R/D/O; payout C/P/D/F/R/V/M."
+    },
+    {
+      "id": "agency-ui",
+      "type": "additive",
+      "area": "agency",
+      "before": "Each app maintained its own agency REST client, invitation page, client book, commission tables, payout history, and status labels.",
+      "after": "AgencyService and seven composable agency components are exported. Statuses come from keel constant catalogues, extra client columns are injected, and routes/brand/global CSS stay app-owned.",
+      "action": "Upgrade the backend to keel v1.2.41 (the invitation-accept flow branches on its RFC 7807 code 'agency_no_partner'), replace copied UI incrementally, and mount app-owned /agency and /agency/accept routes. Override RestURL.agency*URL if the backend is not mounted at /api/v1. Load keel basis_seed.yml (shipped since v1.2.40) so the canonical agency status domains are present."
+    },
+    {
+      "id": "agency-simplified-rate-model",
+      "type": "breaking",
+      "area": "agency/models",
+      "before": "Downstream UIs could expose partner_client, partner_delegation, agency_commission_customer, agency_wholesale_enrollment, or commission-rule/tier/fixed-rate concepts.",
+      "after": "The contract uses agency_client_invitation, agency_client_delegation, agency_client_rate, and agency_profile.wholesaleAllowed. Rates are frozen percentage basis points; there is no rule-schedule DTO or UI.",
+      "action": "Rename imports and app-specific labels, remove rule/tier/fixed-rate screens, and treat wholesaleAllowed as permission for a per-client switch—not as the agency's global billing model."
+    },
+    {
+      "id": "agency-money-and-payout-profile",
+      "type": "behavioral",
+      "area": "agency/payout",
+      "before": "Agency totals were commonly divided by 100 and summed without regard to currency; payout destinations were admin-only CRUD.",
+      "after": "AgencyEarnings contains one balance per currency, formatMinorCurrency is exponent-aware, and AgencyPayoutProfileComponent selects only the authenticated user's fully onboarded destination while composing provider onboarding.",
+      "action": "Do not sum balances across currencies. Wire sealed tax-id storage in keel before enabling bank replacement, and style the new agency-* / commission-ledger classes in the app's global stylesheet."
     }
   ]
 }

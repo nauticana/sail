@@ -1,0 +1,33 @@
+@if (loading()) {
+  <mat-spinner diameter="36" aria-label="Loading invitation"></mat-spinner>
+} @else if (complete()) {
+  <div class="agency-accept__complete" role="status">Agency management has been accepted.</div>
+} @else if (invite(); as invitation) {
+  <section class="agency-accept__invitation">
+    <h1>Agency management invitation</h1>
+    <p>
+      <strong>{{ invitation.agencyName }}</strong> invited
+      <strong>{{ invitation.clientName }}</strong>. Accepting grants management access;
+      ownership remains with the client and the delegation can be revoked.
+    </p>
+    @if (invitation.expired) {
+      <p class="agency-accept__error" role="alert">This invitation has expired.</p>
+    }
+    @if (needsBusiness()) {
+      <p role="status">A business must be set up before management can be delegated.</p>
+      <button matButton="filled" type="button" (click)="requestBusinessSetup()">{{ businessSetupLabel() }}</button>
+    } @else if (authenticated()) {
+      <button matButton="filled" type="button" [disabled]="accepting() || invitation.expired" (click)="accept()">
+        Accept management
+      </button>
+    } @else {
+      <button matButton="filled" type="button" (click)="loginRequested.emit()">{{ loginLabel() }}</button>
+      <button matButton type="button" (click)="registrationRequested.emit()">{{ registerLabel() }}</button>
+    }
+    @if (errorMessage()) {
+      <p class="agency-accept__error" role="alert">{{ errorMessage() }}</p>
+    }
+  </section>
+} @else {
+  <p class="agency-accept__error" role="alert">{{ errorMessage() }}</p>
+}

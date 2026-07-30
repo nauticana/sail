@@ -1,0 +1,97 @@
+@if (loading()) {
+  <mat-spinner diameter="36" aria-label="Loading agency clients"></mat-spinner>
+} @else if (needsEnrollment()) {
+  <section class="agency-clients__enrollment">
+    <h2>{{ enrollmentTitle() }}</h2>
+    <p>{{ enrollmentDescription() }}</p>
+    <button matButton="filled" type="button" (click)="enroll()">{{ enrollmentActionLabel() }}</button>
+  </section>
+} @else {
+  @if (errorMessage()) {
+    <p class="agency-clients__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <sail-agency-status-banner [profile]="profile()" />
+
+  <form class="agency-clients__add" [formGroup]="addForm" (ngSubmit)="addClient()">
+    <mat-form-field appearance="outline">
+      <mat-label>Client name</mat-label>
+      <input matInput formControlName="name" required />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Email</mat-label>
+      <input matInput formControlName="email" type="email" />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Website</mat-label>
+      <input matInput formControlName="website" />
+    </mat-form-field>
+    <button matButton="filled" type="submit" [disabled]="addForm.invalid || !canManage()">Add client</button>
+  </form>
+
+  <p class="agency-clients__count">Active clients: {{ activeClients() }}</p>
+
+  @if (clients().length === 0) {
+    <p class="agency-clients__empty">No clients have been staged.</p>
+  } @else {
+    <div class="agency-clients__table-wrap">
+      <table class="agency-clients__table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Website</th>
+            @for (column of extraColumns(); track column.id) {
+              <th>{{ column.caption }}</th>
+            }
+            <th>Status</th>
+            @if (showBillingModelControls()) { <th>Billing model</th> }
+            <th><span class="agency-clients__visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (client of clients(); track client.id) {
+            <tr>
+              <td>{{ client.name }}</td>
+              <td>{{ client.email }}</td>
+              <td>{{ client.website }}</td>
+              @for (column of extraColumns(); track column.id) {
+                <td>{{ column.value(client) }}</td>
+              }
+              <td>
+                <sail-status-chip domain="agency_client_status" [value]="client.status" />
+                @if (client.expired) { <span class="agency-clients__expired">Expired</span> }
+              </td>
+              @if (showBillingModelControls()) {
+                <td>
+                  @if (client.clientPartnerId) {
+                    <sail-status-chip domain="agency_billing_model" [value]="client.billingModel ?? ''" />
+                    <button matButton type="button" [disabled]="!canManage() || client.billingModel === 'R'"
+                            (click)="setBillingModel(client, 'R')">Referral</button>
+                    @if (profile()?.wholesaleAllowed) {
+                      <button matButton type="button" [disabled]="!canManage() || client.billingModel === 'W'"
+                              (click)="setBillingModel(client, 'W')">Wholesale</button>
+                    }
+                  }
+                </td>
+              }
+              <td>
+                @if (client.status === 'S' || client.status === 'I') {
+                  <button matButton type="button" [disabled]="!canManage()" (click)="invite(client)">
+                    {{ client.status === 'S' ? 'Invite' : 'Re-invite' }}
+                  </button>
+                  <button matButton type="button" [disabled]="!canManage()" (click)="cancel(client)">Cancel</button>
+                }
+                @if (inviteLinks()[client.id]; as link) {
+                  <button matIconButton type="button" aria-label="Copy invitation link" (click)="copy(link)">
+                    <mat-icon>content_copy</mat-icon>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

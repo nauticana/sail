@@ -55,6 +55,20 @@ export const RestURL = {
   payoutStatusURL:       '/api/v1/payout/status',
   payoutBankReplaceURL:  '/api/v1/payout/bank/replace',
   payoutBeneficiaryURL:  '/api/v1/payout/beneficiary/register',
+  // Agency — keel/agency endpoints. The authenticated paths follow the same
+  // conventional /api/v1 mount as payout; inviteInfo is intentionally public.
+  agencyEnrollURL:           '/api/v1/agency/enroll',
+  agencyProfileURL:          '/api/v1/agency/profile',
+  agencyClientsURL:          '/api/v1/agency/clients',
+  agencyInviteClientURL:     '/api/v1/agency/clients/invite',
+  agencyCancelClientURL:     '/api/v1/agency/clients/cancel',
+  agencyBillingModelURL:     '/api/v1/agency/billing-model',
+  agencyEarningsURL:         '/api/v1/agency/earnings',
+  agencyPayoutProfileURL:    '/api/v1/agency/payout-profile',
+  agencyInviteInfoURL:       '/public/agency/invite',
+  agencyAcceptInviteURL:     '/api/v1/agency/invite/accept',
+  agencyDelegationURL:       '/api/v1/agency/delegation',
+  agencyRevokeDelegationURL: '/api/v1/agency/delegation/revoke',
   // User payment methods — list/delete go through keel's generic REST
   // CRUD against the UserSpecific basis table; set-default is a
   // TableAction (basis table_action row), mounted at the conventional

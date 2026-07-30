@@ -1,0 +1,9 @@
+@if (pending()) {
+  <div class="agency-status-banner__notice" data-agency-status="pending" role="status">
+    {{ pendingMessage() }}
+  </div>
+} @else if (suspended()) {
+  <div class="agency-status-banner__notice" data-agency-status="suspended" role="alert">
+    {{ suspendedMessage() }}
+  </div>
+}
