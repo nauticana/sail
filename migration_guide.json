@@ -1,8 +1,8 @@
 {
   "package": "@nauticana/sail",
   "from": "1.1.9",
-  "to": "1.1.14",
-  "summary": "Cumulative migration from 1.1.9 through 1.1.14. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action.",
+  "to": "1.1.15",
+  "summary": "Cumulative migration from 1.1.9 through 1.1.15. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action. 1.1.15 makes errorDetail distinguish transport and non-API failures from backend rejections and adds isTransportFailure.",
   "changes": [
     {
       "id": "base-state-signals",
@@ -235,6 +235,14 @@
       "before": "Agency totals were commonly divided by 100 and summed without regard to currency; payout destinations were admin-only CRUD.",
       "after": "AgencyEarnings contains one balance per currency, formatMinorCurrency is exponent-aware, and AgencyPayoutProfileComponent selects only the authenticated user's fully onboarded destination while composing provider onboarding.",
       "action": "Do not sum balances across currencies. Wire sealed tax-id storage in keel before enabling bank replacement, and style the new agency-* / commission-ledger classes in the app's global stylesheet."
+    },
+    {
+      "id": "error-detail-transport",
+      "type": "behavioral",
+      "area": "util/errors",
+      "before": "errorDetail(err, fallback) returned the caller's fallback whenever the error carried no RFC 7807 detail. A network failure, a CORS-blocked response and a proxy error page were therefore indistinguishable from a backend rejection, and the fallback string (\"Could not save\", \"Registration failed\") misattributed the fault to the API.",
+      "after": "errorDetail reports the two non-API cases distinctly: a transport failure (Angular status 0 — network down, CORS blocked, request aborted) returns \"Cannot reach the server — the network or a CORS rule blocked the response.\", and an unreadable body carrying a real status returns \"<fallback> (HTTP <status>)\". Bodies that do carry detail/title/message are unaffected. The new isTransportFailure(err) predicate exposes the status-0 case so callers can branch on it instead of matching the message text.",
+      "action": "None required — every call site keeps compiling and messages only improve. Apps that wrapped errorDetail locally to add this discrimination should delete the wrapper and call errorDetail directly. Any test asserting the exact fallback string for a status-0 or non-JSON-body case must be updated."
     }
   ]
 }
