@@ -330,6 +330,13 @@ export interface PaginatedList<T> {
 	total:  number;
 }
 
+/** Typed controls for keel REST list pagination and ordering. */
+export interface PageRequest {
+	limit?:   number;
+	offset?:  number;
+	orderBy?: string;
+}
+
 export interface Subscription {
 	planId:      string;
 	status:      string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via SUBSCRIPTION_STATUS dict

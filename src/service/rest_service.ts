@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpParams } from "@angular/common/http";
 import { inject, Injectable } from "@angular/core";
 import { catchError, map, Observable, switchMap, take, throwError } from "rxjs";
-import { ApplicationData, PaginatedList } from "../model/appdata";
+import { ApplicationData, PageRequest, PaginatedList } from "../model/appdata";
 import { RestURL } from "./rest_url";
 import { BaseAuthService } from "./auth.service";
 import { BaseRestService } from "./base_rest.service";
@@ -83,15 +83,19 @@ export class BackendService extends BaseRestService {
         return this.http.request<T>(method, this.apiUrl(path), { body }).pipe(catchError((err) => this.handleError(err)));
     }
 
-    /** Build query params from a flat string-string map; skips undefined/null values. */
-    private toParams(filter?: {[key: string]: string}): HttpParams {
+    /** Build query params from filters plus keel's underscore-prefixed paging aliases. */
+    private toParams(filter?: {[key: string]: string}, page?: PageRequest): HttpParams {
         let params = new HttpParams();
-        if (!filter) return params;
-        for (const key in filter) {
-            if (Object.prototype.hasOwnProperty.call(filter, key) && filter[key] != null) {
-                params = params.set(key, filter[key]);
+        if (filter) {
+            for (const key in filter) {
+                if (Object.prototype.hasOwnProperty.call(filter, key) && filter[key] != null) {
+                    params = params.set(key, filter[key]);
+                }
             }
         }
+        if (page?.limit != null) params = params.set('_limit', page.limit);
+        if (page?.offset != null) params = params.set('_offset', page.offset);
+        if (page?.orderBy) params = params.set('_order', page.orderBy);
         return params;
     }
 
@@ -100,16 +104,16 @@ export class BackendService extends BaseRestService {
         return this.auth.getAppData().pipe(take(1));
     }
 
-    /** Unwraps `{items, limit, offset, total}` to the items array. Pass `_limit` / `_offset` in `filter` to control paging (defaults: 100 / 0). */
-    list<T>(apiName: string, filter?: {[key: string]: string}) : Observable<T[]> {
-        return this.listPaginated<T>(apiName, filter).pipe(map((page) => page.items));
+    /** Unwraps `{items, limit, offset, total}` to the items array. */
+    list<T>(apiName: string, filter?: {[key: string]: string}, page?: PageRequest) : Observable<T[]> {
+        return this.listPaginated<T>(apiName, filter, page).pipe(map((result) => result.items));
     }
 
-    listPaginated<T>(apiName: string, filter?: {[key: string]: string}) : Observable<PaginatedList<T>> {
+    listPaginated<T>(apiName: string, filter?: {[key: string]: string}, page?: PageRequest) : Observable<PaginatedList<T>> {
         return this.appDataReady().pipe(
             switchMap(() => this.http.get<PaginatedList<T>>(
                 this.crudUrl(apiName, 'list'),
-                {params: this.toParams(filter)},
+                {params: this.toParams(filter, page)},
             )),
             catchError((err) => this.handleError(err)),
         );

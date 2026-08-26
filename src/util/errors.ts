@@ -39,9 +39,15 @@ export function isTransportFailure(err: unknown): boolean {
  * `detail` did not come from the API: either nothing reached it (status 0) or
  * something in front of it replied with a body we cannot read. Both used to
  * collapse into the caller's fallback, which reads as a backend rejection and
- * hides the real fault; they are now reported distinctly.
+ * hides the real fault; they are now reported distinctly. When `statuses` is
+ * supplied, HTTP statuses outside that allowlist return `fallback` without
+ * exposing their response text.
  */
-export function errorDetail(err: unknown, fallback: string): string {
+export function errorDetail(err: unknown, fallback: string, statuses?: readonly number[]): string {
+  const status = statusOf(err);
+  if (statuses && status !== undefined && !statuses.includes(status)) {
+    return fallback;
+  }
   if (isTransportFailure(err)) {
     return 'Cannot reach the server — the network or a CORS rule blocked the response.';
   }
@@ -53,7 +59,6 @@ export function errorDetail(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) {
     return err.message;
   }
-  const status = statusOf(err);
   return status ? `${fallback} (HTTP ${status})` : fallback;
 }
 

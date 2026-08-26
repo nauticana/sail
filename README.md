@@ -240,17 +240,41 @@ keel REST list responses are paginated:
 { "items": [...], "limit": 100, "offset": 0, "total": 12345 }
 ```
 
-`BackendService.list<T>()` continues to return `Observable<T[]>` — sail unwraps `items` for you. To access the metadata, use `listPaginated<T>()`:
+`BackendService.list<T>()` continues to return `Observable<T[]>` — sail unwraps `items` for you. Both list methods accept a typed `PageRequest` after the filter map. To access the metadata, use `listPaginated<T>()`:
 
 ```typescript
-this.backend.listPaginated<MyRow>('orders', { _limit: '50', _offset: '0' })
+this.backend.listPaginated<MyRow>('orders', { Status: 'open' }, {
+    limit: 50,
+    offset: 0,
+    orderBy: 'created_at DESC',
+})
     .subscribe((page) => {
       this.rows.set(page.items);
       this.total.set(page.total);   // total rows matching the filter
     });
 ```
 
-Default page size is 100, capped at 1000 server-side. Pass `_limit` / `_offset` in the filter map to control paging.
+Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset`, and `orderBy` to keel's `_limit`, `_offset`, and `_order` query controls. Existing callers that put those string controls in the filter map remain compatible; explicit `PageRequest` values take precedence.
+
+## Backend-driven constant captions
+
+`LabelService` loads one keel `constant_value` domain from the backend-provided `ApplicationData.ConstantCache` and caches its value-to-caption map. The domain is the backend `constant_id` (for example `ride_type`), not a locale: keel's constant catalogue does not contain a language column. It does not call generic `constant_value` CRUD, which is normally restricted to administrative roles.
+
+```typescript
+this.labels.loadLabels('ride_type').subscribe(() => {
+  this.rideTypeCaption.set(this.labels.getLabel('ride_type', ride.type));
+});
+```
+
+Concurrent loads share one application-data subscription, completed domains stay cached, and application-data failures can be retried. Missing values fall back to the raw key.
+
+## Status-filtered API errors
+
+Pass an optional status allowlist when backend detail is safe to show only for selected responses. Other HTTP statuses return the caller's generic fallback:
+
+```typescript
+errorDetail(error, 'Could not save.', [400, 409]);
+```
 
 ## Configuration reference
 
@@ -1163,10 +1187,10 @@ Wherever you stored the OTP `sessionId`, swap it for `otpToken: string`.
 
 `BackendService.list<T>()` returns `Observable<T[]>` (unchanged). It now expects keel to return paginated `{items, limit, offset, total}` and has dropped the legacy "bare array" fallback. If you have an in-house wrapper that calls keel `list` endpoints directly, expect the wrapper shape.
 
-For pagination metadata, use `listPaginated<T>()`:
+For pagination metadata, use `listPaginated<T>()` with a typed `PageRequest`:
 
 ```typescript
-backend.listPaginated<MyRow>('orders', { _limit: '50', _offset: '0' })
+backend.listPaginated<MyRow>('orders', undefined, { limit: 50, offset: 0 })
   .subscribe(page => {
     this.rows.set(page.items);
     this.total.set(page.total);

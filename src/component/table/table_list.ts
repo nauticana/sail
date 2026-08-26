@@ -103,12 +103,11 @@ export class TableList extends AbstractEditableView implements OnInit {
     }
 
     private loadPage(): Observable<unknown> {
-        const filter = {
-            ...this.searchTerms(),
-            _limit: String(this.pageSize()),
-            _offset: String(this.pageIndex() * this.pageSize()),
-        };
-        return this.backendService.listPaginated<Record<string, unknown>>(this.apiName(), filter).pipe(
+        return this.backendService.listPaginated<Record<string, unknown>>(
+            this.apiName(),
+            this.searchTerms(),
+            { limit: this.pageSize(), offset: this.pageIndex() * this.pageSize() },
+        ).pipe(
             tap((page) => {
                 this.records.set(page.items ?? []);
                 this.total.set(page.total ?? page.items?.length ?? 0);

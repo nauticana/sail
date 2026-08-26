@@ -1,9 +1,17 @@
 {
   "package": "@nauticana/sail",
   "from": "1.1.9",
-  "to": "1.1.15",
-  "summary": "Cumulative migration from 1.1.9 through 1.1.15. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action. 1.1.15 makes errorDetail distinguish transport and non-API failures from backend rejections and adds isTransportFailure.",
+  "to": "1.1.17",
+  "summary": "Cumulative migration from 1.1.9 through 1.1.16. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action. 1.1.15 makes errorDetail distinguish transport and non-API failures from backend rejections and adds isTransportFailure. 1.1.16 adds constant-domain label loading, status-filtered error detail, and typed list paging; Sail templates use Material M3 button selectors throughout.",
   "changes": [
+    {
+      "id": "horizontal-ui-service-gaps",
+      "type": "additive",
+      "area": "services/templates",
+      "before": "LabelService.loadLabels was a stub, errorDetail always surfaced readable backend detail, list paging controls required string query keys in the filter map, and consumers could not rely on every Sail template using current Material button selectors.",
+      "after": "LabelService loads and caches constant_value captions by constant_id from ApplicationData.ConstantCache; errorDetail accepts an optional HTTP-status allowlist; BackendService.list/listPaginated accept a typed PageRequest; and all Sail templates use Material M3 matButton/matIconButton selectors.",
+      "action": "Subscribe to loadLabels(constantId) before reading a domain; optionally pass statuses such as [400, 409] to errorDetail; pass { limit, offset, orderBy } as the third list argument. No template action is required unless an app copied Sail's older templates. constant_value is domain-based, not language-specific."
+    },
     {
       "id": "base-state-signals",
       "type": "breaking",
