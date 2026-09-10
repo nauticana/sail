@@ -72,6 +72,7 @@ export * from './service/oauth_connection.service';
 export * from './service/user_payment_method.service';
 export * from './service/script_loader';
 export * from './service/auth.interceptor';
+export * from './service/realtime.service';
 export * from './service/api-response.interceptor';
 export * from './service/rest_service';
 export * from './service/rest_url';

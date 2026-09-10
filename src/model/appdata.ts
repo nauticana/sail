@@ -140,8 +140,18 @@ export interface RestReport {
 
 // 2FA / Trusted device types
 
+/** POST /public/token/refresh response; every login response carries the same pair. */
+export interface TokenPair {
+  token:        string;
+  refreshToken: string;
+  userId?:      number;
+  partnerId?:   number;
+}
+
 export interface LoginResponse2FA {
   token: string;
+  /** keel v1.2.57+: rotated at /public/token/refresh when the JWT expires. */
+  refreshToken?: string;
   twoFactorRequired: boolean;
   loginToken?: string;
   userId?: number;
@@ -168,6 +178,7 @@ export interface TwoFactorVerifyRequest {
 export interface TwoFactorVerifyResponse {
   valid: boolean;
   token?: string;
+  refreshToken?: string;
 }
 
 export interface TrustedDevice {
@@ -284,6 +295,14 @@ export interface CheckoutRequest {
 	// reading back metadata in webhook handlers, expect the stringified form
 	// (e.g. `partner_id` arrives as `"42"`, not `42`).
 	metadata?:   { [key: string]: string };
+}
+
+/** POST /api/billing/setup-intent — open the provider's payment sheet with these. */
+export interface SetupIntentResponse {
+  setupIntentId: string;
+  clientSecret:  string;
+  customerId:    string;
+  ephemeralKey:  string;
 }
 
 export interface CheckoutResponse {

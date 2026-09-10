@@ -13,8 +13,8 @@ import { UserPaymentMethod } from '../../model/appdata';
  * + delete actions. Inherits loading/error state from BaseAsync.
  *
  * Customise the heading and "add" CTA via inputs; emit (addClicked) so
- * the consumer routes to its own SetupIntent flow (sail does not bundle
- * a SetupIntent UI today — providers vary too much).
+ * the consumer routes to its own SetupIntent flow: BillingService.createSetupIntent()
+ * returns the client secret; the provider payment sheet stays app-owned.
  *
  * Ships no CSS — the consuming app styles the classes globally.
  *

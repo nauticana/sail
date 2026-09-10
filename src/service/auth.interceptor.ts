@@ -1,9 +1,13 @@
-import { HttpErrorResponse, HttpEventType, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpEvent, HttpEventType, HttpHandlerFn, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject, Injector } from '@angular/core';
-import { catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, switchMap, tap, throwError } from 'rxjs';
 import { isKeelApiUrl } from './rest_url';
-import { BaseAuthService } from './auth.service';
+import { BaseAuthService, RefreshSupersededError } from './auth.service';
 
+// A 401 on an authed call first tries one refresh-token rotation (keel
+// /public/token/refresh) and replays the request with the new JWT; only when
+// no refresh token is stored or keel rejects it does the 401 count below.
+//
 // Auth-loop breaker: repeated 401s on token-bearing API calls (a stale session) can
 // drive the app to hammer the API/CDN. After AUTH_FAIL_THRESHOLD within
 // AUTH_FAIL_WINDOW_MS the circuit opens for AUTH_CIRCUIT_COOLDOWN_MS — authed
@@ -25,7 +29,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // → interceptors) and so an open circuit clears the dead session even when it
   // was opened by a previous page load.
   const injector = inject(Injector);
-  const expireSession = () => injector.get(BaseAuthService, null, { optional: true })?.sessionExpired();
+  const auth = () => injector.get(BaseAuthService, null, { optional: true });
+  const expireSession = () => auth()?.sessionExpired();
 
   const token = localStorage.getItem('jwt');
   const authedApi = !!token && isKeelApiUrl(req.url);
@@ -46,6 +51,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     }));
   }
 
+  const countFailure = (err: HttpErrorResponse) => {
+    if (recordAuthFailure()) expireSession();
+    return throwError(() => err);
+  };
+
   return next(req).pipe(
     tap((event) => {
       if (authedApi && event.type === HttpEventType.Response) {
@@ -53,13 +63,32 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
     }),
     catchError((err: HttpErrorResponse) => {
-      if (authedApi && err.status === 401 && recordAuthFailure()) {
-        expireSession();
-      }
-      return throwError(() => err);
+      if (!authedApi || err.status !== 401) return throwError(() => err);
+      const service = auth();
+      if (!service || !localStorage.getItem('refreshToken')) return countFailure(err);
+      return service.refreshSession().pipe(
+        catchError((refreshErr: unknown) => {
+          if (refreshErr instanceof RefreshSupersededError) {
+            return throwError(() => err);   // another session took over; it is not ours to expire
+          }
+          if (refreshErr instanceof HttpErrorResponse && refreshErr.status !== 401) {
+            return countFailure(err);       // transient refresh failure: keep the session, count the 401
+          }
+          expireSession();                  // keel rejected the refresh token: the session is dead
+          return throwError(() => err);
+        }),
+        switchMap((token) => replay(req, next, token)),   // replay errors surface as-is
+      );
     }),
   );
 };
+
+/** Re-send the request once with the rotated JWT; a second 401 is a real denial. */
+function replay(req: HttpRequest<unknown>, next: HttpHandlerFn, token: string): Observable<HttpEvent<unknown>> {
+  return next(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })).pipe(
+    tap((event) => { if (event.type === HttpEventType.Response) clearAuthFailures(); }),
+  );
+}
 
 function authCircuitOpen(): boolean {
   return Date.now() < Number(sessionStorage.getItem(OPEN_KEY) ?? 0);

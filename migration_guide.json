@@ -1,256 +1,86 @@
 {
-  "package": "@nauticana/sail",
-  "from": "1.1.9",
-  "to": "1.1.17",
-  "summary": "Cumulative migration from 1.1.9 through 1.1.16. In addition to the signal/error/session changes, 1.1.14 adds the composable agency client, invitation, earnings, commission, payout-history, and payout-profile UI over keel 1.2.41. Versions 1.1.11 through 1.1.13 were additive and require no separate downstream migration action. 1.1.15 makes errorDetail distinguish transport and non-API failures from backend rejections and adds isTransportFailure. 1.1.16 adds constant-domain label loading, status-filtered error detail, and typed list paging; Sail templates use Material M3 button selectors throughout.",
-  "changes": [
-    {
-      "id": "horizontal-ui-service-gaps",
-      "type": "additive",
-      "area": "services/templates",
-      "before": "LabelService.loadLabels was a stub, errorDetail always surfaced readable backend detail, list paging controls required string query keys in the filter map, and consumers could not rely on every Sail template using current Material button selectors.",
-      "after": "LabelService loads and caches constant_value captions by constant_id from ApplicationData.ConstantCache; errorDetail accepts an optional HTTP-status allowlist; BackendService.list/listPaginated accept a typed PageRequest; and all Sail templates use Material M3 matButton/matIconButton selectors.",
-      "action": "Subscribe to loadLabels(constantId) before reading a domain; optionally pass statuses such as [400, 409] to errorDetail; pass { limit, offset, orderBy } as the third list argument. No template action is required unless an app copied Sail's older templates. constant_value is domain-based, not language-specific."
-    },
-    {
-      "id": "base-state-signals",
-      "type": "breaking",
-      "area": "tables/base-classes",
-      "before": "BaseView/BaseForm/table components exposed plain mutable fields: records, displayedColumns, searchTerms, editableRecord, isNew, title, isReadOnlyMode, tabFields, searchColumns, dialogComponent.",
-      "after": "All of these are signals (or computed). Read with call syntax — records(), editableRecord(), isNew() — and write with .set()/.update(). Manual ChangeDetectorRef.markForCheck() calls are unnecessary and removed.",
-      "action": "In subclasses, replace field reads/writes with signal calls; delete markForCheck() calls tied to these fields."
-    },
-    {
-      "id": "baseview-split",
-      "type": "breaking",
-      "area": "tables/base-classes",
-      "before": "BaseView carried abstract handleDelete/handleUpdate plus the dialog opener; read-only views had to stub them.",
-      "after": "BaseView is the read-only listing surface (no abstract members); editing views extend the new AbstractEditableView which owns dialogComponent, addRecord/editRecord/deleteRecord and the abstract handlers.",
-      "action": "Subclasses that implement handleDelete/handleUpdate now extend AbstractEditableView instead of BaseView. Read-only subclasses extend BaseView and delete their no-op stubs."
-    },
-    {
-      "id": "isreadonlybound-removed",
-      "type": "breaking",
-      "area": "tables/forms",
-      "before": "Templates bound [isReadOnly]=\"isReadOnlyBound\" and handlers re-assigned this.isReadOnlyBound = this.isReadOnly.bind(this) to force OnPush refreshes.",
-      "after": "isReadOnlyBound is gone. Bind [isReadOnly]=\"isReadOnlyFn\" — a stable arrow property; signal reads inside isReadOnly() overrides are tracked by the invoking template, so mode flips re-render automatically.",
-      "action": "Replace all isReadOnlyBound bindings with isReadOnlyFn and delete rebinding assignments."
-    },
-    {
-      "id": "recordform-immutable",
-      "type": "breaking",
-      "area": "forms",
-      "before": "RecordForm mutated the bound [record] object in place.",
-      "after": "RecordForm keeps an internal working copy and emits the full updated object via (recordChange); the input object is never mutated.",
-      "action": "Add (recordChange)=\"yourRecordSignal.set($event)\" (or equivalent) next to every [record] binding whose edits you consume."
-    },
-    {
-      "id": "login-returns-observable",
-      "type": "breaking",
-      "area": "auth",
-      "before": "BaseAuthService.login()/loginWithGoogle() subscribed internally and returned void; errors went to console only.",
-      "after": "Both return Observable<LoginResponse2FA>. Nothing happens until you subscribe; the error channel carries login failures for the UI.",
-      "action": "Audit every call site: append .subscribe({ next, error }) and surface errors. A call without subscribe silently does nothing."
-    },
-    {
-      "id": "backend-error-type",
-      "type": "breaking",
-      "area": "services",
-      "before": "BackendService.handleError rethrew the string 'error occurred, see console log and try again'.",
-      "after": "CRUD errors are SailApiError (extends Error) with .status, .problem (keel RFC 7807 ProblemDetail) and .response (original HttpErrorResponse). handleError(error: unknown) is bound-safe for overrides. The new errorDetail(err, fallback) util maps SailApiError / HttpErrorResponse / Error to a display message.",
-      "action": "Error handlers that matched the old string must switch to SailApiError or route messages through errorDetail()."
-    },
-    {
-      "id": "decorator-rename",
-      "type": "breaking",
-      "area": "models",
-      "before": "sail exported IsString/IsNumeric decorators shadowing class-validator names.",
-      "after": "Renamed IsSailString/IsSailNumeric (constraints IsSailStringConstraint/IsSailNumericConstraint). IsSailNumeric also rejects exponential notation.",
-      "action": "Rename imports/usages in model files."
-    },
-    {
-      "id": "authsummary-removed",
-      "type": "breaking",
-      "area": "models",
-      "before": "The AuthSummary interface described the permission index's internal escaped-pattern shape.",
-      "after": "Removed — the permission index is an internal detail (compiled RegExp) and no public API produces AuthSummary values.",
-      "action": "Delete imports of AuthSummary; no replacement is needed."
-    },
-    {
-      "id": "sessionexpired-public",
-      "type": "breaking",
-      "area": "auth",
-      "before": "No public way to react to a dead session; the interceptor only counted 401s.",
-      "after": "BaseAuthService.sessionExpired() is public — the auth interceptor calls it (via lazy injection) when the 401 circuit opens or is found already open, clearing the session and routing to login?sessionExpired=true.",
-      "action": "Subclasses may override sessionExpired() for custom handling; call super to keep the clear+redirect."
-    },
-    {
-      "id": "bank-info-provider-required",
-      "type": "breaking",
-      "area": "payout",
-      "before": "<sail-payout-bank-info-form> defaulted provider to 'AW' and countryCode to 'CA'.",
-      "after": "[provider] is a required input; the country default is the first entry of [countryProfiles]. No hardcoded provider/country can leak into user_bank_info.",
-      "action": "Pass [provider] explicitly, matching your keel --payout_provider."
-    },
-    {
-      "id": "labelservice-camelcase",
-      "type": "breaking",
-      "area": "services",
-      "before": "LabelService.GetLabel/LoadLabels (PascalCase); GetLabel returned '' for missing keys.",
-      "after": "getLabel/loadLabels; getLabel falls back to the key so missing translations are visible.",
-      "action": "Rename call sites."
-    },
-    {
-      "id": "payout-payment-styles-removed",
-      "type": "breaking",
-      "area": "payout/payment",
-      "before": "provider_onboarding, bank_info_form and user_payment_methods shipped styles: blocks (user_payment_methods leaked CSS globally via ViewEncapsulation.None).",
-      "after": "No CSS ships, matching the rest of the library. Class names are unchanged. provider_onboarding and user_payment_methods now expose BaseAsync's loading()/errorMessage() instead of busy()/errorMsg().",
-      "action": "Style the .payout-onboarding__*, .bank-info-form*, .user-payment-methods__* classes in the app's global stylesheet if you relied on the shipped look; update any bindings to busy()/errorMsg()."
-    },
-    {
-      "id": "tablereport-composition",
-      "type": "breaking",
-      "area": "tables",
-      "before": "TableReport extended BaseRestService and fetched via a hardcoded '/api/' prefix.",
-      "after": "TableReport injects BackendService and uses its new report() method (honours RestURL.api_prefix and typed errors). Report state resets when apiName changes; an appdata refresh no longer clears typed parameters.",
-      "action": "Only affects subclasses of TableReport relying on BaseRestService members."
-    },
-    {
-      "id": "configurl-timing-fixed",
-      "type": "behavioral",
-      "area": "auth",
-      "before": "BaseAuthService captured every REST URL in field initializers, so configureRestUrls() in a subclass constructor ran too late — URLs baked in host-less. A trailing slash on httpHost also broke interceptor matching (host//api/...).",
-      "after": "URLs resolve lazily per request and the configured host is normalized. Constructor-time configureRestUrls() is now safe; module-scope calls keep working.",
-      "action": "Redundant early-call workarounds can be removed."
-    },
-    {
-      "id": "logout-clears-state",
-      "type": "behavioral",
-      "area": "auth",
-      "before": "logout() kept the appdata cache, permission index, appdata replay and the authed route tree alive on the login screen; in-flight appdata responses could hydrate the next session.",
-      "after": "clearSession() drops cache/permissions/roles/loginToken, bumps a session generation (stale in-flight responses are ignored), emits an empty menu state to live subscribers, and restores the pre-login route config. deleteAccount() clears the role too.",
-      "action": "None, unless app code relied on reading menus/permissions after logout."
-    },
-    {
-      "id": "appdata-fails-loudly",
-      "type": "behavioral",
-      "area": "auth/services",
-      "before": "A failed appdata load hung the app forever: guards never resolved and every BackendService CRUD call blocked silently.",
-      "after": "getAppData() errors while nothing is cached; guards redirect to /login/local; BaseAuthService.appDataError signal exposes the failure; repeated 401s clear the dead session and land on login?sessionExpired=true. Circuit-open rejections are a 401 with error.code === AUTH_CIRCUIT_OPEN_CODE. The appdata cache is reactive: computed()s reading table metadata recompute automatically when appdata loads.",
-      "action": "Optional: render appDataError in the app shell; handle the sessionExpired query param on the login page."
-    },
-    {
-      "id": "datetime-local-timezone",
-      "type": "behavioral",
-      "area": "tables",
-      "before": "datetime-local fields displayed the UTC wall-clock labeled as local and stamped local input as UTC, shifting stored times by the user's UTC offset on every edit.",
-      "after": "Display converts UTC ISO to local time; save converts local input back to UTC ISO. Name-suffix ('...Time') temporal guessing removed — only column metadata drives temporal handling.",
-      "action": "None. Expect displayed datetimes to change by the user's UTC offset relative to 1.1.9 (they are now correct)."
-    },
-    {
-      "id": "tablelist-pagination",
-      "type": "behavioral",
-      "area": "tables",
-      "before": "TableList silently showed the first 100 rows with no paginator and no sorting; stale search filters survived navigating to the bare list URL.",
-      "after": "Server-side paging (default 25/page, mat-paginator when total exceeds 10) with per-page client-side sorting; bare-URL navigation clears filters; fetch/save/delete errors render in the view.",
-      "action": "None; style .table-list__error and the paginator if desired."
-    },
-    {
-      "id": "hidden-columns-enforced",
-      "type": "behavioral",
-      "area": "tables",
-      "before": "DisplayMode 'H'/'S' columns still rendered in lists, child grids and search/lookup forms; per-table hiddenFields leaked into search URLs; column defaults became implicit search filters.",
-      "after": "H/S filtered everywhere; buildSearchTerms honours tableOverrides.hiddenFields; search forms blank every seeded default.",
-      "action": "None. If a column vanished from a screen, its column_display_attribute says it should never have been there."
-    },
-    {
-      "id": "twofactor-qr-works",
-      "type": "behavioral",
-      "area": "security",
-      "before": "The 2FA setup QR never rendered (keel returns an otpauth:// URI; it was bound to <img src>).",
-      "after": "The URI is encoded client-side via the new 'qrcode' dependency (ships with sail). New [twoFactorEnabled] input on <sail-twofactor-setup> routes returning users to the disable form instead of silently rotating their seed.",
-      "action": "npm install pulls qrcode automatically. Pass [twoFactorEnabled] where the app knows the user's 2FA state."
-    },
-    {
-      "id": "envelope-detection-tightened",
-      "type": "behavioral",
-      "area": "interceptors",
-      "before": "Any same-host response containing a 'data' key was unwrapped; any URL under the backend host was intercepted.",
-      "after": "Unwrapping requires keel's {data, meta} envelope shape and only /api/ + /public/ paths are in scope.",
-      "action": "None."
-    },
-    {
-      "id": "accepttoken-adoption",
-      "type": "advisory",
-      "area": "auth",
-      "before": "Apps that mint JWTs out-of-band sometimes write localStorage['jwt'] directly.",
-      "after": "BaseAuthService.acceptToken(token) is the supported entry point (stores the token, resets the auth circuit, loads appdata, runs the OAuth return handoff).",
-      "action": "Replace raw localStorage writes with acceptToken()."
-    },
-    {
-      "id": "payout-url-version",
-      "type": "advisory",
-      "area": "payout",
-      "before": "RestURL.payout*URL and paymentMethodSetDefaultURL default to '/api/v1/...'.",
-      "after": "Unchanged — payout routes are not in the Apis dictionary, so the version cannot be derived at runtime.",
-      "action": "Apps mounting keel's payout handler under a different prefix must override these via configureRestUrls."
-    },
-    {
-      "id": "intervening-additive-releases",
-      "type": "additive",
-      "area": "release-history",
-      "before": "The cumulative guide did not explicitly account for versions 1.1.11 through 1.1.13.",
-      "after": "Those releases added payout API methods, password-policy validation, and consent improvements without a downstream API migration.",
-      "action": "None; the relevant behavior is included cumulatively in this guide."
-    },
-    {
-      "id": "agency-enroll-method",
-      "type": "breaking",
-      "area": "agency/service",
-      "before": "Downstream copies could call AgencyService.enrollReferral().",
-      "after": "The shared service exposes the commercial-model-neutral AgencyService.enroll() method only.",
-      "action": "Rename enrollReferral() calls to enroll(); no compatibility alias is shipped."
-    },
-    {
-      "id": "agency-status-domains",
-      "type": "breaking",
-      "area": "agency/status",
-      "before": "Downstream agency screens could use app-local status domain ids such as billing_model or commission_status.",
-      "after": "StatusChipComponent uses keel basis domains agency_client_status, agency_billing_model, agency_commission_status, and agency_payout_status.",
-      "action": "Load keel v1.2.40 basis_seed.yml and remove divergent app-local ids. Values are client S/I/V/X; billing R/W; commission H/P/R/D/O; payout C/P/D/F/R/V/M."
-    },
-    {
-      "id": "agency-ui",
-      "type": "additive",
-      "area": "agency",
-      "before": "Each app maintained its own agency REST client, invitation page, client book, commission tables, payout history, and status labels.",
-      "after": "AgencyService and seven composable agency components are exported. Statuses come from keel constant catalogues, extra client columns are injected, and routes/brand/global CSS stay app-owned.",
-      "action": "Upgrade the backend to keel v1.2.41 (the invitation-accept flow branches on its RFC 7807 code 'agency_no_partner'), replace copied UI incrementally, and mount app-owned /agency and /agency/accept routes. Override RestURL.agency*URL if the backend is not mounted at /api/v1. Load keel basis_seed.yml (shipped since v1.2.40) so the canonical agency status domains are present."
-    },
-    {
-      "id": "agency-simplified-rate-model",
-      "type": "breaking",
-      "area": "agency/models",
-      "before": "Downstream UIs could expose partner_client, partner_delegation, agency_commission_customer, agency_wholesale_enrollment, or commission-rule/tier/fixed-rate concepts.",
-      "after": "The contract uses agency_client_invitation, agency_client_delegation, agency_client_rate, and agency_profile.wholesaleAllowed. Rates are frozen percentage basis points; there is no rule-schedule DTO or UI.",
-      "action": "Rename imports and app-specific labels, remove rule/tier/fixed-rate screens, and treat wholesaleAllowed as permission for a per-client switch—not as the agency's global billing model."
-    },
-    {
-      "id": "agency-money-and-payout-profile",
-      "type": "behavioral",
-      "area": "agency/payout",
-      "before": "Agency totals were commonly divided by 100 and summed without regard to currency; payout destinations were admin-only CRUD.",
-      "after": "AgencyEarnings contains one balance per currency, formatMinorCurrency is exponent-aware, and AgencyPayoutProfileComponent selects only the authenticated user's fully onboarded destination while composing provider onboarding.",
-      "action": "Do not sum balances across currencies. Wire sealed tax-id storage in keel before enabling bank replacement, and style the new agency-* / commission-ledger classes in the app's global stylesheet."
-    },
-    {
-      "id": "error-detail-transport",
-      "type": "behavioral",
-      "area": "util/errors",
-      "before": "errorDetail(err, fallback) returned the caller's fallback whenever the error carried no RFC 7807 detail. A network failure, a CORS-blocked response and a proxy error page were therefore indistinguishable from a backend rejection, and the fallback string (\"Could not save\", \"Registration failed\") misattributed the fault to the API.",
-      "after": "errorDetail reports the two non-API cases distinctly: a transport failure (Angular status 0 — network down, CORS blocked, request aborted) returns \"Cannot reach the server — the network or a CORS rule blocked the response.\", and an unreadable body carrying a real status returns \"<fallback> (HTTP <status>)\". Bodies that do carry detail/title/message are unaffected. The new isTransportFailure(err) predicate exposes the status-0 case so callers can branch on it instead of matching the message text.",
-      "action": "None required — every call site keeps compiling and messages only improve. Apps that wrapped errorDetail locally to add this discrimination should delete the wrapper and call errorDetail directly. Any test asserting the exact fallback string for a status-0 or non-JSON-body case must be updated."
-    }
-  ]
+ "package": "@nauticana/sail",
+ "description": "Per-version migration guides (README documents the current library state; this file is the versioned upgrade history). Newest first. Downstreams read only the entries between their current and target versions.",
+ "field_notes": {
+  "version": "semver tag (e.g. v1.1.18)",
+  "tags": "any of: additive, breaking, behavioral",
+  "summary": "one-paragraph lead",
+  "body_markdown": "full guide in GitHub-flavored markdown (tables/code/steps preserved)"
+ },
+ "migrations": [
+  {
+   "version": "v1.1.18",
+   "title": "Refresh-token rotation, server-side logout, setup intents, realtime client (keel v1.2.58)",
+   "tags": [
+    "additive"
+   ],
+   "summary": "Adopts keel v1.2.57/v1.2.58. Every login path stores the refreshToken keel now returns; authInterceptor rotates it at /public/token/refresh on a 401 and replays the request, so short JWT lifetimes no longer log users out. logout() revokes the refresh token at /public/logout. BillingService.createSetupIntent() wraps /api/billing/setup-intent. RealtimeService is the client for keel's realtime.Hub at /public/ws.",
+   "body_markdown": "## What changed\n\n| | Before | After |\n|---|---|---|\n| Login responses (`login`, `loginWithGoogle`, `verify2FALogin`, `verifyBackupCode`, `verifyOtp`, `loginSocial`) | only `token` was stored | `refreshToken` (keel v1.2.57+) is stored beside it; `LoginResponse2FA`, `TwoFactorVerifyResponse`, `OtpVerifyResponse`, `LoginResponseSocial` gain `refreshToken?`; new `TokenPair` model |\n| `authInterceptor` on 401 | counted toward the 5-in-10s circuit; the user was logged out once the JWT expired | first calls `BaseAuthService.refreshSession()` (one shared `POST /public/token/refresh`), stores the rotated pair, replays the request with the new JWT. A 401 from the refresh itself ends the session (`sessionExpired()`); other refresh failures keep the session and count the original 401 as before |\n| `BaseAuthService` | — | + `refreshSession(): Observable<string>`; `acceptToken(token, refreshToken?)` — omitting the refresh token drops any stored one, so a handoff never keeps another account's refresh token; `logout()` posts `{refreshToken}` to `/public/logout` (best effort) before `clearSession()`, which now also drops `localStorage.refreshToken` |\n| `RestURL` | — | + `tokenRefreshURL` (`/public/token/refresh`), `logoutURL` (`/public/logout`), `realtimeURL` (`/public/ws`), `setupIntentURL` (`/api/billing/setup-intent`) |\n| `BillingService` | no setup-intent client; apps hand-rolled the call behind `UserPaymentMethodsComponent`'s add button | + `createSetupIntent(): Observable<SetupIntentResponse>` (`{setupIntentId, clientSecret, customerId, ephemeralKey}`); the provider payment sheet stays app-owned |\n| realtime | each app wrote its own WebSocket client | + `RealtimeService` (root): `connect()` / `disconnect()`, `channel<T>(name)`, `userFrames<T>()`, `unsubscribe(name)`, `send(frame)`, `connected` and `lastError` signals; JWT via `?token=`, reconnect with backoff, re-subscribe after reconnect |\n\n## Migration steps for downstream consumers\n\n1. Upgrade the backend to keel v1.2.58 and mount `PublicHandler.GetPublicRoutes()` (or at least `/public/token/refresh` and `/public/logout`). Against an older keel, `refreshToken` is absent, no refresh is attempted, and behaviour is identical to 1.1.17.\n2. Delete any app-local refresh-token or 401-retry interceptor; `authInterceptor` now owns both. Keep it registered before app interceptors that read the `Authorization` header.\n3. Handoff flows that call `acceptToken(token)` should pass the refresh token as the second argument when the minting endpoint returns one (keel `AbstractHandler.SessionTokens`).\n4. Replace app-local calls to `/api/billing/setup-intent` with `BillingService.createSetupIntent()`; keep the provider SDK call that opens the sheet in the app.\n5. To use the realtime hub, mount keel's `handler.WebSocketHandler` at `/public/ws`, call `realtime.connect()` after login and `disconnect()` in `logout()` overrides, and consume `realtime.channel<T>('order:42')`. Override `RestURL.realtimeURL` via `configureRestUrls` if the hub is mounted elsewhere.\n6. Sessions now survive JWT expiry; if the app relied on `session_timeout` as an idle logout, enforce idle timeout in the app or shorten `refresh_token_ttl` on the keel side.\n\n## Breaking-change risk\n\nNone to compile. Behavioral: a stale JWT is refreshed instead of logging the user out, and `logout()` issues one extra request. `login?sessionExpired=true` now means the refresh token itself was rejected."
+  },
+  {
+   "version": "v1.1.17",
+   "title": "Constant-domain labels, status-filtered error detail, typed list paging, Material M3 buttons",
+   "tags": [
+    "additive"
+   ],
+   "summary": "LabelService loads and caches constant_value captions by constant_id from ApplicationData.ConstantCache; errorDetail accepts an optional HTTP-status allowlist; BackendService.list/listPaginated accept a typed PageRequest; and all Sail templates use Material M3 matButton/matIconButton selectors.",
+   "body_markdown": "## What changed\n\n| Area | Before | After |\n|---|---|---|\n| `services/templates` — horizontal-ui-service-gaps (additive) | LabelService.loadLabels was a stub, errorDetail always surfaced readable backend detail, list paging controls required string query keys in the filter map, and consumers could not rely on every Sail template using current Material button selectors. | LabelService loads and caches constant_value captions by constant_id from ApplicationData.ConstantCache; errorDetail accepts an optional HTTP-status allowlist; BackendService.list/listPaginated accept a typed PageRequest; and all Sail templates use Material M3 matButton/matIconButton selectors. |\n\n## Migration steps for downstream consumers\n\n1. Subscribe to loadLabels(constantId) before reading a domain; optionally pass statuses such as [400, 409] to errorDetail; pass { limit, offset, orderBy } as the third list argument. No template action is required unless an app copied Sail's older templates. constant_value is domain-based, not language-specific.\n\n## Breaking-change risk\n\nNone. Every existing call site compiles; the new arguments are optional."
+  },
+  {
+   "version": "v1.1.15",
+   "title": "errorDetail distinguishes transport and non-API failures from backend rejections; isTransportFailure",
+   "tags": [
+    "behavioral"
+   ],
+   "summary": "errorDetail no longer returns the caller's fallback for a network failure, a CORS-blocked response or a proxy error page; the new isTransportFailure(err) predicate exposes the status-0 case. v1.1.16 is the same content republished with a corrected package version.",
+   "body_markdown": "## What changed\n\n| Area | Before | After |\n|---|---|---|\n| `util/errors` — error-detail-transport (behavioral) | errorDetail(err, fallback) returned the caller's fallback whenever the error carried no RFC 7807 detail. A network failure, a CORS-blocked response and a proxy error page were therefore indistinguishable from a backend rejection, and the fallback string (\"Could not save\", \"Registration failed\") misattributed the fault to the API. | errorDetail reports the two non-API cases distinctly: a transport failure (Angular status 0 — network down, CORS blocked, request aborted) returns \"Cannot reach the server — the network or a CORS rule blocked the response.\", and an unreadable body carrying a real status returns \"<fallback> (HTTP <status>)\". Bodies that do carry detail/title/message are unaffected. The new isTransportFailure(err) predicate exposes the status-0 case so callers can branch on it instead of matching the message text. |\n\n## Migration steps for downstream consumers\n\n1. Delete app-local wrappers around errorDetail that added this discrimination and call errorDetail directly.\n2. Update tests that assert the exact fallback string for a status-0 or non-JSON-body case.\n\n## Breaking-change risk\n\nNone to compile; messages only change for the two non-API cases."
+  },
+  {
+   "version": "v1.1.14",
+   "title": "Agency self-service UI over keel v1.2.41",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "AgencyService and seven composable agency components (status banner, clients, accept-invitation, earnings summary, commission ledger, payout history, payout profile) replace app-copied agency screens. Statuses come from keel basis constant domains; the commercial model is the simplified frozen-rate contract; money is per-currency minor units.",
+   "body_markdown": "Requires keel v1.2.41 (the invitation-accept flow branches on RFC 7807 code `agency_no_partner`) and the basis seed shipped since keel v1.2.40.\n\n## What changed\n\n| Area | Before | After |\n|---|---|---|\n| `agency` — agency-ui (additive) | Each app maintained its own agency REST client, invitation page, client book, commission tables, payout history, and status labels. | AgencyService and seven composable agency components are exported. Statuses come from keel constant catalogues, extra client columns are injected, and routes/brand/global CSS stay app-owned. |\n| `agency/service` — agency-enroll-method (breaking) | Downstream copies could call AgencyService.enrollReferral(). | The shared service exposes the commercial-model-neutral AgencyService.enroll() method only. |\n| `agency/status` — agency-status-domains (breaking) | Downstream agency screens could use app-local status domain ids such as billing_model or commission_status. | StatusChipComponent uses keel basis domains agency_client_status, agency_billing_model, agency_commission_status, and agency_payout_status. |\n| `agency/models` — agency-simplified-rate-model (breaking) | Downstream UIs could expose partner_client, partner_delegation, agency_commission_customer, agency_wholesale_enrollment, or commission-rule/tier/fixed-rate concepts. | The contract uses agency_client_invitation, agency_client_delegation, agency_client_rate, and agency_profile.wholesaleAllowed. Rates are frozen percentage basis points; there is no rule-schedule DTO or UI. |\n| `agency/payout` — agency-money-and-payout-profile (behavioral) | Agency totals were commonly divided by 100 and summed without regard to currency; payout destinations were admin-only CRUD. | AgencyEarnings contains one balance per currency, formatMinorCurrency is exponent-aware, and AgencyPayoutProfileComponent selects only the authenticated user's fully onboarded destination while composing provider onboarding. |\n\n## Migration steps for downstream consumers\n\n1. Upgrade the backend to keel v1.2.41 (the invitation-accept flow branches on its RFC 7807 code 'agency_no_partner'), replace copied UI incrementally, and mount app-owned /agency and /agency/accept routes. Override RestURL.agency*URL if the backend is not mounted at /api/v1. Load keel basis_seed.yml (shipped since v1.2.40) so the canonical agency status domains are present.\n2. Rename enrollReferral() calls to enroll(); no compatibility alias is shipped.\n3. Load keel v1.2.40 basis_seed.yml and remove divergent app-local ids. Values are client S/I/V/X; billing R/W; commission H/P/R/D/O; payout C/P/D/F/R/V/M.\n4. Rename imports and app-specific labels, remove rule/tier/fixed-rate screens, and treat wholesaleAllowed as permission for a per-client switch—not as the agency's global billing model.\n5. Do not sum balances across currencies. Wire sealed tax-id storage in keel before enabling bank replacement, and style the new agency-* / commission-ledger classes in the app's global stylesheet.\n\n## Breaking-change risk\n\nCompile break for apps that called `enrollReferral()` or imported the pre-1.1.14 agency DTO names; no compatibility aliases ship. Apps with app-local agency status domain ids must switch to the keel basis domains."
+  },
+  {
+   "version": "v1.1.13",
+   "title": "Payout API methods",
+   "tags": [
+    "additive"
+   ],
+   "summary": "PayoutService gains the remaining keel/payout endpoints (reusable onboarding link, bank replacement, beneficiary registration) with matching RestURL defaults under /api/v1; provider_onboarding and bank_info_form consume them. No downstream migration action.",
+   "body_markdown": "## What changed\n\nAdditive service methods and `RestURL.payout*URL` defaults; see README → Payout. Apps mounting keel's payout handler under another prefix override the URLs via `configureRestUrls`.\n\n## Breaking-change risk\n\nNone."
+  },
+  {
+   "version": "v1.1.12",
+   "title": "Password validation against keel's user_account_policy",
+   "tags": [
+    "additive"
+   ],
+   "summary": "passwordPolicyValidator and BaseAuthService.ensurePasswordPolicy() load keel's password policy from SailGuiConfig.passwordPolicyUrl (PublicHandler.GetPasswordPolicy) and validate before submit in the change-password and confirm-change-password forms. No downstream migration action.",
+   "body_markdown": "## What changed\n\nNew `SailGuiConfig.passwordPolicyUrl`, `passwordPolicyValidator`, `BaseAuthService.passwordRules` / `ensurePasswordPolicy()`. Unset URL → no client-side policy check; the server stays authoritative.\n\n## Breaking-change risk\n\nNone."
+  },
+  {
+   "version": "v1.1.11",
+   "title": "SMS consent disclosure component",
+   "tags": [
+    "additive"
+   ],
+   "summary": "SmsConsentComponent renders the 10DLC / A2P opt-in disclosure with brand and terms links from SailGuiConfig; consent capture stays server-side in keel's ConsentService. No downstream migration action.",
+   "body_markdown": "## What changed\n\n`<sail-sms-consent>` plus `SailGuiConfig.brandName` / `termsUrl`.\n\n## Breaking-change risk\n\nNone."
+  },
+  {
+   "version": "v1.1.10",
+   "title": "Signals in base classes, typed errors, session safety, table/form fixes",
+   "tags": [
+    "breaking",
+    "behavioral"
+   ],
+   "summary": "BaseView/BaseForm state becomes signals and BaseView splits into read-only BaseView + AbstractEditableView; RecordForm stops mutating its input; login()/loginWithGoogle() return Observables; CRUD errors are SailApiError with errorDetail(); the 401 circuit clears dead sessions via the public sessionExpired(); logout clears all cached state; appdata failures surface instead of hanging; datetime-local, pagination, hidden-column and 2FA-QR fixes.",
+   "body_markdown": "Cumulative upgrade from v1.1.9.\n\n## What changed\n\n| Area | Before | After |\n|---|---|---|\n| `tables/base-classes` — base-state-signals (breaking) | BaseView/BaseForm/table components exposed plain mutable fields: records, displayedColumns, searchTerms, editableRecord, isNew, title, isReadOnlyMode, tabFields, searchColumns, dialogComponent. | All of these are signals (or computed). Read with call syntax — records(), editableRecord(), isNew() — and write with .set()/.update(). Manual ChangeDetectorRef.markForCheck() calls are unnecessary and removed. |\n| `tables/base-classes` — baseview-split (breaking) | BaseView carried abstract handleDelete/handleUpdate plus the dialog opener; read-only views had to stub them. | BaseView is the read-only listing surface (no abstract members); editing views extend the new AbstractEditableView which owns dialogComponent, addRecord/editRecord/deleteRecord and the abstract handlers. |\n| `tables/forms` — isreadonlybound-removed (breaking) | Templates bound [isReadOnly]=\"isReadOnlyBound\" and handlers re-assigned this.isReadOnlyBound = this.isReadOnly.bind(this) to force OnPush refreshes. | isReadOnlyBound is gone. Bind [isReadOnly]=\"isReadOnlyFn\" — a stable arrow property; signal reads inside isReadOnly() overrides are tracked by the invoking template, so mode flips re-render automatically. |\n| `forms` — recordform-immutable (breaking) | RecordForm mutated the bound [record] object in place. | RecordForm keeps an internal working copy and emits the full updated object via (recordChange); the input object is never mutated. |\n| `auth` — login-returns-observable (breaking) | BaseAuthService.login()/loginWithGoogle() subscribed internally and returned void; errors went to console only. | Both return Observable<LoginResponse2FA>. Nothing happens until you subscribe; the error channel carries login failures for the UI. |\n| `services` — backend-error-type (breaking) | BackendService.handleError rethrew the string 'error occurred, see console log and try again'. | CRUD errors are SailApiError (extends Error) with .status, .problem (keel RFC 7807 ProblemDetail) and .response (original HttpErrorResponse). handleError(error: unknown) is bound-safe for overrides. The new errorDetail(err, fallback) util maps SailApiError / HttpErrorResponse / Error to a display message. |\n| `models` — decorator-rename (breaking) | sail exported IsString/IsNumeric decorators shadowing class-validator names. | Renamed IsSailString/IsSailNumeric (constraints IsSailStringConstraint/IsSailNumericConstraint). IsSailNumeric also rejects exponential notation. |\n| `models` — authsummary-removed (breaking) | The AuthSummary interface described the permission index's internal escaped-pattern shape. | Removed — the permission index is an internal detail (compiled RegExp) and no public API produces AuthSummary values. |\n| `auth` — sessionexpired-public (breaking) | No public way to react to a dead session; the interceptor only counted 401s. | BaseAuthService.sessionExpired() is public — the auth interceptor calls it (via lazy injection) when the 401 circuit opens or is found already open, clearing the session and routing to login?sessionExpired=true. |\n| `payout` — bank-info-provider-required (breaking) | <sail-payout-bank-info-form> defaulted provider to 'AW' and countryCode to 'CA'. | [provider] is a required input; the country default is the first entry of [countryProfiles]. No hardcoded provider/country can leak into user_bank_info. |\n| `services` — labelservice-camelcase (breaking) | LabelService.GetLabel/LoadLabels (PascalCase); GetLabel returned '' for missing keys. | getLabel/loadLabels; getLabel falls back to the key so missing translations are visible. |\n| `payout/payment` — payout-payment-styles-removed (breaking) | provider_onboarding, bank_info_form and user_payment_methods shipped styles: blocks (user_payment_methods leaked CSS globally via ViewEncapsulation.None). | No CSS ships, matching the rest of the library. Class names are unchanged. provider_onboarding and user_payment_methods now expose BaseAsync's loading()/errorMessage() instead of busy()/errorMsg(). |\n| `tables` — tablereport-composition (breaking) | TableReport extended BaseRestService and fetched via a hardcoded '/api/' prefix. | TableReport injects BackendService and uses its new report() method (honours RestURL.api_prefix and typed errors). Report state resets when apiName changes; an appdata refresh no longer clears typed parameters. |\n| `auth` — configurl-timing-fixed (behavioral) | BaseAuthService captured every REST URL in field initializers, so configureRestUrls() in a subclass constructor ran too late — URLs baked in host-less. A trailing slash on httpHost also broke interceptor matching (host//api/...). | URLs resolve lazily per request and the configured host is normalized. Constructor-time configureRestUrls() is now safe; module-scope calls keep working. |\n| `auth` — logout-clears-state (behavioral) | logout() kept the appdata cache, permission index, appdata replay and the authed route tree alive on the login screen; in-flight appdata responses could hydrate the next session. | clearSession() drops cache/permissions/roles/loginToken, bumps a session generation (stale in-flight responses are ignored), emits an empty menu state to live subscribers, and restores the pre-login route config. deleteAccount() clears the role too. |\n| `auth/services` — appdata-fails-loudly (behavioral) | A failed appdata load hung the app forever: guards never resolved and every BackendService CRUD call blocked silently. | getAppData() errors while nothing is cached; guards redirect to /login/local; BaseAuthService.appDataError signal exposes the failure; repeated 401s clear the dead session and land on login?sessionExpired=true. Circuit-open rejections are a 401 with error.code === AUTH_CIRCUIT_OPEN_CODE. The appdata cache is reactive: computed()s reading table metadata recompute automatically when appdata loads. |\n| `tables` — datetime-local-timezone (behavioral) | datetime-local fields displayed the UTC wall-clock labeled as local and stamped local input as UTC, shifting stored times by the user's UTC offset on every edit. | Display converts UTC ISO to local time; save converts local input back to UTC ISO. Name-suffix ('...Time') temporal guessing removed — only column metadata drives temporal handling. |\n| `tables` — tablelist-pagination (behavioral) | TableList silently showed the first 100 rows with no paginator and no sorting; stale search filters survived navigating to the bare list URL. | Server-side paging (default 25/page, mat-paginator when total exceeds 10) with per-page client-side sorting; bare-URL navigation clears filters; fetch/save/delete errors render in the view. |\n| `tables` — hidden-columns-enforced (behavioral) | DisplayMode 'H'/'S' columns still rendered in lists, child grids and search/lookup forms; per-table hiddenFields leaked into search URLs; column defaults became implicit search filters. | H/S filtered everywhere; buildSearchTerms honours tableOverrides.hiddenFields; search forms blank every seeded default. |\n| `security` — twofactor-qr-works (behavioral) | The 2FA setup QR never rendered (keel returns an otpauth:// URI; it was bound to <img src>). | The URI is encoded client-side via the new 'qrcode' dependency (ships with sail). New [twoFactorEnabled] input on <sail-twofactor-setup> routes returning users to the disable form instead of silently rotating their seed. |\n| `interceptors` — envelope-detection-tightened (behavioral) | Any same-host response containing a 'data' key was unwrapped; any URL under the backend host was intercepted. | Unwrapping requires keel's {data, meta} envelope shape and only /api/ + /public/ paths are in scope. |\n| `auth` — accepttoken-adoption (advisory) | Apps that mint JWTs out-of-band sometimes write localStorage['jwt'] directly. | BaseAuthService.acceptToken(token) is the supported entry point (stores the token, resets the auth circuit, loads appdata, runs the OAuth return handoff). |\n| `payout` — payout-url-version (advisory) | RestURL.payout*URL and paymentMethodSetDefaultURL default to '/api/v1/...'. | Unchanged — payout routes are not in the Apis dictionary, so the version cannot be derived at runtime. |\n\n## Migration steps for downstream consumers\n\n1. In subclasses, replace field reads/writes with signal calls; delete markForCheck() calls tied to these fields.\n2. Subclasses that implement handleDelete/handleUpdate now extend AbstractEditableView instead of BaseView. Read-only subclasses extend BaseView and delete their no-op stubs.\n3. Replace all isReadOnlyBound bindings with isReadOnlyFn and delete rebinding assignments.\n4. Add (recordChange)=\"yourRecordSignal.set($event)\" (or equivalent) next to every [record] binding whose edits you consume.\n5. Audit every call site: append .subscribe({ next, error }) and surface errors. A call without subscribe silently does nothing.\n6. Error handlers that matched the old string must switch to SailApiError or route messages through errorDetail().\n7. Rename imports/usages in model files.\n8. Delete imports of AuthSummary; no replacement is needed.\n9. Subclasses may override sessionExpired() for custom handling; call super to keep the clear+redirect.\n10. Pass [provider] explicitly, matching your keel --payout_provider.\n11. Rename call sites.\n12. Style the .payout-onboarding__*, .bank-info-form*, .user-payment-methods__* classes in the app's global stylesheet if you relied on the shipped look; update any bindings to busy()/errorMsg().\n13. Only affects subclasses of TableReport relying on BaseRestService members.\n14. Redundant early-call workarounds can be removed.\n15. Optional: render appDataError in the app shell; handle the sessionExpired query param on the login page.\n16. npm install pulls qrcode automatically. Pass [twoFactorEnabled] where the app knows the user's 2FA state.\n17. Replace raw localStorage writes with acceptToken().\n18. Apps mounting keel's payout handler under a different prefix must override these via configureRestUrls.\n\n## Breaking-change risk\n\nCompile breaks: signal call syntax in subclasses, AbstractEditableView for editing views, isReadOnlyFn binding, (recordChange) handling, .subscribe on login calls, SailApiError handlers, IsSailString/IsSailNumeric renames, removed AuthSummary, required [provider] on the bank-info form, LabelService camelCase, TableReport subclasses. Behavioral: displayed datetimes shift to correct local time; H/S columns disappear where they were wrongly shown."
+  }
+ ]
 }

@@ -1,8 +1,8 @@
 import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { filter, map, mergeMap, take, tap } from 'rxjs/operators';
+import { filter, finalize, map, mergeMap, shareReplay, take, tap } from 'rxjs/operators';
 import { PasswordRules } from '../util/password_policy';
-import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
+import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
   OtpRequest, OtpResendRequest, OtpResponse, OtpVerifyRequest, OtpVerifyResponse,
@@ -12,12 +12,18 @@ import {
   UserProfile,
 } from '../model/auth';
 import { RestURL } from './rest_url';
-import { BehaviorSubject, Observable, ReplaySubject, catchError, defer, merge, of, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, ReplaySubject, catchError, defer, merge, of, throwError } from 'rxjs';
 import { ApplicationMenu, ConstantValue } from '../model/common';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
 import { resetAuthCircuit } from './auth.interceptor';
+
+/** Thrown by refreshSession() when the session changed while the rotation was in
+ *  flight; the result was discarded and the current session is untouched. */
+export class RefreshSupersededError extends Error {
+  constructor() { super('session changed during refresh'); this.name = 'RefreshSupersededError'; }
+}
 
 /** Sort dropdown options by their visible label so long lookup lists are scannable. */
 const byCaption = (a: ConstantValue, b: ConstantValue) =>
@@ -65,6 +71,8 @@ export abstract class BaseAuthService extends BaseRestService {
   // before a subclass constructor can call configureRestUrls().
   protected get appdataUrl()               { return this.url(RestURL.appdataURL); }
   protected get loginUrl()                 { return this.url(RestURL.loginURL); }
+  protected get tokenRefreshUrl()          { return this.url(RestURL.tokenRefreshURL); }
+  protected get logoutUrl()                { return this.url(RestURL.logoutURL); }
   protected get registerUrl()              { return this.url(RestURL.registerURL); }
   protected get chpassUrl()                { return this.url(RestURL.chpassURL); }
   protected get confirmRegisterUrl()       { return this.url(RestURL.confirmRegisterURL); }
@@ -94,6 +102,8 @@ export abstract class BaseAuthService extends BaseRestService {
 
   token: string | null = null;
   readonly isLoggedIn = signal(false);
+  /** In-flight rotation shared by every caller so one expired JWT triggers one refresh. */
+  private refreshInFlight: Observable<string> | null = null;
 
   /** keel password policy for pre-submit validation; undefined until loaded
    *  (or when guiConfig.passwordPolicyUrl is unset). Fed via ensurePasswordPolicy(). */
@@ -176,14 +186,23 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Adopt an externally-minted JWT (registration/SSO handoff flows) and run the
    * full post-login sequence — store under the canonical key, load appdata, init
    * routes. Apps must use this instead of writing localStorage directly. */
-  acceptToken(token: string) {
-    this.completeLogin(token);
+  acceptToken(token: string, refreshToken?: string) {
+    this.completeLogin(token, refreshToken);
   }
 
-  private completeLogin(token: string) {
+  /** A pair with no refresh token also drops the stored one: it may belong to a different account. */
+  private storeTokens(token: string, refreshToken?: string) {
     this.token = token;
-    this.isLoggedIn.set(true);
     localStorage.setItem('jwt', token);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    else localStorage.removeItem('refreshToken');
+  }
+
+  private completeLogin(token: string, refreshToken?: string) {
+    this.refreshInFlight = null;         // a rotation started under the previous session must not land
+    this.sessionGeneration++;
+    this.storeTokens(token, refreshToken);
+    this.isLoggedIn.set(true);
     resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
     const ret = this.validatedReturnUrl();
     if (ret && this.guiConfig.sessionCookieUrl) {
@@ -231,8 +250,32 @@ export abstract class BaseAuthService extends BaseRestService {
         localStorage.setItem('loginToken', res.loginToken);
         this.router.navigate(['/login/2fa']);
     } else {
-        this.completeLogin(res.token);
+        this.completeLogin(res.token, res.refreshToken);
     }
+  }
+
+  /**
+   * Rotate the stored refresh token at keel's /public/token/refresh and emit the
+   * new JWT. Concurrent callers share one request. Errors when no refresh token
+   * is stored or keel rejects it (401: revoked, expired, or already rotated) —
+   * the caller decides whether that ends the session (the auth interceptor does).
+   */
+  refreshSession(): Observable<string> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return throwError(() => new Error('no refresh token stored'));
+    const generation = this.sessionGeneration;
+    const inFlight = this.http.post<TokenPair>(this.tokenRefreshUrl, { refreshToken }).pipe(
+      map((res) => {
+        if (generation !== this.sessionGeneration) throw new RefreshSupersededError();
+        this.storeTokens(res.token, res.refreshToken);
+        return res.token;
+      }),
+      finalize(() => { if (this.refreshInFlight === inFlight) this.refreshInFlight = null; }),
+      shareReplay(1),
+    );
+    this.refreshInFlight = inFlight;
+    return inFlight;
   }
 
   /**
@@ -288,7 +331,7 @@ export abstract class BaseAuthService extends BaseRestService {
         tap((res) => {
             if (res.valid && res.token) {
                 localStorage.removeItem('loginToken');
-                this.completeLogin(res.token);
+                this.completeLogin(res.token, res.refreshToken);
             }
         }),
     );
@@ -301,7 +344,7 @@ export abstract class BaseAuthService extends BaseRestService {
         tap((res) => {
             if (res.valid && res.token) {
                 localStorage.removeItem('loginToken');
-                this.completeLogin(res.token);
+                this.completeLogin(res.token, res.refreshToken);
             }
         }),
     );
@@ -379,9 +422,20 @@ export abstract class BaseAuthService extends BaseRestService {
     }
   }
 
+  /** Revoke the refresh token server-side (best effort: the local session is
+   *  cleared regardless), then land on the login screen. */
   logout() {
+    this.revokeRefreshToken().subscribe();
     this.clearSession();
     this.router.navigate(['/login/local'], { queryParams: { loggedOut: 'true' } });
+  }
+
+  private revokeRefreshToken(): Observable<unknown> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return EMPTY;
+    return this.http.post(this.logoutUrl, { refreshToken }).pipe(
+      catchError((err) => { console.warn('refresh token revocation failed:', err); return EMPTY; }),
+    );
   }
 
   register(reg: PartnerRegistration) {
@@ -423,7 +477,7 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.post<OtpVerifyResponse>(this.otpVerifyUrl, req).pipe(
       tap((res) => {
         if (res?.token) {
-          this.completeLogin(res.token);
+          this.completeLogin(res.token, res.refreshToken);
           if (role) this.setRole(role);
         }
       }),
@@ -441,7 +495,7 @@ export abstract class BaseAuthService extends BaseRestService {
   ): Observable<LoginResponseSocial> {
     const payload: SocialLoginRequest = { provider, token: idToken, ...consent };
     return this.http.post<LoginResponseSocial>(this.loginSocialUrl, payload).pipe(
-      tap((res) => { if (res?.token) this.completeLogin(res.token); }),
+      tap((res) => { if (res?.token) this.completeLogin(res.token, res.refreshToken); }),
     );
   }
 
@@ -503,13 +557,15 @@ export abstract class BaseAuthService extends BaseRestService {
     this.token = null;
     this.isLoggedIn.set(false);
     localStorage.removeItem('jwt');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('menu');
     localStorage.removeItem('loginToken');
     this.clearRole();
     this.cache = undefined;
     this.authIndex.clear();
     this.appDataError.set(null);
-    this.sessionGeneration++;           // in-flight loads from this session are ignored
+    this.refreshInFlight = null;
+    this.sessionGeneration++;           // in-flight loads and refreshes from this session are ignored
     this.appData$.next(null);           // live subscribers see menus clear; identity stays stable
     this.appDataFail$.complete();
     this.appDataFail$ = new ReplaySubject<unknown>(1);

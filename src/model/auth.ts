@@ -93,6 +93,7 @@ export interface OtpVerifyRequest {
 
 export interface OtpVerifyResponse {
   token:      string;
+  refreshToken?: string;
   userId?:    number;
   partnerId?: number;
 }
@@ -137,6 +138,7 @@ export interface SocialLoginRequest {
 
 export interface LoginResponseSocial {
   token:                   string;
+  refreshToken?:           string;
   userId?:                 number;
   partnerId?:              number;
   isNewUser:               boolean;

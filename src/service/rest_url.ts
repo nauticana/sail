@@ -3,6 +3,9 @@ export const RestURL = {
   api_prefix: '/api/',
   appdataURL: '/api/config/appdata',
   loginURL: '/public/login/local',
+  tokenRefreshURL: '/public/token/refresh',   // rotates {refreshToken} → new {token, refreshToken}
+  logoutURL: '/public/logout',                // revokes {refreshToken}
+  realtimeURL: '/public/ws',                  // keel realtime.Hub handshake; JWT via ?token=
   loginGoogleURL: '/public/login/google',
   registerURL: '/public/register',
   chpassURL: '/public/login/chpass',
@@ -25,6 +28,7 @@ export const RestURL = {
   invoicesURL:       '/api/billing/invoices',
   paymentMethodsURL: '/api/billing/payment-methods',
   portalURL:         '/api/billing/portal',
+  setupIntentURL:    '/api/billing/setup-intent',
   usageURL:          '/api/billing/usage',
   // OTP / social / push / account-lifecycle endpoints
   otpSendURL:          '/public/otp/send',

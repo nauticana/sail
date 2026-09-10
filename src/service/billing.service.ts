@@ -9,6 +9,7 @@ import {
   PaymentMethod,
   PortalResponse,
   PublicPlan,
+  SetupIntentResponse,
   Subscription,
   UsageMeter,
 } from '../model/appdata';
@@ -71,6 +72,15 @@ export class BillingService extends BaseRestService {
   /** Payment methods on file for the partner. */
   listPaymentMethods(): Observable<PaymentMethod[]> {
     return this.http.get<PaymentMethod[]>(this.url(RestURL.paymentMethodsURL));
+  }
+
+  /**
+   * Create a provider setup intent for on-device card capture (keel v1.2.57
+   * AbstractPaymentHandler.CreateSetupIntent). Identity comes from the JWT; the
+   * response feeds the provider's payment sheet. Persist customerId on first use.
+   */
+  createSetupIntent(): Observable<SetupIntentResponse> {
+    return this.http.post<SetupIntentResponse>(this.url(RestURL.setupIntentURL), {});
   }
 
   /**

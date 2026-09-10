@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -328,6 +328,9 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /public/otp/resend` | Re-issue OTP for an existing `otpToken` |
 | `POST /public/2fa/verify` | Login-time TOTP verification (uses `loginToken`) |
 | `POST /public/2fa/backup-verify` | Login-time backup-code verification |
+| `POST /public/token/refresh` | Rotate `{refreshToken}` → new `{token, refreshToken}`; 401 ends the session |
+| `POST /public/logout` | Revoke `{refreshToken}` (called by `BaseAuthService.logout()`) |
+| `GET /public/ws` | keel realtime hub handshake (`RealtimeService`; JWT via `?token=`) |
 | `GET /api/config/appdata` | Metadata (menus, permissions, table definitions) |
 | `POST/GET/DELETE /api/{version}/{table}/list\|get\|post\|delete` | CRUD operations (paginated `list`) |
 | `POST /api/user/2fa/setup` | Generate TOTP secret, QR URI, and backup codes — **requires re-auth** |
@@ -340,6 +343,7 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /api/push/register` | Register an FCM / APNs token |
 | `POST /api/push/revoke` | Revoke an FCM / APNs token |
 | `POST /api/billing/checkout` | Create provider-hosted checkout session — **JWT-gated, allowlist-validated** |
+| `POST /api/billing/setup-intent` | Provider setup intent for on-device card capture (`BillingService.createSetupIntent()`) |
 | `GET /public/plans` | Subscription plan catalog (unauthenticated) |
 | `GET /api/billing/subscription` | Active subscription for the partner |
 | `POST /api/billing/subscription/cancel` | Cancel auto-renew |
@@ -382,7 +386,15 @@ If "trust this device" appears to do nothing (user is 2FA-prompted on every logi
 
 ### Session token storage
 
-The session JWT and the short-lived `loginToken` are kept in `localStorage` (the trusted-device secret is the only HttpOnly cookie). This is a deliberate trade-off for a token-based SPA, but it means any XSS in the consuming app can read the session token. Harden accordingly: ship a strict `Content-Security-Policy`, keep third-party script surface minimal, and prefer short JWT lifetimes on the keel side.
+The session JWT, the refresh token, and the short-lived `loginToken` are kept in `localStorage` (the trusted-device secret is the only HttpOnly cookie). This is a deliberate trade-off for a token-based SPA, but it means any XSS in the consuming app can read the session token. Harden accordingly: ship a strict `Content-Security-Policy`, keep third-party script surface minimal, and prefer short JWT lifetimes on the keel side — refresh rotation makes short lifetimes free for the user.
+
+### Refresh-token rotation
+
+Every keel login response (keel v1.2.57+) carries `refreshToken` beside `token`; `completeLogin` stores both. When an authenticated call answers 401, `authInterceptor` calls `BaseAuthService.refreshSession()` — one shared `POST /public/token/refresh` per burst — stores the rotated pair and replays the request with the new JWT. A 401 from the refresh itself (revoked, expired, already rotated) clears the session and lands on `login?sessionExpired=true`; any other refresh failure keeps the session and lets the 401 count toward the circuit breaker. `logout()` posts the refresh token to `/public/logout` before clearing local state. `acceptToken(token, refreshToken?)` accepts the pair for handoff flows. No wiring beyond registering `authInterceptor`.
+
+### Realtime
+
+`RealtimeService` (root-provided) is the client for keel's `realtime.Hub`. `connect()` opens `RestURL.realtimeURL` (`/public/ws`) on the configured backend host with the stored JWT, reconnects with backoff, and re-subscribes every channel after a reconnect. `channel<T>(name)` returns the payloads keel broadcasts on that channel; `userFrames<T>()` returns payloads addressed to the user; `send(frame)` forwards an application frame to the hub's `OnMessage`. A subscription keel's `CanSubscribe` rejects is logged and exposed on `lastError`. Channel names and payload shapes are app-owned.
 
 ## Billing
 
