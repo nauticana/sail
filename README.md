@@ -876,8 +876,9 @@ For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWith
 Horizontal building blocks for an entitlement-aware dashboard. All are presentational (signals in, events out) and ship no CSS — the app styles the documented class hooks and supplies the metric data, chart, and action logic.
 
 - **`DashboardShellComponent`** (`sail-dashboard-shell`) — responsive card-grid layout. `[heading]` + a `[dashboardActions]` projection slot for the header; project cards into the default slot. Styles: `.dashboard-shell` / `.dashboard-header` / `.dashboard-grid`.
-- **`DataCardComponent`** (`sail-data-card`) — card chrome for one visualization with `[state]` ∈ `loading | ready | empty | error | locked`. The chart is supplied as an `<ng-template>` and instantiated **only** in `ready`, so during loading/error/locked it never exists (no hidden canvas). `description` (required) is the screen-reader text alternative; `[tableHeaders]`/`[tableRows]` render a visually-hidden (`.sr-only`) data table. Emits `upgrade` / `retry`.
+- **`DataCardComponent`** (`sail-data-card`) — card chrome for one visualization with `[state]` ∈ `loading | ready | empty | error | locked | no-source`. The chart is supplied as an `<ng-template>` and instantiated **only** in `ready`, so during loading/error/locked/no-source it never exists (no hidden canvas). `description` (required) is the screen-reader text alternative; `[tableHeaders]`/`[tableRows]` render a visually-hidden (`.sr-only`) data table. Emits `upgrade`, `connect`, and `retry`.
 - **`LockedOverlayComponent`** (`sail-locked-overlay`) — entitlement gate. Wraps protected content given as an `<ng-template>`; when `[locked]` the template is never instantiated, so **no data exists behind the gate** (DOM, canvas, or network) — the strict free-tier rule. Emits `upgrade`.
+- **`NoSourceOverlayComponent`** (`sail-no-source-overlay`) — source-readiness gate. Takes `[sourceName]` and emits `connect`; while `[unavailable]`, its protected `<ng-template>` is never instantiated. Use this for included features whose provider is not connected or whose collector is unavailable—never show an upgrade prompt for this state.
 - **`ActionCenterComponent`** (`sail-action-center`) — prioritized next-best-action list from `[actions]: ActionItem[]` (sorted by `priority`, done items show a check). Emits `act`.
 - **`EntitySelectorComponent`** (`sail-entity-selector`) — scope dropdown over `[entities]: EntityOption[]`; resolves `[selected]` or the first active entity and emits `selectionChange`.
 - **`VerificationFlowComponent`** (`sail-verification-flow`) — self-service request → enter-code → verified UI (a 2FA sibling), backend-agnostic: emits `requestVerification` / `confirmCode`, driven by `[step]` + `[errorMessage]` the host feeds back.
@@ -889,6 +890,36 @@ Horizontal building blocks for an entitlement-aware dashboard. All are presentat
 ```
 
 Models: `DataCardState`, `ActionItem`, `EntityOption`, `VerificationStep`.
+
+Analytics clients that need this distinction can call the protected
+`analyticWithStatus<T>()` on `BaseRestService`. It returns
+`{ rows, source: { status, id } }`, populated from `X-Data-Source-Status` and
+`X-Data-Source`; the existing `analytic<T>()` remains `Observable<T[]>`.
+
+When the app and its API are on different origins the browser hides both headers
+unless the backend sends
+`Access-Control-Expose-Headers: X-Data-Source-Status, X-Data-Source`; without it
+`source.status` is `null` and a missing source is indistinguishable from an
+empty result.
+
+## Grouped review actions and diffs (v1.1.19)
+
+`GroupedBulkActionComponent` (`sail-grouped-bulk-action`) groups eligible rows
+with the consumer's `[groupBy]` function and renders an app-chosen bounded
+`[sampleSize]` through a projected `<ng-template>`. The app supplies all domain
+copy and an `[execute]` function returning `{ attempted, succeeded }`. When
+`succeeded < attempted`, the component visibly renders the app's
+`[partialSuccessMessage]`; it never reports a partial operation as complete.
+The outcome message renders above the groups (`role="alert"`,
+`.grouped-bulk-action__message--partial` / `--error`) and stays until the next
+action, so it survives the row refresh that removes its group. Group headings
+are `role="heading"` at `[headingLevel]` (default 3).
+
+`BeforeAfterDiffComponent` (`sail-before-after-diff`) renders a
+whitespace-preserving word-level LCS diff. `[maxTokens]` defaults to 2000; above
+the cap it skips the quadratic comparison and shows the whole new value as an
+addition. Additions and deletions are `<ins class="diff-add">` /
+`<del class="diff-del">`, unchanged text `<span class="diff-same">`. The pure `wordDiff()` helper is also exported for custom layouts.
 
 ## Provider connections (v1.1.9)
 

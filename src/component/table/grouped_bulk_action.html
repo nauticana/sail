@@ -1,0 +1,36 @@
+@if (message(); as outcome) {
+  <p class="grouped-bulk-action__message"
+     [class.grouped-bulk-action__message--partial]="outcome.kind === 'partial'"
+     [class.grouped-bulk-action__message--error]="outcome.kind === 'error'"
+     role="alert">{{ outcome.text }}</p>
+}
+
+@for (group of groups(); track group.key) {
+  <section class="grouped-bulk-action" [attr.data-group-key]="group.key">
+    <header class="grouped-bulk-action__header">
+      <div class="grouped-bulk-action__heading" role="heading" [attr.aria-level]="headingLevel()">{{ heading()(group) }}</div>
+      <button matButton="filled" type="button"
+              [disabled]="busyKey() !== null"
+              (click)="run(group)">
+        {{ actionLabel()(group, busyKey() === group.key) }}
+      </button>
+    </header>
+
+    @if (description()(group); as text) {
+      <p class="grouped-bulk-action__description">{{ text }}</p>
+    }
+
+    @if (sampleTemplate(); as template) {
+      <div class="grouped-bulk-action__sample">
+        @for (row of group.sample; track $index) {
+          <ng-container [ngTemplateOutlet]="template"
+                        [ngTemplateOutletContext]="{ $implicit: row, group: group }"></ng-container>
+        }
+      </div>
+    }
+
+    @if (group.count > group.sample.length) {
+      <p class="grouped-bulk-action__remainder">{{ remainderLabel()(group.count - group.sample.length, group) }}</p>
+    }
+  </section>
+}

@@ -1,5 +1,5 @@
 /** Lifecycle state of a data/chart card (sail-data-card). */
-export type DataCardState = 'loading' | 'ready' | 'empty' | 'error' | 'locked';
+export type DataCardState = 'loading' | 'ready' | 'empty' | 'error' | 'locked' | 'no-source';
 
 /** A prioritized, completable next-best-action (sail-action-center, FR-008). */
 export interface ActionItem {

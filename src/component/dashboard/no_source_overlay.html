@@ -1,0 +1,9 @@
+@if (unavailable()) {
+  <div class="no-source-overlay" role="group" [attr.aria-label]="sourceName() + ' — source unavailable'">
+    <p class="no-source-name">{{ sourceName() }}</p>
+    <p class="no-source-message">{{ message() }}</p>
+    <button matButton="elevated" type="button" class="primary" (click)="connect.emit()">{{ ctaLabel() }}</button>
+  </div>
+} @else if (content(); as tpl) {
+  <ng-container [ngTemplateOutlet]="tpl"></ng-container>
+}

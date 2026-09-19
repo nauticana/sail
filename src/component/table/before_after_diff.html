@@ -1,0 +1,1 @@
+<pre class="before-after-diff">@for (token of tokens(); track $index) {@switch (token.kind) {@case ('add') {<ins class="diff-add">{{ token.text }}</ins>}@case ('del') {<del class="diff-del">{{ token.text }}</del>}@default {<span class="diff-same">{{ token.text }}</span>}}}</pre>

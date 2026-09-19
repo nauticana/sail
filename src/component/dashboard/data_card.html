@@ -33,5 +33,12 @@
         <button matButton="elevated" type="button" class="primary" (click)="upgrade.emit()">{{ ctaLabel() }}</button>
       </div>
     }
+    @case ('no-source') {
+      <div class="data-card-no-source" role="group" [attr.aria-label]="(heading() || 'Insight') + ' — source unavailable'">
+        <p class="no-source-name">{{ sourceName() }}</p>
+        <p class="no-source-message">{{ noSourceMessage() }}</p>
+        <button matButton="elevated" type="button" class="primary" (click)="connect.emit()">{{ connectLabel() }}</button>
+      </div>
+    }
   }
 </section>

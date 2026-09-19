@@ -30,10 +30,14 @@ export class DataCardComponent {
   readonly errorMessage = input<string>('Could not load this data.');
   readonly emptyMessage = input<string>('No data yet.');
   readonly lockedMessage = input<string>('Upgrade to unlock this insight.');
+  readonly sourceName = input<string>('data source');
+  readonly noSourceMessage = input<string>('Connect the required data source to see this insight.');
   readonly ctaLabel = input<string>('Upgrade');
+  readonly connectLabel = input<string>('Connect');
   readonly tableHeaders = input<string[]>([]);
   readonly tableRows = input<(string | number)[][]>([]);
   readonly upgrade = output<void>();
+  readonly connect = output<void>();
   readonly retry = output<void>();
 
   /** The chart, provided as a single <ng-template>; instantiated only when ready. */
