@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.20",
+   "title": "Secondary entry point @nauticana/sail/agent; package exports close deep imports",
+   "tags": [
+    "additive",
+    "breaking"
+   ],
+   "summary": "Agent Studio (studio-v2) models, AgentStudioService, the prompt layer editor, release provenance, typed turn events, TurnStream resume/cancel state, and a decision timeline ship under a new entry point, @nauticana/sail/agent, which the root barrel does not export — apps that do not import it bundle none of it. package.json now declares `exports` (only `.` and `./agent`) and `sideEffects`.",
+   "body_markdown": "## What changed\n\n| | Before | After |\n|---|---|---|\n| entry points | any path under the package resolved | `exports`: `@nauticana/sail` and `@nauticana/sail/agent` only |\n| deep imports | `@nauticana/sail/service/<file>`, `@nauticana/sail/model/<file>`, `@nauticana/sail/component/...` | import the same symbol from `@nauticana/sail` — every public symbol is in the root barrel |\n| `sideEffects` | unset (every module kept) | `[\"./src/model/decorator.ts\"]`; bundlers may drop unused root-barrel modules |\n| agent UI | none | `@nauticana/sail/agent` (see README, *Agent UI*) |\n\n## Steps\n\n1. Search for `from '@nauticana/sail/` and rewrite every match other than `@nauticana/sail/agent` to `from '@nauticana/sail'`. A wildcard tsconfig `paths` entry (`@nauticana/sail/*`) bypasses `exports`, so the compiler will not flag these — search explicitly, then remove the wildcard mapping.\n2. To use the agent UI, add the tsconfig path `\"@nauticana/sail/agent\": [\"./node_modules/@nauticana/sail/src/agent/index\"]` and import from `@nauticana/sail/agent`.\n3. Apps that do not use the agent UI need no further change. `src/agent/` is still type-checked where the app's tsconfig includes `sail/src/**/*.ts`; it is never bundled.\n"
+  },
+  {
    "version": "v1.1.19",
    "title": "Source-readiness card state, analytic source status, grouped bulk action, before/after diff",
    "tags": [

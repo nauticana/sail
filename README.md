@@ -60,6 +60,8 @@ Since sail ships raw TypeScript source, you need a path mapping so the Angular c
 }
 ```
 
+Apps that use the agent entry point (see [Agent UI](#agent-ui-v1120)) add a second mapping, `"@nauticana/sail/agent": ["./node_modules/@nauticana/sail/src/agent/index"]`. The package exposes only these two entry points; deep imports such as `@nauticana/sail/service/...` are not supported.
+
 > **Note:** If your tsconfig has `"baseUrl": "src"`, use `"../node_modules/@nauticana/sail/src/index"` instead (paths resolve relative to `baseUrl`).
 
 Suppress class-validator CommonJS warnings in `angular.json`:
@@ -626,6 +628,29 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 <sail-portal-button></sail-portal-button>
 <!-- invoices: render listInvoices() rows directly -->
 ```
+
+## Agent UI (v1.1.20)
+
+Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency.
+
+```ts
+import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@nauticana/sail/agent';
+```
+
+| Export | Purpose |
+|---|---|
+| `AgentStudioService` | Client for the thirteen `studio-v2` routes under `/api/agent-studio/` (fixed, unversioned paths). Models mirror the backend's JSON names. |
+| `studioConflictCause(err)` | `'revision'` (reload the draft), `'sealed'` (a layer sits under a sealed one) or `'other'` for a `409`. |
+| `studioFieldErrors(err)` / `retryAfterSeconds(err)` | Field errors of a `400`; `Retry-After` of a `429`/`503`. |
+| `sail-prompt-language-editor` | One language's prompt sections. Emits the whole language on every edit — a save must send every layer back, because an editable layer missing from the request ends its binding. Emits `resetRequested` with the scope, section, and language to reset. |
+| `sail-prompt-section-editor` | One section's layers in server order. Read-only layers render as text; editable ones edit `instruction`, `output`, `merge_mode`, `sealed`. A sealed layer locks every layer below it. Effective text is shown as received, never merged client-side; after a save, replace the whole draft with the response. |
+| `sail-release-sections` | Frozen sections of a release with the layer (`source`) that decided each. |
+| `sail-turn-event-list` | Renders typed turn events in frame order; proposal, result, effect, and approval of one call meet by `call_id`. Effect status `unknown` is its own state. Unknown kinds are ignored; `extension` events render only through `[extensionTemplate]`. |
+| `TurnStream` | Per-turn stream state: `accept(frame)` drops frames already rendered, `cursor()` is the resume point, `markReplayExpired()` + `acceptStoredResult(frame)` handle an expired replay window, `markCancelRequested()` holds `cancelling` until the final frame. |
+| `sail-turn-stream-view` | `TurnStream` + event list + status + cancel button (`cancelRequested`). |
+| `sail-decision-timeline` | Read-only decision chain of one request, grouped by category. |
+
+Transport is app-owned: map your reply frames onto `TurnReplyFrame` and your audit rows onto `DecisionRecord`, then feed them in. Style the `.prompt-*`, `.release-*`, `.turn-*`, and `.decision-*` class hooks.
 
 ## Agency / reseller UI (v1.1.14)
 

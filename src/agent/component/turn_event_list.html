@@ -1,0 +1,101 @@
+<ol class="turn-events" aria-live="polite">
+  @for (item of items(); track $index) {
+    @switch (item.kind) {
+      @case ('text') {
+        <li class="turn-text">{{ item.text }}</li>
+      }
+      @case ('tool') {
+        <li class="turn-tool" [class.turn-tool--error]="item.errorClass !== undefined">
+          <div class="turn-tool__head">
+            <mat-icon aria-hidden="true">build</mat-icon>
+            <span class="turn-tool__id">{{ item.tool_id }}</span>
+            <span class="turn-tool__version">{{ item.tool_version }}</span>
+          </div>
+
+          @if (item.approval === 'pending') {
+            <p class="turn-tool__approval turn-tool__approval--pending" role="status">Waiting for approval</p>
+          } @else if (item.approval === 'resolved') {
+            <p class="turn-tool__approval" role="status">Approval: {{ item.decision }}</p>
+          }
+
+          @if (item.arguments !== undefined) {
+            <pre class="turn-tool__arguments">{{ item.arguments | json }}</pre>
+          }
+
+          @if (item.errorClass !== undefined) {
+            <p class="turn-tool__error" role="alert">Tool call failed: {{ item.errorClass }}</p>
+          } @else if (item.result) {
+            <pre class="turn-tool__output">{{ item.result.output | json }}</pre>
+          }
+
+          @if (item.effect; as effect) {
+            <div
+              class="turn-effect"
+              [class.turn-effect--satisfied]="effect.observation.status === 'satisfied'"
+              [class.turn-effect--violated]="effect.observation.status === 'violated'"
+              [class.turn-effect--unknown]="effect.observation.status === 'unknown'"
+            >
+              @switch (effect.observation.status) {
+                @case ('satisfied') {
+                  <span class="turn-effect__status">Effect confirmed</span>
+                }
+                @case ('violated') {
+                  <span class="turn-effect__status" role="alert">Effect not confirmed</span>
+                }
+                @case ('unknown') {
+                  <span class="turn-effect__status">Effect could not be verified</span>
+                }
+              }
+              @if (effect.observation.reconciled) {
+                <span class="turn-effect__reconciled">Already in place — nothing was sent again</span>
+              }
+              @if (effect.observation.reason) {
+                <p class="turn-effect__reason">{{ effect.observation.reason }}</p>
+              }
+              @if (effect.observation.evidence?.length) {
+                <ul class="turn-effect__evidence">
+                  @for (ref of effect.observation.evidence; track ref.URI) {
+                    <li>
+                      <span class="turn-ref__uri">{{ ref.URI }}</span>
+                      <span class="turn-ref__digest">{{ ref.Digest }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </li>
+      }
+      @case ('evidence') {
+        <li class="turn-evidence">
+          <ul>
+            @for (ref of item.refs; track ref.id) {
+              <li>
+                <span class="turn-ref__source">{{ ref.source }}</span>
+                <span class="turn-ref__uri">{{ ref.uri || ref.object?.URI }}</span>
+                @if (ref.object?.Digest) {
+                  <span class="turn-ref__digest">{{ ref.object?.Digest }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </li>
+      }
+      @case ('progress') {
+        <li class="turn-progress">
+          <span class="turn-progress__stage">{{ item.progress.stage }}</span>
+          @if (item.progress.message) {
+            <span class="turn-progress__message">{{ item.progress.message }}</span>
+          }
+        </li>
+      }
+      @case ('extension') {
+        @if (extensionTemplate(); as template) {
+          <li class="turn-extension">
+            <ng-container [ngTemplateOutlet]="template" [ngTemplateOutletContext]="{ $implicit: item.extension }" />
+          </li>
+        }
+      }
+    }
+  }
+</ol>

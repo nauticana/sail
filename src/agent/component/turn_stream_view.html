@@ -1,0 +1,36 @@
+<div class="turn-stream" [attr.data-status]="status()">
+  <sail-turn-event-list [events]="events()" [extensionTemplate]="extensionTemplate()" />
+
+  @if (storedPayload() !== undefined) {
+    @if (isText(storedPayload())) {
+      <p class="turn-stream__stored">{{ storedPayload() }}</p>
+    } @else {
+      <pre class="turn-stream__stored">{{ storedPayload() | json }}</pre>
+    }
+  }
+
+  @switch (status()) {
+    @case ('streaming') {
+      <mat-progress-bar mode="indeterminate" aria-label="Agent is responding" />
+    }
+    @case ('awaiting_approval') {
+      <p class="turn-stream__status" role="status">Waiting for approval. The conversation continues once it is decided.</p>
+    }
+    @case ('cancelling') {
+      <p class="turn-stream__status" role="status">Cancelling…</p>
+    }
+    @case ('canceled') {
+      <p class="turn-stream__status" role="status">Canceled</p>
+    }
+    @case ('failed') {
+      <p class="turn-stream__status turn-stream__status--failed" role="alert">Turn failed: {{ finalFrame()?.error_code }}</p>
+    }
+    @case ('replay_expired') {
+      <p class="turn-stream__status" role="status">Loading the stored result…</p>
+    }
+  }
+
+  @if (canCancel()) {
+    <button matButton type="button" (click)="requestCancel()">Cancel</button>
+  }
+</div>

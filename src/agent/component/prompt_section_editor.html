@@ -1,0 +1,93 @@
+<section class="prompt-section" [attr.aria-label]="section().caption">
+  <h3 class="prompt-section__caption">{{ section().caption }}</h3>
+  @if (section().description) {
+    <p class="prompt-section__description">{{ section().description }}</p>
+  }
+
+  @if (sealedBy(); as sealing) {
+    <p class="prompt-section__sealed" role="status">
+      <mat-icon aria-hidden="true">lock</mat-icon>
+      Sealed by {{ sealing.scope_kind || slotOf(sealing) }} scope {{ sealing.scope_id }}. Narrower layers cannot change this section.
+    </p>
+  }
+  @if (sealConflict()) {
+    <p class="prompt-section__conflict" role="alert">
+      A sealed type layer cannot be saved while the agent layer exists. Remove the agent layer or unseal the type layer.
+    </p>
+  }
+
+  <ol class="prompt-section__layers">
+    @for (row of rows(); track $index) {
+      <li
+        class="prompt-layer"
+        [class.prompt-layer--readonly]="!row.form"
+        [class.prompt-layer--sealed]="row.layer.sealed"
+        [class.prompt-layer--under-seal]="isUnderSeal($index)"
+      >
+        <div class="prompt-layer__head">
+          <span class="prompt-layer__scope">{{ row.layer.scope_kind || slotOf(row.layer) }}</span>
+          <span class="prompt-layer__scope-id">{{ row.layer.scope_id }}</span>
+          @if (row.layer.sealed) {
+            <mat-icon class="prompt-layer__seal" aria-label="Sealed" role="img">lock</mat-icon>
+          }
+        </div>
+
+        @if (row.form; as form) {
+          <div class="prompt-layer__form" [formGroup]="form">
+            <mat-form-field>
+              <mat-label>Merge mode</mat-label>
+              <mat-select formControlName="merge_mode">
+                <mat-option value="append">Append</mat-option>
+                <mat-option value="replace">Replace</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Instruction</mat-label>
+              <textarea matInput formControlName="instruction" rows="6"></textarea>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Output</mat-label>
+              <textarea matInput formControlName="output" rows="3"></textarea>
+            </mat-form-field>
+            <mat-checkbox formControlName="sealed">Seal this section for narrower scopes</mat-checkbox>
+
+            @if (form.hasError('instructionRequired')) {
+              <p class="prompt-layer__error" role="alert">Replace needs an instruction.</p>
+            }
+            @if (form.hasError('contentRequired')) {
+              <p class="prompt-layer__error" role="alert">Enter an instruction or an output.</p>
+            }
+            <button matButton type="button" [disabled]="disabled()" (click)="removeLayer($index)">
+              Remove layer
+            </button>
+          </div>
+        } @else {
+          <dl class="prompt-layer__readonly">
+            <dt>Merge mode</dt>
+            <dd>{{ row.layer.merge_mode }}</dd>
+            <dt>Instruction</dt>
+            <dd class="prompt-layer__text">{{ row.layer.instruction }}</dd>
+            <dt>Output</dt>
+            <dd class="prompt-layer__text">{{ row.layer.output }}</dd>
+          </dl>
+        }
+      </li>
+    }
+  </ol>
+
+  <div class="prompt-section__actions">
+    @if (canAddType()) {
+      <button matButton type="button" (click)="addLayer('type')">Add type-default layer</button>
+    }
+    @if (canAddAgent()) {
+      <button matButton type="button" (click)="addLayer('agent')">Add agent layer</button>
+    }
+  </div>
+
+  <dl class="prompt-section__effective">
+    <dt>Effective instruction</dt>
+    <dd class="prompt-layer__text">{{ section().effective_text }}</dd>
+    <dt>Effective output</dt>
+    <dd class="prompt-layer__text">{{ section().effective_output }}</dd>
+  </dl>
+</section>

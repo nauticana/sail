@@ -1,0 +1,29 @@
+@for (language of languages(); track language.language_code) {
+  <section class="release-language" [attr.aria-label]="language.language_code">
+    <h3 class="release-language__code">{{ language.language_code }}</h3>
+    @for (section of language.sections; track section.prompt_header_id) {
+      <article class="release-section">
+        <h4 class="release-section__caption">{{ section.caption }}</h4>
+        <p class="release-section__source">
+          Decided by {{ section.source.scope_kind }} scope {{ section.source.scope_id }}
+          ({{ section.source.merge_mode }})
+          @if (section.source.sealed) {
+            <span class="release-section__sealed">
+              <mat-icon aria-hidden="true">lock</mat-icon>
+              sealed
+            </span>
+          }
+        </p>
+        @if (section.description) {
+          <p class="release-section__description">{{ section.description }}</p>
+        }
+        <dl class="release-section__copy">
+          <dt>Instruction</dt>
+          <dd class="release-section__text">{{ section.instruction }}</dd>
+          <dt>Output</dt>
+          <dd class="release-section__text">{{ section.output }}</dd>
+        </dl>
+      </article>
+    }
+  </section>
+}

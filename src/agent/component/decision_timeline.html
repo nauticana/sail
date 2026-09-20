@@ -1,0 +1,35 @@
+@for (group of groups(); track group.category) {
+  <section class="decision-group" [attr.aria-label]="group.category">
+    <h3 class="decision-group__category">{{ group.category }}</h3>
+    <ol class="decision-group__records">
+      @for (record of group.records; track record.id) {
+        <li
+          class="decision-record"
+          [class.decision-record--allow]="record.outcome === 'allow'"
+          [class.decision-record--deny]="record.outcome === 'deny'"
+          [class.decision-record--pending]="record.outcome === 'pending'"
+        >
+          <time class="decision-record__time" [attr.datetime]="record.occurred_at">{{ record.occurred_at }}</time>
+          <span class="decision-record__action">{{ record.action }}</span>
+          <span class="decision-record__resource">{{ record.resource }}</span>
+          <span class="decision-record__outcome">{{ record.outcome }}</span>
+          <span class="decision-record__principal">{{ record.principal.kind }} {{ record.principal.id }}</span>
+          @if (record.reason) {
+            <p class="decision-record__reason">{{ record.reason }}</p>
+          }
+          @if (record.authority; as authority) {
+            <p class="decision-record__authority">
+              Acting for {{ authority.subject.kind }} {{ authority.subject.id }}
+              @if (authority.grant_id) {
+                under grant {{ authority.grant_id }}
+                @if (authority.grantor; as grantor) {
+                  from {{ grantor.kind }} {{ grantor.id }}
+                }
+              }
+            </p>
+          }
+        </li>
+      }
+    </ol>
+  </section>
+}

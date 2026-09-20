@@ -1,0 +1,29 @@
+<div class="prompt-language">
+  <fieldset class="prompt-language__reset">
+    <legend>Reset prompts</legend>
+    <mat-form-field>
+      <mat-label>Reset to</mat-label>
+      <mat-select [formControl]="resetScope">
+        <mat-option value="agent_override">Remove agent overrides</mat-option>
+        <mat-option value="type_default">Remove type defaults</mat-option>
+        <mat-option value="platform_baseline">Platform baseline</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-checkbox [formControl]="everyLanguage">Every language</mat-checkbox>
+    <button matButton type="button" [disabled]="disabled()" (click)="requestReset(0)">Reset all sections</button>
+  </fieldset>
+
+  @for (section of language().prompt_sections; track section.prompt_header_id) {
+    <sail-prompt-section-editor
+      [section]="section"
+      [agentScopeId]="agentScopeId()"
+      [typeScopeId]="typeScopeId()"
+      [disabled]="disabled()"
+      (sectionChange)="replaceSection($event)"
+      (validChange)="setSectionValid(section.prompt_header_id, $event)"
+    />
+    <button matButton type="button" [disabled]="disabled()" (click)="requestReset(section.prompt_header_id)">
+      Reset “{{ section.caption }}”
+    </button>
+  }
+</div>
