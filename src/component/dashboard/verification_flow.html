@@ -7,7 +7,9 @@
       <p class="verification-intro">
         Verify ownership@if (target()) { of {{ target() }} } to unlock trusted features.
       </p>
-      <button matButton="elevated" type="button" class="primary" (click)="requestVerification.emit()">
+      @if (errorMessage()) { <p class="verification-error" role="alert">{{ errorMessage() }}</p> }
+      <button matButton="elevated" type="button" class="primary"
+              [disabled]="disabled()" (click)="request()">
         Start verification
       </button>
     }
@@ -17,15 +19,26 @@
         <mat-label>Verification code</mat-label>
         <input matInput #codeInput name="code" autocomplete="one-time-code"
                [value]="code()" (input)="code.set(codeInput.value)"
-               [disabled]="step() === 'verifying'">
+               [disabled]="disabled() || step() === 'verifying'">
       </mat-form-field>
       @if (errorMessage()) { <p class="verification-error" role="alert">{{ errorMessage() }}</p> }
+      @if (expired()) {
+        <p class="verification-expiry verification-expiry--expired" role="status">
+          That code expired. Request a new one.
+        </p>
+      } @else if (expiresIn() > 0) {
+        <p class="verification-expiry" aria-live="polite">Code expires in {{ expiresIn() }}s.</p>
+      }
       <div class="verification-actions">
         <button matButton="elevated" type="button" class="primary"
-                [disabled]="step() === 'verifying' || !code().trim()" (click)="submit()">
+                [disabled]="disabled() || step() === 'verifying' || !code().trim() || expired()" (click)="submit()">
           @if (step() === 'verifying') { Verifying… } @else { Confirm }
         </button>
-        <button matButton type="button" (click)="requestVerification.emit()">Resend code</button>
+        @if (resendIn() > 0) {
+          <span class="verification-resend" aria-live="polite">Resend code in {{ resendIn() }}s</span>
+        } @else {
+          <button matButton type="button" [disabled]="disabled()" (click)="request()">Resend code</button>
+        }
       </div>
     }
   }

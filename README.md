@@ -649,8 +649,56 @@ import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@
 | `TurnStream` | Per-turn stream state: `accept(frame)` accepts Scout's zero-based frames and drops frames already rendered, `cursor()` is the next sequence wanted for inclusive replay, a suspension frame (`approval_pending`, even when marked final) sets `awaiting_approval` without advancing the cursor so the resumed frame at the same sequence is accepted, `markReplayExpired()` + `acceptStoredResult(frame)` handle an expired replay window, `markCancelRequested()` holds `cancelling` until the final frame. |
 | `sail-turn-stream-view` | `TurnStream` + event list + status + cancel button (`cancelRequested`). |
 | `sail-decision-timeline` | Read-only decision chain of one request, grouped by category. |
+| `ConversationService` | Transport for Scout's conversation bridge: `submit`, `stream(requestId, turnStream)`, `cancel`. Mount point injected through `CONVERSATION_BASE_PATH`. |
+| `SseParser` | Incremental `text/event-stream` parser: `push(chunk)` returns whole events out of chunks that split anywhere, including between the CR and LF of a CRLF; `finish()` flushes what the closing body left pending. |
 
-Transport is app-owned: map your reply frames onto `TurnReplyFrame` and your audit rows onto `DecisionRecord`, then feed them in. Style the `.prompt-*`, `.release-*`, `.turn-*`, and `.decision-*` class hooks.
+Map your audit rows onto `DecisionRecord` to feed the timeline. Style the `.prompt-*`, `.release-*`, `.turn-*`, and `.decision-*` class hooks.
+
+### Conversation transport (v1.1.22)
+
+Scout `v0.7.1` fixed the wire contract, so the transport is no longer app-specific.
+`ConversationService` speaks it and feeds a `TurnStream`; the app supplies the mount
+point, the turn `input` payload, and its own renderers.
+
+```ts
+providers: [{ provide: CONVERSATION_BASE_PATH, useValue: '/api/wingmate/' }]
+```
+
+```ts
+const stream = new TurnStream(requestId);
+this.conversation.submit({ request_id: requestId, conversation_id: conversationId, agent_id: 'wingmate', input })
+  .pipe(switchMap(() => this.conversation.stream(requestId, stream)), takeUntilDestroyed())
+  .subscribe({ error: (err) => this.onStreamError(err) });
+```
+
+| Method | Wire |
+|---|---|
+| `submit(request)` | `POST {base}turn` → `202 {request_id}`. Goes through `HttpClient`, so the interceptors apply. |
+| `stream(requestId, turnStream)` | `GET {base}turn/stream?request_id=&cursor=` as SSE. Reads from `turnStream.cursor()`, feeds every `event: turn` frame in, and emits the ones the stream accepted. Completes when the server closes the delivery; unsubscribing aborts the request. |
+| `cancel(requestId, reason?)` | `POST {base}turn/cancel` → `202`. Cancel is a request — call `turnStream.markCancelRequested()` and wait for the final frame. |
+
+Notes that decide whether an adoption is correct:
+
+- **The stream carries its own bearer.** `EventSource` cannot send an `Authorization`
+  header, so this is a `fetch` body reader. It reads the same `jwt` key the interceptor
+  reads and, on a `401`, rotates once through `BaseAuthService.refreshSession()` — the
+  shared, de-duplicated rotation — then retries. The interceptor's auth-loop circuit
+  breaker does **not** cover the stream.
+- **Reconnect is the same call.** `stream()` re-read from `stream.cursor()` resumes
+  exactly where the last accepted frame left off. A suspension frame
+  (`approval_pending`) does not advance the cursor, so reconnecting after the approval is
+  decided picks up the resumed frame at the same sequence.
+- **`410` is an expired replay window under a still-running turn.** No stored result
+  exists yet, which is why it is an error and not a frame. The service calls
+  `markReplayExpired()` and errors with a `ConversationStreamFailure` carrying status
+  `410`; calling `stream()` again later self-heals, because once the turn is terminal the
+  backend answers the same expired cursor with the stored final frame — delivered as an
+  ordinary `event: turn`, carrying the cursor it was asked with, so `accept()` takes it.
+- **`event: error`** carries `ConversationStreamError` (`status`, `detail`, `request_id`) —
+  a failure raised after the stream's `200` was committed. It surfaces as the same
+  `ConversationStreamFailure`.
+- Unknown `TurnEvent` kinds are dropped at the transport, and a frame missing
+  `request_id`, `sequence` or `events` is ignored rather than fed in.
 
 ## Agency / reseller UI (v1.1.14)
 
@@ -906,7 +954,7 @@ Horizontal building blocks for an entitlement-aware dashboard. All are presentat
 - **`NoSourceOverlayComponent`** (`sail-no-source-overlay`) — source-readiness gate. Takes `[sourceName]` and emits `connect`; while `[unavailable]`, its protected `<ng-template>` is never instantiated. Use this for included features whose provider is not connected or whose collector is unavailable—never show an upgrade prompt for this state.
 - **`ActionCenterComponent`** (`sail-action-center`) — prioritized next-best-action list from `[actions]: ActionItem[]` (sorted by `priority`, done items show a check). Emits `act`.
 - **`EntitySelectorComponent`** (`sail-entity-selector`) — scope dropdown over `[entities]: EntityOption[]`; resolves `[selected]` or the first active entity and emits `selectionChange`.
-- **`VerificationFlowComponent`** (`sail-verification-flow`) — self-service request → enter-code → verified UI (a 2FA sibling), backend-agnostic: emits `requestVerification` / `confirmCode`, driven by `[step]` + `[errorMessage]` the host feeds back.
+- **`VerificationFlowComponent`** (`sail-verification-flow`) — self-service request → enter-code → verified UI (a 2FA sibling), backend-agnostic: emits `requestVerification` / `confirmCode`, driven by `[step]` + `[errorMessage]` the host feeds back. `[resendAfterSeconds]` holds `Resend code` for a cooldown and `[codeExpiresInSeconds]` blocks `Confirm` once the issued code expires; both default to `0`, which keeps the button always enabled and shows no expiry. Both countdowns restart when the component emits `requestVerification`. `[disabled]` blocks all actions while the host is processing one. `[errorMessage]` also renders in the `idle` step, so a failed send is reported where it happened.
 
 ```html
 <sail-data-card heading="Trends" [state]="state()" description="Weekly visibility trend" (upgrade)="goUpgrade()">
@@ -926,6 +974,51 @@ unless the backend sends
 `Access-Control-Expose-Headers: X-Data-Source-Status, X-Data-Source`; without it
 `source.status` is `null` and a missing source is indistinguishable from an
 empty result.
+
+## Domain verification (v1.1.22)
+
+`DomainVerificationComponent` (`sail-domain-verification`) is the send-code → confirm
+flow for proving ownership of a domain: the domain field, the two steps, the resend
+cooldown, the expiry state and the errors. Every app that verifies a domain renders
+the same thing, so only the endpoints stay downstream.
+
+The endpoints reach it through the `DOMAIN_VERIFIER` port — sail ships no
+implementation and knows none of the paths:
+
+```ts
+export interface DomainVerifier {
+  requestVerification(domain: string): Observable<unknown>;
+  confirm(domain: string, code: string): Observable<unknown>;
+}
+```
+
+```ts
+// app config — any service with those two methods satisfies the port
+providers: [{ provide: DOMAIN_VERIFIER, useExisting: RegistrationService }]
+```
+
+```html
+<sail-domain-verification
+  [domain]="domainUrl()"
+  [resendAfterSeconds]="60"
+  [codeExpiresInSeconds]="900"
+  (domainChange)="form.controls.domainUrl.setValue($event)"
+  (verified)="domainVerified.set(true)" />
+```
+
+| Input / output | Meaning |
+|---|---|
+| `[domain]` | Initial value; the component keeps its own editable copy. |
+| `[label]` | Field label, default `Domain`. |
+| `[resendAfterSeconds]` | Resend cooldown, default `60`. |
+| `[codeExpiresInSeconds]` | Code lifetime; `0` (default) shows no expiry. Pass the backend's TTL when it publishes one. |
+| `(domainChange)` | Every edit, so the host form stays in sync. |
+| `(verified)` | Fires once with the proven domain. |
+
+Editing the domain returns the flow to `idle`: a code is bound to the domain it was
+issued for. The component is unstyled — style `.domain-verification`,
+`.domain-verification-field`, `.domain-verification-verified` and the
+`.verification-*` hooks of the step UI it composes.
 
 ## Grouped review actions and diffs (v1.1.19)
 

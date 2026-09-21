@@ -3,8 +3,8 @@ import { TurnEvent } from './turn_event';
 export const TURN_ERROR_CANCELED = 'canceled';
 
 /**
- * One reply frame as sail consumes it. The backend's reply type fixes no JSON names, so the
- * app's transport adapter maps its own wire shape onto this one.
+ * One reply frame as sail consumes it. `ConversationService` validates Scout's standard wire
+ * shape; app-specific transports can map their own reply shape onto this one.
  */
 export interface TurnReplyFrame {
   request_id: string;

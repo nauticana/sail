@@ -7,9 +7,9 @@ import { TurnStream } from '../service/turn_stream';
 import { TurnEventListComponent } from './turn_event_list';
 
 /**
- * One turn's stream: its events, its status, and a cancel request. The app owns the transport
- * and the cancel call; on `cancelRequested` it sends the request and calls
- * `stream.markCancelRequested()`. Selector: <sail-turn-stream-view>.
+ * One turn's stream: its events, its status, and a cancel request. The host owns the cancel
+ * call; on `cancelRequested` it sends it — through `ConversationService.cancel` or its own
+ * transport — and calls `stream.markCancelRequested()`. Selector: <sail-turn-stream-view>.
  */
 @Component({
   selector: 'sail-turn-stream-view',

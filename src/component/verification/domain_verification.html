@@ -1,0 +1,23 @@
+<div class="domain-verification" [attr.data-step]="step()">
+  <div class="domain-verification-field">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ label() }}</mat-label>
+      <input matInput #domainField type="text" name="domain" inputmode="url" autocomplete="url"
+             [value]="domain()" (input)="onDomainInput(domainField.value)"
+             [disabled]="isVerified() || loading()">
+    </mat-form-field>
+    @if (isVerified()) {
+      <mat-icon class="domain-verification-verified" aria-hidden="true">verified</mat-icon>
+    }
+  </div>
+
+  <sail-verification-flow
+    [step]="step()"
+    [target]="domain()"
+    [errorMessage]="errorMessage()"
+    [disabled]="loading() || !domain().trim()"
+    [resendAfterSeconds]="resendAfterSeconds()"
+    [codeExpiresInSeconds]="codeExpiresInSeconds()"
+    (requestVerification)="request()"
+    (confirmCode)="confirm($event)" />
+</div>

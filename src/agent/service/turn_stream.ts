@@ -5,9 +5,9 @@ import { TurnEvent } from '../model/turn_event';
 const terminalStatuses: ReadonlySet<TurnStreamStatus> = new Set(['completed', 'canceled', 'failed']);
 
 /**
- * Client-side state of one turn's reply stream. Transport stays the app's: it feeds frames to
- * `accept`, reconnects from `cursor()`, and reports an expired replay window. One instance per
- * turn; not injectable.
+ * Client-side state of one turn's reply stream. `ConversationService` or an app-specific
+ * transport feeds frames to `accept`, reconnects from `cursor()`, and reports an expired replay
+ * window. One instance per turn; not injectable.
  */
 export class TurnStream {
   private readonly frames = signal<TurnReplyFrame[]>([]);
