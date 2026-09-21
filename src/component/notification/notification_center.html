@@ -1,0 +1,60 @@
+<section class="notification-center" [attr.aria-busy]="loading()">
+  <div class="notification-center__head">
+    @if (heading()) {
+      <h2 class="notification-center__title">
+        {{ heading() }}
+        @if (unreadCount()) { <span class="notification-center__unread">{{ unreadCount() }}</span> }
+      </h2>
+    }
+    @if (unreadCount()) {
+      <button matButton type="button" [disabled]="loading()" (click)="markAllRead()">{{ markAllLabel() }}</button>
+    }
+  </div>
+
+  @if (errorMessage()) {
+    <p class="notification-center__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading() && !messages().length) {
+    <div class="notification-center__loading">
+      <mat-spinner diameter="28" aria-label="Loading notifications"></mat-spinner>
+    </div>
+  }
+
+  @if (empty()) {
+    <p class="notification-center__empty">{{ emptyMessage() }}</p>
+  } @else if (messages().length) {
+    <ul class="notification-center__list">
+      @for (message of messages(); track message.id) {
+        <li class="notification-item" [class.notification-item--unread]="!message.readAt">
+          @if (selectable()) {
+            <button class="notification-item__select" type="button" [disabled]="loading()" (click)="select(message)">
+              <span class="notification-item__title">{{ message.title }}</span>
+              <span class="notification-item__body">{{ message.body }}</span>
+              <time class="notification-item__time" [attr.datetime]="message.createdAt">{{ message.createdAt | date: dateFormat() }}</time>
+            </button>
+          } @else {
+            <div class="notification-item__static">
+              <span class="notification-item__title">{{ message.title }}</span>
+              <span class="notification-item__body">{{ message.body }}</span>
+              <time class="notification-item__time" [attr.datetime]="message.createdAt">{{ message.createdAt | date: dateFormat() }}</time>
+            </div>
+          }
+          @if (!message.readAt) {
+            <button matIconButton type="button" class="notification-item__read"
+                    [attr.aria-label]="markReadLabel() + ': ' + message.title"
+                    [disabled]="loading()" (click)="markRead(message)">
+              <mat-icon>done</mat-icon>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+
+    @if (hasMore()) {
+      <button matButton type="button" class="notification-center__more" [disabled]="loading()" (click)="loadMore()">
+        {{ loadMoreLabel() }}
+      </button>
+    }
+  }
+</section>

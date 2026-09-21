@@ -46,6 +46,10 @@ export const RestURL = {
   profileEmailConfirmURL: '/api/user/profile/email/confirm',
   profilePhoneURL:        '/api/user/profile/phone',
   profilePhoneConfirmURL: '/api/user/profile/phone/confirm',
+  // Notification inbox (keel InboxHandler, v1.2.71+).
+  notificationsURL:            '/api/notifications',
+  notificationsMarkReadURL:    '/api/notifications/mark_read',
+  notificationsMarkAllReadURL: '/api/notifications/mark_all_read',
   pushRegisterURL:     '/api/push/register',
   pushRevokeURL:       '/api/push/revoke',
   // Payout — keel/payout endpoints. keel mounts PayoutHandler.Routes(prefix)

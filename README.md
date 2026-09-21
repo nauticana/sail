@@ -23,11 +23,12 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Agency** | `AgencyClientsComponent`, `AgencyStatusBannerComponent`, `AgencyAcceptComponent`, `AgencyEarningsSummaryComponent`, `CommissionLedgerComponent`, `AgencyPayoutHistoryComponent`, `AgencyPayoutProfileComponent` |
+| **Notifications** | `NotificationCenterComponent`, `NotificationInboxService` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
-| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `NotificationInboxService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
-| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, 2FA types, etc. |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
 | **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinorCurrency()` |
 
@@ -342,6 +343,9 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /api/user/trusted-device/revoke` | Revoke a trusted device |
 | `POST /api/user/logout-everywhere` | Sign out of all devices — **requires re-auth** |
 | `DELETE /api/user/account` | Soft-delete the caller's account — **requires re-auth** |
+| `GET /api/notifications` | Notification inbox page — `?before=<id>&limit=<n>`, newest first (keel v1.2.71) |
+| `POST /api/notifications/mark_read` | Mark one message read — `{"id": "<id>"}` |
+| `POST /api/notifications/mark_all_read` | Mark the caller's whole inbox read |
 | `POST /api/push/register` | Register an FCM / APNs token |
 | `POST /api/push/revoke` | Revoke an FCM / APNs token |
 | `POST /api/billing/checkout` | Create provider-hosted checkout session — **JWT-gated, allowlist-validated** |
@@ -949,9 +953,9 @@ For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWith
 Horizontal building blocks for an entitlement-aware dashboard. All are presentational (signals in, events out) and ship no CSS — the app styles the documented class hooks and supplies the metric data, chart, and action logic.
 
 - **`DashboardShellComponent`** (`sail-dashboard-shell`) — responsive card-grid layout. `[heading]` + a `[dashboardActions]` projection slot for the header; project cards into the default slot. Styles: `.dashboard-shell` / `.dashboard-header` / `.dashboard-grid`.
-- **`DataCardComponent`** (`sail-data-card`) — card chrome for one visualization with `[state]` ∈ `loading | ready | empty | error | locked | no-source`. The chart is supplied as an `<ng-template>` and instantiated **only** in `ready`, so during loading/error/locked/no-source it never exists (no hidden canvas). `description` (required) is the screen-reader text alternative; `[tableHeaders]`/`[tableRows]` render a visually-hidden (`.sr-only`) data table. Emits `upgrade`, `connect`, and `retry`.
+- **`DataCardComponent`** (`sail-data-card`) — card chrome for one visualization with `[state]` ∈ `loading | ready | empty | error | locked | no-source`. The chart is supplied as an `<ng-template>` and instantiated **only** in `ready`, so during loading/error/locked/no-source it never exists (no hidden canvas). `description` (required) is the screen-reader text alternative; `[tableHeaders]`/`[tableRows]` render a visually-hidden (`.sr-only`) data table. Emits `upgrade`, `connect`, and `retry`. `[connectLabel]="''"` renders the `no-source` state without a button — a source whose collector does not exist yet has nothing to connect.
 - **`LockedOverlayComponent`** (`sail-locked-overlay`) — entitlement gate. Wraps protected content given as an `<ng-template>`; when `[locked]` the template is never instantiated, so **no data exists behind the gate** (DOM, canvas, or network) — the strict free-tier rule. Emits `upgrade`.
-- **`NoSourceOverlayComponent`** (`sail-no-source-overlay`) — source-readiness gate. Takes `[sourceName]` and emits `connect`; while `[unavailable]`, its protected `<ng-template>` is never instantiated. Use this for included features whose provider is not connected or whose collector is unavailable—never show an upgrade prompt for this state.
+- **`NoSourceOverlayComponent`** (`sail-no-source-overlay`) — source-readiness gate. Takes `[sourceName]` and emits `connect`; while `[unavailable]`, its protected `<ng-template>` is never instantiated. Use this for included features whose provider is not connected or whose collector is unavailable—never show an upgrade prompt for this state. Set `[ctaLabel]="''"` when there is nothing to connect, and no button renders.
 - **`ActionCenterComponent`** (`sail-action-center`) — prioritized next-best-action list from `[actions]: ActionItem[]` (sorted by `priority`, done items show a check). Emits `act`.
 - **`EntitySelectorComponent`** (`sail-entity-selector`) — scope dropdown over `[entities]: EntityOption[]`; resolves `[selected]` or the first active entity and emits `selectionChange`.
 - **`VerificationFlowComponent`** (`sail-verification-flow`) — self-service request → enter-code → verified UI (a 2FA sibling), backend-agnostic: emits `requestVerification` / `confirmCode`, driven by `[step]` + `[errorMessage]` the host feeds back. `[resendAfterSeconds]` holds `Resend code` for a cooldown and `[codeExpiresInSeconds]` blocks `Confirm` once the issued code expires; both default to `0`, which keeps the button always enabled and shows no expiry. Both countdowns restart when the component emits `requestVerification`. `[disabled]` blocks all actions while the host is processing one. `[errorMessage]` also renders in the `idle` step, so a failed send is reported where it happened.
@@ -1019,6 +1023,61 @@ Editing the domain returns the flow to `idle`: a code is bound to the domain it 
 issued for. The component is unstyled — style `.domain-verification`,
 `.domain-verification-field`, `.domain-verification-verified` and the
 `.verification-*` hooks of the step UI it composes.
+
+## Notification inbox (v1.1.23)
+
+`NotificationInboxService` is the stateful client for keel's `InboxHandler` (keel
+**v1.2.71+**). `NotificationCenterComponent` (`sail-notification-center`) renders it;
+the app handles what each message means through `(selected)`.
+
+The default routes match keel. Override the three `notifications*URL` values through
+`configureRestUrls` only when the handler is mounted elsewhere.
+
+```ts
+const inbox = inject(NotificationInboxService);
+inbox.load().subscribe();          // newest page, replaces the cache
+inbox.loadMore().subscribe();      // the page older than the last cached message
+inbox.markRead(id).subscribe();
+inbox.markAllRead().subscribe();
+inbox.reset();                     // on logout — the cache is per-session
+```
+
+```ts
+readonly unread = inject(NotificationInboxService).unreadCount;   // Signal<number>
+```
+
+| Member | Meaning |
+|---|---|
+| `messages` | `Signal<InboxMessage[]>`, newest first. |
+| `unreadCount` | `Signal<number>` across the whole inbox, not just the loaded page. |
+| `hasMore` | `Signal<boolean>` — the last page came back full, so older messages may exist. |
+| `load(limit)` / `loadMore(limit)` | Default 20; keel caps a page at 100 and the client clamps to match. |
+
+Message ids are server-side `BIGINT`s serialized as strings. Both mark-read routes
+return `204`, so the service updates its cache locally. Call `load()` to pick up new
+messages and `reset()` on logout.
+
+```html
+<sail-notification-center
+  heading="Notifications"
+  [pageSize]="20"
+  (selected)="open($event)" />
+```
+
+| Input / output | Meaning |
+|---|---|
+| `[pageSize]` | Messages per request, default 20. |
+| `[heading]` | Rendered as an `<h2>` with the unread count; empty (default) when the page has its own heading. |
+| `[emptyMessage]`, `[markAllLabel]`, `[markReadLabel]`, `[loadMoreLabel]` | Configurable labels. |
+| `[dateFormat]` | Angular `DatePipe` format for each timestamp, default `short`. |
+| `[selectable]` | `false` renders messages as static text, default `true`. |
+| `[markReadOnSelect]` | Selecting an unread message also marks it read, default `true`. |
+| `(selected)` | The chosen `InboxMessage` — route on its `type` / `data` yourself. |
+
+Ships no CSS — style
+`.notification-center`, `.notification-center__{head,title,unread,error,loading,empty,list,more}`,
+`.notification-item`, `.notification-item--unread` and
+`.notification-item__{select,static,title,body,time,read}`.
 
 ## Grouped review actions and diffs (v1.1.19)
 
