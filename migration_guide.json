@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.24",
+   "title": "Off-session SCA refusals are a first-class charge outcome",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "ChargeStatus gains 'authentication_required' and ChargeResult gains paymentMethodId, so an off-session charge the issuer refused for SCA no longer decodes as a plain failure. ScaConfirmer requires confirmWithMethod for on-session re-confirmation; <sail-sca-confirm> picks the operation from the status. Requires keel v1.2.70+ to produce the status. sourceState() maps analytic source headers and rows to card state, message, and CTA.",
+   "body_markdown": "### Breaking\n\n| Old | New |\n|---|---|\n| `ScaConfirmer` had one method, `confirm(clientSecret)` | a second, `confirmWithMethod(clientSecret, paymentMethodId)`, is required |\n\nEvery `ScaConfirmer` implementation must add it. There is no default and no\noptional shim: an implementation that cannot re-confirm would send an\n`authentication_required` charge down the failure branch, which is the bug this\nrelease fixes.\n\n```ts\nasync confirmWithMethod(clientSecret: string, paymentMethodId: string): Promise<ScaResult> {\n  const stripe = await this.getStripe();\n  if (!stripe) return { outcome: 'failed', error: 'Payment library failed to load.' };\n  const { error } = await stripe.confirmCardPayment(clientSecret, { payment_method: paymentMethodId });\n  return error ? { outcome: 'failed', error: error.message } : { outcome: 'succeeded' };\n}\n```\n\n### Additive\n\n| | Before | After |\n|---|---|---|\n| `ChargeStatus` | `'succeeded' \\| 'requires_action' \\| 'failed'` | + `'authentication_required'` |\n| `ChargeResult` | no refused-method field | + `paymentMethodId?: string` |\n| `<sail-sca-confirm>` | one action state | dispatches on status; a confirm button renders for both action states |\n| analytic source → card state | app-local mapping | + `sourceState(result, sourceName, connectLabel?)` → `SourceCardState` `{ state, message, cta }`: `NOT_CONNECTED` offers the CTA, `NOT_COLLECTED` leaves it empty, anything else is `ready` / `empty` from the rows |\n\n## Adopting it\n\n1. Return the new status from your charge endpoint. keel `payment.ChargeClient`\n   already produces it (keel **v1.2.70+**) — pass `Status` and `PaymentMethodID`\n   through as camelCase `status` / `paymentMethodId`.\n\n```jsonc\n{ \"status\": \"authentication_required\", \"clientSecret\": \"pi_..._secret_...\", \"paymentMethodId\": \"pm_...\" }\n```\n\n2. Delete any app-local widening of `ChargeStatus` / `ChargeResult` and bind\n   `<sail-sca-confirm>` to the result as before — the component picks the\n   operation from the status, so the template does not change.\n\n### Notes\n\n- An off-session refusal carries no `next_action`, so the component never takes\n  the `actionUrl` redirect branch for it, even if the field is populated.\n- `authentication_required` needs both `clientSecret` and `paymentMethodId`. A\n  result missing either fails loudly through `(failed)` instead of confirming\n  the wrong thing.\n"
+  },
+  {
    "version": "v1.1.23",
    "title": "Notification inbox client and an optional no-source CTA",
    "tags": [

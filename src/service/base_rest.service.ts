@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
+import type { DataCardState } from '../model/dashboard';
 import { RestURL } from './rest_url';
 
 /**
@@ -63,4 +64,21 @@ export interface AnalyticResult<T> {
 export interface AnalyticSourceStatus {
   status: string | null;
   id: string | null;
+}
+
+export interface SourceCardState {
+  state: DataCardState;
+  message: string;
+  cta: string;
+}
+
+/** Only keel's two not-ready states gate the card; `READY` or no header falls through to the rows. */
+export function sourceState<T>(result: AnalyticResult<T>, sourceName: string, connectLabel = 'Connect'): SourceCardState {
+  if (result.source.status === 'NOT_COLLECTED') {
+    return { state: 'no-source', message: `${sourceName} collection is not live yet.`, cta: '' };
+  }
+  if (result.source.status === 'NOT_CONNECTED') {
+    return { state: 'no-source', message: `Connect ${sourceName} to see this.`, cta: connectLabel };
+  }
+  return { state: result.rows.length ? 'ready' : 'empty', message: '', cta: '' };
 }

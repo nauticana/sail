@@ -4,19 +4,7 @@ import { BaseAsync } from '../abstract/base_async';
 import { ChargeResult } from '../../model/appdata';
 import { SCA_CONFIRMER } from '../../service/sca_confirmer';
 
-/**
- * Drives the SCA / 3DS confirmation for an off-session `ChargeResult`.
- *
- * Two confirmation paths, mirroring keel's `ChargeResult`:
- *  - `actionUrl` present → redirect to the provider-hosted challenge
- *    (provider-agnostic; the page navigates away).
- *  - otherwise `clientSecret` → delegate to the injected `SCA_CONFIRMER`
- *    (the app's provider SDK wrapper). No confirmer is bundled in sail.
- *
- * Renders nothing for a `succeeded` result; shows the decline message for
- * `failed`; shows a confirm button for `requires_action`. Emits `(confirmed)`
- * on success and `(failed)` with a message on any error — never silently.
- */
+/** Confirms an off-session charge through a redirect or the injected provider. */
 @Component({
   selector: 'sail-sca-confirm',
   templateUrl: './sca_confirm.html',
@@ -32,21 +20,28 @@ export class ScaConfirmComponent extends BaseAsync {
   readonly confirmed = output<void>();
   readonly failed = output<string>();
 
-  readonly needsAction = computed(() => this.result().status === 'requires_action');
+  readonly needsAction = computed(() => {
+    const status = this.result().status;
+    return status === 'requires_action' || status === 'authentication_required';
+  });
   readonly declined = computed(() => this.result().status === 'failed');
 
   async confirm(): Promise<void> {
+    if (!this.needsAction() || this.loading()) return;
     const res = this.result();
+    const reconfirm = res.status === 'authentication_required';
 
-    // Provider-hosted redirect branch — provider-agnostic; navigates away.
-    if (res.actionUrl) {
+    if (!reconfirm && res.actionUrl) {
       window.location.href = res.actionUrl;
       return;
     }
 
-    // Inline confirmation branch — delegates to the app's provider impl.
     if (!res.clientSecret) {
       this.fail('Missing client secret for SCA confirmation.');
+      return;
+    }
+    if (reconfirm && !res.paymentMethodId) {
+      this.fail('Missing payment method for re-confirmation.');
       return;
     }
     if (!this.confirmer) {
@@ -57,7 +52,9 @@ export class ScaConfirmComponent extends BaseAsync {
     this.clearMessages();
     this.loading.set(true);
     try {
-      const out = await this.confirmer.confirm(res.clientSecret);
+      const out = reconfirm
+        ? await this.confirmer.confirmWithMethod(res.clientSecret, res.paymentMethodId!)
+        : await this.confirmer.confirm(res.clientSecret);
       this.loading.set(false);
       if (out.outcome === 'succeeded') {
         this.confirmed.emit();

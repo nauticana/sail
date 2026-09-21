@@ -325,18 +325,21 @@ export interface UsageMeter {
 // returns from its own charge endpoint, mirroring keel `payment.ChargeResult`.
 // 'requires_action' means the rider must complete an SCA / 3DS confirmation
 // (drive it with `<sail-sca-confirm>`).
-export type ChargeStatus = 'succeeded' | 'requires_action' | 'failed';
+// 'authentication_required' is an off-session refusal: no next_action to run —
+// re-confirm the same intent on-session with paymentMethodId.
+export type ChargeStatus = 'succeeded' | 'requires_action' | 'authentication_required' | 'failed';
 
 export interface ChargeResult {
 	status:            ChargeStatus;
 	providerChargeId?: string;   // PaymentIntent / charge id (pi_xxx)
-	// Provider client secret — present when status === 'requires_action' and the
-	// SCA challenge must be confirmed inline (provider SDK). Mirrors keel
-	// ChargeResult.ClientSecret.
+	// Provider client secret for inline confirmation or on-session re-confirmation.
 	clientSecret?:     string;
 	// Provider-hosted redirect URL when one exists (often empty for off-session
 	// 3DS). When present it's the simplest, provider-agnostic confirmation path.
 	actionUrl?:        string;
+	// The refused stored method, to re-confirm with when
+	// status === 'authentication_required'. Mirrors keel ChargeResult.PaymentMethodID.
+	paymentMethodId?:  string;
 	error?:            string;   // decline / error message when status === 'failed'
 }
 

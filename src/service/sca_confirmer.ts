@@ -20,10 +20,17 @@ export interface ScaResult {
  *   { provide: SCA_CONFIRMER, useClass: StripeScaConfirmer }
  *
  * The `actionUrl` (provider-hosted redirect) branch needs no confirmer — only
- * the inline `clientSecret` branch delegates here.
+ * the inline `clientSecret` branches delegate here.
  */
 export interface ScaConfirmer {
+  /** Run the intent's `next_action` (Stripe.js `handleNextAction`). */
   confirm(clientSecret: string): Promise<ScaResult>;
+  /**
+   * Re-confirm the intent on-session with the method the issuer refused
+   * off-session (Stripe.js `confirmCardPayment`, stripe-ios
+   * `STPPaymentHandler.confirmPayment`) — there is no `next_action` to run.
+   */
+  confirmWithMethod(clientSecret: string, paymentMethodId: string): Promise<ScaResult>;
 }
 
 export const SCA_CONFIRMER = new InjectionToken<ScaConfirmer>('SailScaConfirmer');

@@ -772,14 +772,20 @@ being summed into a misleading total.
 The agency URL defaults use `/api/v1/agency/*`. Apps mounting Keel elsewhere
 must override the `RestURL.agency*URL` values with `configureRestUrls()`.
 
-## Off-session SCA / 3DS confirmation (v1.0.x)
+## Off-session SCA / 3DS confirmation (v1.0.x; refusals v1.1.24)
 
-When an app charges a rider's **vaulted** card off-session (keel `payment.ChargeClient` / `StripeChargeClient`), the provider may return `requires_action` — the cardholder must complete a Strong Customer Authentication (3DS) challenge. keel surfaces the hooks on `ChargeResult` (`ClientSecret`, `ActionURL`); sail standardizes the **client-side** confirmation so it isn't rebuilt per app.
+When an app charges a rider's **vaulted** card off-session (keel `payment.ChargeClient` / `StripeChargeClient`), the cardholder may have to complete a Strong Customer Authentication (3DS) challenge. keel reports two distinct outcomes on `ChargeResult`, and they need different client operations:
 
-sail stays provider-agnostic: it ships **no payment-provider SDK** and **no default confirmer**. It provides a port (`ScaConfirmer`), the `SCA_CONFIRMER` injection token, and `<sail-sca-confirm>`, which:
+| `status` | What happened | Client operation |
+|---|---|---|
+| `requires_action` | The PaymentIntent carries a `next_action` to run. | Run it — `actionUrl` redirect, or `confirm(clientSecret)`. |
+| `authentication_required` | The issuer refused the off-session confirmation. The intent is back at `requires_payment_method` with **no `next_action`**. | Re-confirm the same intent on-session with the refused method — `confirmWithMethod(clientSecret, paymentMethodId)`. |
 
-- redirects to `ChargeResult.actionUrl` when present (provider-hosted challenge — no SDK needed); else
-- delegates the inline `ChargeResult.clientSecret` to the app-registered `SCA_CONFIRMER`.
+sail stays provider-agnostic: it ships **no payment-provider SDK** and **no default confirmer**. It provides a port (`ScaConfirmer`), the `SCA_CONFIRMER` injection token, and `<sail-sca-confirm>`, which dispatches on the status:
+
+- `authentication_required` → `SCA_CONFIRMER.confirmWithMethod`; else
+- `actionUrl` present → redirect (provider-hosted challenge — no SDK needed); else
+- inline `clientSecret` → `SCA_CONFIRMER.confirm`.
 
 ### Backend contract (app-owned)
 
@@ -788,6 +794,7 @@ Off-session charging is a worker/handler concern, so the **app** owns the charge
 ```jsonc
 // POST /api/<app>/charge  →  200
 { "status": "requires_action", "clientSecret": "pi_..._secret_...", "actionUrl": "" }
+// or { "status": "authentication_required", "clientSecret": "pi_..._secret_...", "paymentMethodId": "pm_..." }
 // or { "status": "succeeded", "providerChargeId": "pi_..." }
 // or { "status": "failed", "error": "card_declined" }
 ```
@@ -809,6 +816,13 @@ export class StripeScaConfirmer implements ScaConfirmer {
     const stripe = await loadStripe(/* publishable key from backend cache */);
     if (!stripe) return { outcome: 'failed', error: 'Stripe.js failed to load' };
     const { error } = await stripe.handleNextAction({ clientSecret });
+    return error ? { outcome: 'failed', error: error.message } : { outcome: 'succeeded' };
+  }
+
+  async confirmWithMethod(clientSecret: string, paymentMethodId: string): Promise<ScaResult> {
+    const stripe = await loadStripe(/* publishable key from backend cache */);
+    if (!stripe) return { outcome: 'failed', error: 'Stripe.js failed to load' };
+    const { error } = await stripe.confirmCardPayment(clientSecret, { payment_method: paymentMethodId });
     return error ? { outcome: 'failed', error: error.message } : { outcome: 'succeeded' };
   }
 }
@@ -834,7 +848,7 @@ providers: [
 </sail-sca-confirm>
 ```
 
-`<sail-sca-confirm>` renders nothing for `succeeded`, the decline message for `failed`, and a confirm button for `requires_action`. The publishable key is backend-authoritative — read it from the auth/app-data cache, never hardcode a fallback.
+`<sail-sca-confirm>` renders nothing for `succeeded`, the decline message for `failed`, and a confirm button for both action states. The publishable key is backend-authoritative — read it from the auth/app-data cache, never hardcode a fallback.
 
 ## Consent capture
 
@@ -972,6 +986,13 @@ Analytics clients that need this distinction can call the protected
 `analyticWithStatus<T>()` on `BaseRestService`. It returns
 `{ rows, source: { status, id } }`, populated from `X-Data-Source-Status` and
 `X-Data-Source`; the existing `analytic<T>()` remains `Observable<T[]>`.
+
+`sourceState(result, sourceName, connectLabel?)` maps an analytic result to
+`{ state, message, cta }` for `[state]`, `[noSourceMessage]`, and `[connectLabel]`.
+`NOT_CONNECTED` offers Connect; `NOT_COLLECTED` explains that collection is not
+live and leaves the CTA empty; `READY` or no header yields `ready` / `empty` from
+the rows. The caller supplies the source name and handles
+the click route.
 
 When the app and its API are on different origins the browser hides both headers
 unless the backend sends
