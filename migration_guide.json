@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.21",
+   "title": "TurnStream uses Scout's zero-based next-sequence cursor and keeps a suspended turn open",
+   "tags": [
+    "breaking",
+    "behavioral"
+   ],
+   "summary": "TurnStream now accepts Scout reply sequence 0 and exposes cursor() as the next sequence wanted, matching Scout ConversationHandler's inclusive replay cursor. A suspension frame no longer ends the stream or advances the cursor.",
+   "body_markdown": "## Breaking\n\n| Old | New |\n|---|---|\n| `TurnStream.cursor()` was the last rendered sequence, starting at 0 | the next sequence wanted, starting at 0 (`lastSequence + 1`) |\n\n`TurnStream` previously initialized its last rendered sequence to 0, which dropped Scout's first frame, and exposed the last rendered sequence as its replay cursor, which replayed that frame.\n\n## Behavioral\n\nA frame whose last event is `approval_pending` is a suspension: Scout marks it `final` with an `error_code` and the resumed turn reuses its sequence. `TurnStream` now reports `awaiting_approval` for it instead of `failed`, does not advance `cursor()`, drops a replay of the same suspension, accepts the resumed frame at that sequence, and leaves it out of `finalFrame`.\n\n## Migration\n\n1. Pass `stream.cursor()` directly as the `cursor` query parameter of Scout's conversation stream endpoint. Remove any caller-side increment.\n2. After a suspension frame the server closes the delivery; reconnect from `stream.cursor()` once the approval is decided.\n"
+  },
+  {
    "version": "v1.1.20",
    "title": "Secondary entry point @nauticana/sail/agent; package exports close deep imports",
    "tags": [

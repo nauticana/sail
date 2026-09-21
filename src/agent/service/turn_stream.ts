@@ -12,22 +12,29 @@ const terminalStatuses: ReadonlySet<TurnStreamStatus> = new Set(['completed', 'c
 export class TurnStream {
   private readonly frames = signal<TurnReplyFrame[]>([]);
   private readonly state = signal<TurnStreamStatus>('idle');
-  private readonly lastSequence = signal(0);
+  private readonly lastSequence = signal(-1);
+  private suspendedAt: number | null = null;
 
   readonly status = this.state.asReadonly();
-  /** Last sequence rendered; a reconnect resumes after it. */
-  readonly cursor = this.lastSequence.asReadonly();
+  /** Next zero-based sequence wanted by Scout's inclusive replay cursor. */
+  readonly cursor = computed(() => this.lastSequence() + 1);
   readonly events = computed<TurnEvent[]>(() => this.frames().flatMap((frame) => frame.events));
-  readonly finalFrame = computed(() => this.frames().find((frame) => frame.final));
+  readonly finalFrame = computed(() => this.frames().find((frame) => frame.final && !isSuspension(frame)));
   readonly isTerminal = computed(() => terminalStatuses.has(this.state()));
 
   constructor(readonly requestId: string) {}
 
-  /** Returns false for a frame of another turn, one already rendered, or one after the final. */
+  /**
+   * Returns false for a frame of another turn, one already rendered, or one after the final.
+   * A suspension frame does not advance the cursor: the resumed turn reuses its sequence.
+   */
   accept(frame: TurnReplyFrame): boolean {
     if (frame.request_id !== this.requestId || this.isTerminal()) return false;
     if (frame.sequence <= this.lastSequence()) return false;
-    this.lastSequence.set(frame.sequence);
+    const suspension = isSuspension(frame);
+    if (suspension && this.suspendedAt === frame.sequence) return false;
+    this.suspendedAt = suspension ? frame.sequence : null;
+    if (!suspension) this.lastSequence.set(frame.sequence);
     this.append(frame);
     return true;
   }
@@ -58,13 +65,16 @@ export class TurnStream {
   }
 
   private statusAfter(frame: TurnReplyFrame): TurnStreamStatus {
-    if (frame.final) {
+    if (frame.final && !isSuspension(frame)) {
       if (frame.error_code === TURN_ERROR_CANCELED) return 'canceled';
       return frame.error_code ? 'failed' : 'completed';
     }
     if (this.state() === 'cancelling') return 'cancelling';
-    // approval_pending ends the delivery, not the turn: resumed frames follow on the same stream.
-    const last = frame.events[frame.events.length - 1];
-    return last?.kind === 'approval_pending' ? 'awaiting_approval' : 'streaming';
+    return isSuspension(frame) ? 'awaiting_approval' : 'streaming';
   }
+}
+
+/** approval_pending ends the delivery, not the turn, even on a frame marked final with an error code. */
+function isSuspension(frame: TurnReplyFrame): boolean {
+  return frame.events[frame.events.length - 1]?.kind === 'approval_pending';
 }
