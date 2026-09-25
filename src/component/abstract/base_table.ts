@@ -8,6 +8,7 @@ import { titleCase } from "../../util/text";
 import { errorDetail } from "../../util/errors";
 import { MatDialog } from "@angular/material/dialog";
 import { RevealDialog } from "../table/reveal_dialog";
+import { ActionParamsDialog } from "../table/action_params_dialog";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" alert. */
@@ -20,7 +21,7 @@ const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
 export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
     protected readonly backendService = inject(BackendService);
-    // Reveal dialogs are rare — resolve MatDialog lazily so every BaseTable subclass doesn't eagerly depend on it.
+    // Action dialogs are rare — resolve MatDialog lazily so every BaseTable subclass doesn't eagerly depend on it.
     readonly #injector = inject(Injector);
     protected readonly config: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
     protected readonly dialogWidth: string = '400px';
@@ -127,9 +128,10 @@ export abstract class BaseTable {
      *   2. Subclass-specific pre-flight guard via `beforeExecuteAction()` —
      *      returns false to abort silently (the hook has already shown its
      *      own alert).
-     *   3. Optional confirm prompt from `action.confirmMessage`
+     *   3. A parameter dialog when the action declares `parameters`
+     *      (it shows `confirmMessage`), otherwise the confirm prompt
      *   4. POST `{}` for table-level actions or `primaryKeyValues(record)`
-     *      for record-specific actions
+     *      for record-specific actions, merged with the parameter values
      *   5. On success, dispatch `onActionSuccess()` so subclasses can refresh
      *      their views; on error, log and alert.
      *
@@ -141,8 +143,21 @@ export abstract class BaseTable {
             return;
         }
         if (!this.beforeExecuteAction(action, record)) return;
+        const key = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
+        if (action.parameters?.length) {
+            this.#injector.get(MatDialog)
+                .open<ActionParamsDialog, TableAction, Record<string, unknown>>(ActionParamsDialog, { data: action, width: this.dialogWidth })
+                .afterClosed()
+                .subscribe((values) => {
+                    if (values) this.postAction(action, {...key, ...values}, record);
+                });
+            return;
+        }
         if (action.confirmMessage && !confirm(action.confirmMessage)) return;
-        const body = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
+        this.postAction(action, key, record);
+    }
+
+    private postAction(action: TableAction, body: Record<string, unknown>, record?: Record<string, unknown>): void {
         this.backendService.executeAction<Record<string, unknown>>(action.method, body).subscribe({
             next: (resp) => {
                 const url = resp?.['url'];

@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>{{ action.caption }}</h2>
+<form [formGroup]="form" (ngSubmit)="submit()">
+    <mat-dialog-content>
+        @if (action.confirmMessage) {
+            <p>{{ action.confirmMessage }}</p>
+        }
+        @for (f of fields; track f.param.name) {
+            @switch (f.kind) {
+                @case ('checkbox') {
+                    <mat-checkbox [formControlName]="f.param.name">{{ f.param.caption }}</mat-checkbox>
+                }
+                @case ('select') {
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{ f.param.caption }}</mat-label>
+                        <mat-select [formControlName]="f.param.name" [required]="f.param.required">
+                            @if (!f.param.required) {
+                                <mat-option [value]="''">None</mat-option>
+                            }
+                            @for (opt of f.options; track opt.Value) {
+                                <mat-option [value]="opt.Value">{{ opt.Caption }}</mat-option>
+                            }
+                        </mat-select>
+                        <mat-error>{{ f.param.caption }} is required</mat-error>
+                    </mat-form-field>
+                }
+                @default {
+                    <mat-form-field appearance="outline">
+                        <mat-label>{{ f.param.caption }}</mat-label>
+                        <input matInput [type]="f.kind" [formControlName]="f.param.name" [required]="f.param.required">
+                        <mat-error>{{ f.param.caption }} is required</mat-error>
+                    </mat-form-field>
+                }
+            }
+        }
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button matButton type="button" mat-dialog-close>Cancel</button>
+        <button matButton="filled" type="submit">{{ action.caption }}</button>
+    </mat-dialog-actions>
+</form>

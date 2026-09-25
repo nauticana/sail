@@ -79,6 +79,16 @@ export interface TableAction {
   authorityObject:  string;   // uppercased table_name — for canExecute()
   authorityCheck:   string;   // uppercased action_name — for canExecute()
   kind?:            'P' | 'R' | 'V'; // constant_value codes: P post (default) / R redirect (follow {url}) / V reveal (show returned secret once)
+  parameters?:      TableActionParameter[];
+}
+
+/** A value collected in a dialog before the action posts; merged into the body beside the record key. */
+export interface TableActionParameter {
+  name:         string;
+  caption:      string;
+  dataType:     string;
+  required:     boolean;
+  lookupTable?: string;   // offer this table's cached rows as choices
 }
 
 export interface ForeignKey {

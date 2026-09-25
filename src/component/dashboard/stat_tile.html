@@ -1,0 +1,29 @@
+<div class="stat-tile">
+  <p class="stat-tile-label">{{ label() }}</p>
+  <p class="stat-tile-value">
+    {{ value() }}
+    @if (target()) { <span class="stat-tile-target">/ {{ target() }}</span> }
+  </p>
+  @if (delta()) {
+    <p class="stat-tile-delta" [class.good]="deltaGood() === true" [class.bad]="deltaGood() === false">
+      {{ delta() }}
+      @if (deltaGood() !== null) { <span class="sr-only">{{ deltaGood() ? '(improving)' : '(worsening)' }}</span> }
+    </p>
+  }
+  @let percent = progressPercent();
+  @if (percent !== null) {
+    <div class="stat-tile-progress" role="progressbar"
+         [attr.aria-label]="label()"
+         aria-valuemin="0"
+         aria-valuemax="100"
+         [attr.aria-valuenow]="percent"
+         [attr.aria-valuetext]="valueText()">
+      <div class="stat-tile-progress-fill" [style.width.%]="percent"></div>
+    </div>
+  }
+  @if (sparkline()) {
+    <svg class="stat-tile-trend" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <polyline [attr.points]="sparkline()" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke" />
+    </svg>
+  }
+</div>

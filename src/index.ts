@@ -10,6 +10,7 @@ export * from './model/decorator';
 export * from './component/abstract/base_table';
 export * from './component/dashboard/dashboard_shell';
 export * from './component/dashboard/data_card';
+export * from './component/dashboard/stat_tile';
 export * from './component/dashboard/locked_overlay';
 export * from './component/dashboard/no_source_overlay';
 export * from './component/dashboard/action_center';

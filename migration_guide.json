@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.25",
+   "title": "Table actions collect parameters; a stat tile",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "An action that declares parameters (keel v1.2.75) opens a dialog and posts the values merged with the record key. <sail-stat-tile> renders one preformatted number with target, progress, delta and a trend sparkline.",
+   "body_markdown": "### Additive\n\n| | Before | After |\n|---|---|---|\n| `TableAction` | no inputs beside the key | + `parameters?: TableActionParameter[]` (`name`, `caption`, `dataType`, `required`, `lookupTable?`) |\n| dashboard number | app-local markup | `<sail-stat-tile label value [target] [progress] [delta] [deltaGood] [trend]>` |\n\n### Behavioral\n\n`BaseTable.executeAction` opens a parameter dialog for an action with `parameters`, shows `confirmMessage` inside it instead of `confirm()`, and posts `{...primaryKeyValues(record), ...values}`. Actions without parameters are unchanged. Requires keel v1.2.75 for the metadata; older servers send none and nothing changes."
+  },
+  {
    "version": "v1.1.24",
    "title": "Off-session SCA refusals are a first-class charge outcome",
    "tags": [
