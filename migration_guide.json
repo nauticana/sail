@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.26",
+   "title": "Saved cards are removed through keel's remove action; partner-document uploads; live inbox",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "UserPaymentMethodService.delete becomes remove, posting to keel v1.2.79's detach-then-delete table action. Table-action parameters accept files and post multipart, and the partner-document service and components cover keel's document workflow. LabelService gains options() and requireLabel(). The notification inbox follows keel's realtime notification frames, which RealtimeService.userFrames() previously dropped.",
+   "body_markdown": "### Breaking\n\n| Old | New |\n|---|---|\n| `UserPaymentMethodService.delete(id)` (generic CRUD DELETE) | `remove(id)` — POST `{id}` to keel's `user_payment_method/remove` table action (`RestURL.paymentMethodRemoveURL`) |\n| `<sail-user-payment-methods (deleted)>` | `(removed)` |\n\nkeel v1.2.79 detaches the card at the provider before deleting the row and withdraws the generic `TABLE DELETE` grant, so the old call answers 403.\n\n### Additive\n\n| | Before | After |\n|---|---|---|\n| `LabelService` | `getLabel` only, raw-key fallback | + `requireLabel(domain, key)` (throws when the domain is not loaded or lacks the key), + `options(domain)` → `LabelOption[]` `{code, caption}` sorted by caption |\n| table-action parameters | no file input | `dataType: 'file'` renders a file picker; a body with a file posts as `multipart/form-data` |\n| partner documents | none | `PartnerDocumentService` (`list`, `pending`, `upload`, `previewUrl`, `review`), `<sail-document-upload>`, `<sail-partner-documents>` and `<sail-document-review-queue>` over keel's generic REST table and `DocumentHandler` |\n\n### Behavioral\n\n- `RealtimeService.userFrames()` now passes user frames that carry an `op` (keel's `{op: \"notification\"}`); only `subscribed` / `unsubscribed` / `error` are treated as control frames.\n- After the first successful `load()`, `NotificationInboxService` re-fetches the newest page on each realtime `notification` frame and merges it over the cache head. The app still calls `RealtimeService.connect()`; `reset()` drops the subscription.\n\n## Adopting it\n\n1. Rename `delete(id)` → `remove(id)` and `(deleted)` → `(removed)`. Mount keel's `UserPaymentMethodHandler` routes (v1.2.79).\n2. For generic-table uploads, seed a table-level `upload` action and parameters including `file`, then mount `DocumentHandler.Upload` at that path behind `WrapTableAction`.\n"
+  },
+  {
    "version": "v1.1.25",
    "title": "Table actions collect parameters; a stat tile",
    "tags": [

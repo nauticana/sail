@@ -153,8 +153,18 @@ export class BackendService extends BaseRestService {
      * the call will POST to {host}{api_prefix}{actionPath} with the
      * supplied body. For record-specific actions the body carries the
      * primary key values; for table-level actions it is typically `{}`.
+     * A body carrying a File/Blob posts as `multipart/form-data`.
      */
     executeAction<T = unknown>(actionPath: string, body: Record<string, unknown> = {}): Observable<T> {
-        return this.http.post<T>(this.apiUrl(actionPath), body).pipe(catchError((err) => this.handleError(err)));
+        return this.http.post<T>(this.apiUrl(actionPath), multipartWhenFile(body)).pipe(catchError((err) => this.handleError(err)));
     }
+}
+
+function multipartWhenFile(body: Record<string, unknown>): Record<string, unknown> | FormData {
+    if (!Object.values(body).some((value) => value instanceof Blob)) return body;
+    const form = new FormData();
+    for (const [key, value] of Object.entries(body)) {
+        if (value != null) form.append(key, value instanceof Blob ? value : String(value));
+    }
+    return form;
 }

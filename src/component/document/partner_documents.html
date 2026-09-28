@@ -1,0 +1,33 @@
+<section class="partner-documents" [attr.aria-busy]="loading()">
+  @if (heading()) { <h2 class="partner-documents__title">{{ heading() }}</h2> }
+  @if (errorMessage()) { <p class="partner-documents__error" role="alert">{{ errorMessage() }}</p> }
+
+  @if (!loading() && !latest().length) {
+    <p class="partner-documents__empty">{{ emptyMessage() }}</p>
+  } @else {
+    <ul class="partner-documents__list">
+      @for (doc of latest(); track doc.Id) {
+        <li class="partner-document" [class.partner-document--rejected]="doc.Status === 'N'">
+          <div class="partner-document__details">
+            <strong>{{ doc.Title || doc.DocumentType }}</strong>
+            <span>{{ status(doc.Status) }} · version {{ doc.VersionNo }}</span>
+            @if (doc.ExpiresOn) { <span>Expires {{ doc.ExpiresOn | date }}</span> }
+            @if (doc.ReviewerNotes) { <span>{{ doc.ReviewerNotes }}</span> }
+          </div>
+          <div class="partner-document__actions">
+            <button matButton type="button" (click)="preview(doc)">
+              <mat-icon>visibility</mat-icon> Preview
+            </button>
+            @if (canReupload(doc)) {
+              <button matButton type="button" (click)="reuploading.set(doc)">Upload replacement</button>
+            }
+          </div>
+          @if (reuploading()?.Id === doc.Id) {
+            <sail-document-upload [documentType]="doc.DocumentType" [title]="doc.Title"
+                [documentNumber]="doc.DocumentNumber ?? ''" [userId]="doc.UserId ?? undefined" (uploaded)="uploaded()" />
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

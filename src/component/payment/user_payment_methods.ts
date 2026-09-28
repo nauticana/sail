@@ -10,7 +10,7 @@ import { UserPaymentMethod } from '../../model/appdata';
  * End-user saved payment methods.
  *
  * Drop-in screen that lists the caller's cards/wallets, with set-default
- * + delete actions. Inherits loading/error state from BaseAsync.
+ * + remove actions. Inherits loading/error state from BaseAsync.
  *
  * Customise the heading and "add" CTA via inputs; emit (addClicked) so
  * the consumer routes to its own SetupIntent flow: BillingService.createSetupIntent()
@@ -37,8 +37,8 @@ export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
   readonly addClicked = output<void>();
   /** Emitted after a successful set-default flip. */
   readonly defaultChanged = output<UserPaymentMethod>();
-  /** Emitted after a successful delete. */
-  readonly deleted = output<UserPaymentMethod>();
+  /** Emitted after a method is detached and removed. */
+  readonly removed = output<UserPaymentMethod>();
 
   private readonly service = inject(UserPaymentMethodService);
 
@@ -78,12 +78,12 @@ export class UserPaymentMethodsComponent extends BaseAsync implements OnInit {
 
   remove(m: UserPaymentMethod): void {
     this.run(
-      this.service.delete(m.Id),
+      this.service.remove(m.Id),
       () => {
         this.methods.update((list) => list.filter((row) => row.Id !== m.Id));
-        this.deleted.emit(m);
+        this.removed.emit(m);
       },
-      'Failed to delete.',
+      'Failed to remove.',
     );
   }
 

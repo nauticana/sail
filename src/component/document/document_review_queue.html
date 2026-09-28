@@ -1,0 +1,24 @@
+<section class="document-review-queue" [attr.aria-busy]="loading()">
+  @if (errorMessage()) { <p class="document-review-queue__error" role="alert">{{ errorMessage() }}</p> }
+  @if (!loading() && !documents().length) {
+    <p class="document-review-queue__empty">No documents are awaiting review.</p>
+  }
+  @for (doc of documents(); track doc.Id) {
+    <article class="document-review">
+      <h3>{{ doc.Title || doc.DocumentType }}</h3>
+      <p>{{ doc.FileName }} · version {{ doc.VersionNo }}</p>
+      <button matButton type="button" (click)="showPreview(doc)">Preview</button>
+      @if (preview()?.id === doc.Id) {
+        <iframe class="document-review__preview" [src]="preview()!.url" [title]="'Preview of ' + (doc.Title || doc.FileName)"></iframe>
+      }
+      <mat-form-field appearance="outline">
+        <mat-label>Review notes</mat-label>
+        <textarea matInput [value]="notes()[doc.Id]" (input)="setNotes(doc.Id, $event)"></textarea>
+      </mat-form-field>
+      <div class="document-review__actions">
+        <button matButton="filled" type="button" [disabled]="reviewing() === doc.Id" (click)="review(doc, true)">Approve</button>
+        <button matButton type="button" [disabled]="reviewing() === doc.Id" (click)="review(doc, false)">Reject</button>
+      </div>
+    </article>
+  }
+</section>

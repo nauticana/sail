@@ -77,11 +77,14 @@ export const RestURL = {
   agencyAcceptInviteURL:     '/api/v1/agency/invite/accept',
   agencyDelegationURL:       '/api/v1/agency/delegation',
   agencyRevokeDelegationURL: '/api/v1/agency/delegation/revoke',
-  // User payment methods — list/delete go through keel's generic REST
-  // CRUD against the UserSpecific basis table; set-default is a
-  // TableAction (basis table_action row), mounted at the conventional
-  // URL POST /api/v1/user_payment_method/set_default.
+  // User payment methods — list is keel's generic REST CRUD; set_default and
+  // remove are keel UserPaymentMethodHandler table actions.
   paymentMethodSetDefaultURL: '/api/v1/user_payment_method/set_default',
+  paymentMethodRemoveURL:     '/api/v1/user_payment_method/remove',
+  // Partner documents — keel DocumentHandler, mounted at its TableActionPath shape.
+  partnerDocumentUploadURL:  '/api/v1/partner_document/upload',
+  partnerDocumentPreviewURL: '/api/v1/partner_document/preview',
+  partnerDocumentReviewURL:  '/api/v1/partner_document/review',
 };
 
 /** Call this at app startup to set the backend host URL */

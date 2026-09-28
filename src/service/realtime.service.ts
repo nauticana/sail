@@ -8,9 +8,11 @@ export interface RealtimeChannelFrame<T = unknown> {
   data:    T;
 }
 
+const CONTROL_OPS = ['subscribed', 'unsubscribed', 'error'] as const;
+
 /** Control frames of the keel realtime wire protocol. */
 interface ControlFrame {
-  op:       'subscribed' | 'unsubscribed' | 'error';
+  op:       typeof CONTROL_OPS[number];
   channel?: string;
   reason?:  string;
 }
@@ -93,7 +95,7 @@ export class RealtimeService {
     if (this.channels.delete(channel) && this.connected()) this.sendFrame({ op: 'unsubscribe', channel });
   }
 
-  /** Payloads keel delivers to this user directly (SendToUser / PublishUser). */
+  /** Payloads keel delivers to this user directly (SendToUser / PublishUser), e.g. `{op: 'notification', ...}`. */
   userFrames<T = unknown>(): Observable<T> {
     return this.frames$.pipe(filter((f): f is T => !isChannelFrame(f) && !isControlFrame(f)));
   }
@@ -132,7 +134,7 @@ function isChannelFrame(f: unknown): f is RealtimeChannelFrame {
 }
 
 function isControlFrame(f: unknown): f is ControlFrame {
-  return !!f && typeof f === 'object' && 'op' in f;
+  return !!f && typeof f === 'object' && CONTROL_OPS.includes((f as { op?: unknown }).op as ControlFrame['op']);
 }
 
 /** ws(s):// form of the configured backend host plus `path`; same-origin when no host is set. */

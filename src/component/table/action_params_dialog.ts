@@ -10,7 +10,7 @@ import { TableAction, TableActionParameter } from "../../model/appdata";
 import { ConstantValue } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 
-type ParamKind = 'checkbox' | 'number' | 'date' | 'datetime-local' | 'text';
+type ParamKind = 'checkbox' | 'number' | 'date' | 'datetime-local' | 'file' | 'text';
 
 interface ParamField {
     param:    TableActionParameter;
@@ -65,6 +65,12 @@ export class ActionParamsDialog {
         }
         this.dialogRef.close(values);
     }
+
+    pickFile(name: string, event: Event): void {
+        const control = this.form.controls[name];
+        control.setValue((event.target as HTMLInputElement).files?.[0] ?? '');
+        control.markAsTouched();
+    }
 }
 
 function kindOf(dataType: string): ParamKind {
@@ -83,6 +89,8 @@ function kindOf(dataType: string): ParamKind {
         case 'datetime':
         case 'timestamp':
             return 'datetime-local';
+        case 'file':
+            return 'file';
         default:
             return 'text';
     }

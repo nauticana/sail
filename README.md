@@ -24,11 +24,12 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Agency** | `AgencyClientsComponent`, `AgencyStatusBannerComponent`, `AgencyAcceptComponent`, `AgencyEarningsSummaryComponent`, `CommissionLedgerComponent`, `AgencyPayoutHistoryComponent`, `AgencyPayoutProfileComponent` |
 | **Notifications** | `NotificationCenterComponent`, `NotificationInboxService` |
+| **Documents** | `DocumentUploadComponent`, `PartnerDocumentsComponent`, `DocumentReviewQueueComponent`, `PartnerDocumentService` |
 | **Payments / SCA** | `UserPaymentMethodsComponent`, `ScaConfirmComponent`, `ScaConfirmer` (port), `SCA_CONFIRMER` (token) |
-| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `NotificationInboxService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
+| **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `PartnerDocumentService`, `NotificationInboxService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
-| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, 2FA types, etc. |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
 | **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinorCurrency()` |
 
@@ -269,7 +270,7 @@ this.labels.loadLabels('ride_type').subscribe(() => {
 });
 ```
 
-Concurrent loads share one application-data subscription, completed domains stay cached, and application-data failures can be retried. Missing values fall back to the raw key.
+Concurrent loads share one application-data subscription, completed domains stay cached, and application-data failures can be retried. `getLabel` falls back to the raw key; `requireLabel` throws instead, for values that must not render as a raw code. `options(domain)` returns every `{code, caption}` of a loaded domain, sorted by caption, for picklists.
 
 ## Status-filtered API errors
 
@@ -400,7 +401,7 @@ Every keel login response (keel v1.2.57+) carries `refreshToken` beside `token`;
 
 ### Realtime
 
-`RealtimeService` (root-provided) is the client for keel's `realtime.Hub`. `connect()` opens `RestURL.realtimeURL` (`/public/ws`) on the configured backend host with the stored JWT, reconnects with backoff, and re-subscribes every channel after a reconnect. `channel<T>(name)` returns the payloads keel broadcasts on that channel; `userFrames<T>()` returns payloads addressed to the user; `send(frame)` forwards an application frame to the hub's `OnMessage`. A subscription keel's `CanSubscribe` rejects is logged and exposed on `lastError`. Channel names and payload shapes are app-owned.
+`RealtimeService` (root-provided) is the client for keel's `realtime.Hub`. `connect()` opens `RestURL.realtimeURL` (`/public/ws`) on the configured backend host with the stored JWT, reconnects with backoff, and re-subscribes every channel after a reconnect. `channel<T>(name)` returns the payloads keel broadcasts on that channel; `userFrames<T>()` returns payloads addressed to the user, including keel's `{op: "notification"}` frames; `send(frame)` forwards an application frame to the hub's `OnMessage`. A subscription keel's `CanSubscribe` rejects is logged and exposed on `lastError`. Channel names and payload shapes are app-owned.
 
 ## Billing
 
@@ -570,7 +571,7 @@ A `TableAction` with `kind: 'R'` (redirect — the `constant_value` code) makes 
 
 ### Action parameters (v1.1.25)
 
-An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dialog before posting: one field per parameter, typed by `dataType` (`boolean` checkbox, numeric, `date`, `timestamp`, otherwise text), or a dropdown when `lookupTable` names a table in the client cache (a `foreign_key_lookup` dropdown table); a numeric `dataType` still posts the chosen key as a number. The dialog shows `confirmMessage` in place of the native prompt and posts `{...primaryKeyValues(record), ...values}`; empty optional values are left out. An action without parameters behaves as before.
+An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dialog before posting: one field per parameter, typed by `dataType` (`boolean` checkbox, numeric, `date`, `timestamp`, `file`, otherwise text), or a dropdown when `lookupTable` names a table in the client cache (a `foreign_key_lookup` dropdown table); a numeric `dataType` still posts the chosen key as a number. The dialog shows `confirmMessage` in place of the native prompt and posts `{...primaryKeyValues(record), ...values}`; empty optional values are left out. A `file` parameter turns the post into `multipart/form-data`, so a table-level `upload` action whose parameters are `file`, `document_type` (lookup `document_type`), `title`, … posts straight to keel's `DocumentHandler.Upload`. An action without parameters behaves as before.
 
 ### Status chip (v1.0.1)
 
@@ -1080,8 +1081,10 @@ readonly unread = inject(NotificationInboxService).unreadCount;   // Signal<numb
 | `load(limit)` / `loadMore(limit)` | Default 20; keel caps a page at 100 and the client clamps to match. |
 
 Message ids are server-side `BIGINT`s serialized as strings. Both mark-read routes
-return `204`, so the service updates its cache locally. Call `load()` to pick up new
-messages and `reset()` on logout.
+return `204`, so the service updates its cache locally. After the first successful `load()`, each
+`{op: "notification"}` frame from keel's `realtime.UserDispatcher` (v1.2.79+) on a
+connected `RealtimeService` re-fetches the newest page into the cache. Call `reset()`
+on logout.
 
 ```html
 <sail-notification-center
@@ -1104,6 +1107,31 @@ Ships no CSS — style
 `.notification-center`, `.notification-center__{head,title,unread,error,loading,empty,list,more}`,
 `.notification-item`, `.notification-item--unread` and
 `.notification-item__{select,static,title,body,time,read}`.
+
+## Partner documents (v1.1.26)
+
+`PartnerDocumentService` covers generic `partner_document` reads plus keel's
+`handler.DocumentHandler` (keel **v1.2.79+**): `list(userId?)`, `pending()`,
+`upload(file, request)` (progress events), `previewUrl(id)` and `review(id, approve,
+notes)`. The defaults assume the handler is mounted at
+`/api/v1/partner_document/{upload,preview,review}`; override the three
+`partnerDocument*URL` values otherwise. Authorization stays in keel's hooks.
+
+```html
+<sail-document-upload documentType="driver_license" [maxBytes]="10485760"
+    [canUpload]="attested()" (uploaded)="onUploaded($event)" (failed)="onFailed($event)">
+  <!-- app-specific attestations -->
+</sail-document-upload>
+```
+
+Images preview inline, PDFs open in a new tab. `(failed)` hands over the raw error;
+branch on `errorCode(err)` for keel's `document_*` codes. Status captions come from
+the `partner_document_status` domain through `LabelService`.
+
+`<sail-partner-documents>` shows the latest version per type and offers replacement
+uploads for rejected or expiring documents. `<sail-document-review-queue>` lists
+pending rows with an inline preview and approve/reject controls. Both rely on the
+app's generic `partner_document` read grants and the handler authorization hooks.
 
 ## Grouped review actions and diffs (v1.1.19)
 
@@ -1481,8 +1509,8 @@ The v0.6 / v0.7 line introduced three additive feature groups against keel v0.7.
 | `@nauticana/sail` | `PayoutService` | keel/payout API client — onboarding, reuse, status, bank-version replacement, beneficiary registration |
 | `@nauticana/sail` | `PayoutProviderOnboardingComponent` (`<sail-payout-provider-onboarding>`) | Drop-in onboarding step with reuse picker, hosted-KYC handoff, and asynchronous-confirmation output |
 | `@nauticana/sail` | `PayoutBankInfoFormComponent` (`<sail-payout-bank-info-form>`) | Tax + payout details form (country / currency / tax ID / billing address / agreement) |
-| `@nauticana/sail` | `UserPaymentMethodService` | Saved-card list / delete / set-default API client |
-| `@nauticana/sail` | `UserPaymentMethodsComponent` (`<sail-user-payment-methods>`) | List of saved cards/wallets with set-default + delete |
+| `@nauticana/sail` | `UserPaymentMethodService` | Saved-card list / remove / set-default API client |
+| `@nauticana/sail` | `UserPaymentMethodsComponent` (`<sail-user-payment-methods>`) | List of saved cards/wallets with set-default + remove |
 | `@nauticana/sail` | `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `UserPaymentMethod`, `DEFAULT_COUNTRY_PROFILES` | Model types / defaults |
 
 ### 2. New keel endpoints
@@ -1497,10 +1525,11 @@ Make sure your keel deployment exposes these — they're all under `/api/v1/`:
 | `/api/v1/payout/status` | POST | `{ complete: true }` once the active partner's row has a `providerAccountId` |
 | `/api/v1/payout/bank/replace` | POST | Supersede the active bank-info version and insert its replacement atomically; the app must wire the handler's `SealTaxID` hook |
 | `/api/v1/payout/beneficiary/register` | POST | Create and link a provider beneficiary from provider-collected details |
-| `/api/v1/payment-methods/set-default` | POST | Atomic multi-row UPDATE — sets one row as default, clears the rest |
+| `/api/v1/user_payment_method/set_default` | POST | `{id}` — sets one row as default, clears the rest |
+| `/api/v1/user_payment_method/remove` | POST | `{id}` — detaches the method at the provider, then deletes the row (keel v1.2.79) |
 | `/api/v1/{table}/{action_name}` | POST | Per-table custom actions resolved from `basis.table_action` |
 
-`list` / `delete` for the `user_payment_method` table go through keel's generic REST CRUD (`/api/v1/user_payment_method/list|delete`) — `user_payment_method` is a UserSpecific basis table, so keel auto-scopes reads to the caller and owner-locks DELETE. No custom endpoint needed for those two.
+`list` for `user_payment_method` is keel's generic REST CRUD, auto-scoped to the caller. keel grants no generic DELETE on the table, so removal goes through `remove`.
 
 ### 3. Payout onboarding wiring
 
@@ -1539,7 +1568,7 @@ For apps that operate on a single keel partner, the reuse picker stays empty and
     [title]="'Payment Methods'"
     (addClicked)="goToSetupIntent()"
     (defaultChanged)="onDefaultChanged($event)"
-    (deleted)="onDeleted($event)">
+    (removed)="onRemoved($event)">
 </sail-user-payment-methods>
 ```
 

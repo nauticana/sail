@@ -1,0 +1,31 @@
+<div class="document-upload">
+  @if (!file()) {
+    <button matButton="outlined" type="button" class="document-upload__pick" (click)="picker.click()">
+      <mat-icon>upload_file</mat-icon> {{ label() }}
+    </button>
+  } @else {
+    <div class="document-upload__preview">
+      @if (imageUrl(); as src) {
+        <img [src]="src" [alt]="file()!.name" class="document-upload__image">
+      } @else if (pdfUrl(); as src) {
+        <a [href]="src" target="_blank" rel="noopener" class="document-upload__pdf">Open preview</a>
+      }
+      <span class="document-upload__name">{{ file()!.name }}</span>
+    </div>
+
+    <ng-content />
+
+    <div class="document-upload__actions">
+      <button matButton="filled" type="button" (click)="upload()" [disabled]="!canUpload() || uploading()">Upload</button>
+      <button matButton="outlined" type="button" (click)="picker.click()" [disabled]="uploading()">Choose another</button>
+    </div>
+  }
+  <input #picker type="file" hidden [accept]="accept()" (change)="pick($event)" [attr.aria-label]="label()">
+
+  @if (progress() !== null) {
+    <mat-progress-bar mode="determinate" [value]="progress()" aria-label="Upload progress" />
+  }
+  @if (errorMessage()) {
+    <p class="document-upload__error" role="alert">{{ errorMessage() }}</p>
+  }
+</div>
