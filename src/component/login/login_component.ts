@@ -29,7 +29,7 @@ export class LoginComponent extends BaseAsync {
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
   protected readonly loggedOut = inject(ActivatedRoute).snapshot.queryParamMap.get('loggedOut') === 'true';
-  /** OAuth session-cookie handoff failure from BaseAuthService, shown below. */
+  /** OAuth session hand-off failure from BaseAuthService, shown below. */
   protected readonly sessionHandoffError = this.auth.sessionHandoffError;
 
   /**
@@ -64,8 +64,8 @@ export class LoginComponent extends BaseAsync {
 
   /**
    * loginSocial already ran completeLogin, which owns post-login navigation
-   * (route init, or the OAuth cookie handoff). Handlers must NOT navigate here —
-   * doing so abandons a pending handoff before its cookie is set. Downstream
+   * (route init, or the OAuth session hand-off). Handlers must NOT navigate here —
+   * doing so abandons a pending hand-off before it redirects. Downstream
    * social-login handlers should follow the same rule.
    */
   protected onSocialSuccess(_: LoginResponseSocial): void {}

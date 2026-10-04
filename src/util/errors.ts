@@ -31,6 +31,11 @@ export function isTransportFailure(err: unknown): boolean {
   return statusOf(err) === 0;
 }
 
+/** True for keel's 403: the session is valid but lacks the grant for this action. */
+export function isPermissionDenied(err: unknown): boolean {
+  return statusOf(err) === 403;
+}
+
 /**
  * Human-readable message from any sail error shape — SailApiError (BackendService),
  * raw HttpErrorResponse (direct HttpClient calls), or plain Error.

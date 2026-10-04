@@ -77,6 +77,7 @@ export const RestURL = {
   agencyAcceptInviteURL:     '/api/v1/agency/invite/accept',
   agencyDelegationURL:       '/api/v1/agency/delegation',
   agencyRevokeDelegationURL: '/api/v1/agency/delegation/revoke',
+  agencyDelegationRolesURL:  '/api/v1/agency/delegation/roles',
   // User payment methods — list is keel's generic REST CRUD; set_default and
   // remove are keel UserPaymentMethodHandler table actions.
   paymentMethodSetDefaultURL: '/api/v1/user_payment_method/set_default',

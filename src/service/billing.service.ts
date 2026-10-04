@@ -45,7 +45,7 @@ export class BillingService extends BaseRestService {
     return this.http.get<Subscription>(this.url(RestURL.subscriptionURL));
   }
 
-  /** Cancel auto-renew on the current subscription. */
+  /** Cancel auto-renew on the current subscription. 403 without PARTNER_PLAN_SUBSCRIPTION / CANCEL. */
   cancelSubscription(): Observable<void> {
     return this.http.post<void>(this.url(RestURL.cancelSubURL), {});
   }
@@ -53,7 +53,7 @@ export class BillingService extends BaseRestService {
   /**
    * Upgrade / downgrade the current subscription to `planId` — distinct from
    * first-time checkout. Routes to keel's `SubscriptionLifecycle.ChangePlan`
-   * (atomic close+open) via an endpoint the app exposes.
+   * (atomic close+open). 403 without PARTNER_PLAN_SUBSCRIPTION / CHANGE.
    */
   changePlan(planId: string): Observable<void> {
     return this.http.post<void>(this.url(RestURL.changePlanURL), { planId });
@@ -86,7 +86,7 @@ export class BillingService extends BaseRestService {
   /**
    * Create a provider customer-portal session; caller redirects to the URL so
    * the partner can manage their payment method / subscription on the
-   * provider's hosted page.
+   * provider's hosted page. 403 without PARTNER_PLAN_SUBSCRIPTION / PORTAL.
    */
   createPortalSession(): Observable<PortalResponse> {
     return this.http.post<PortalResponse>(this.url(RestURL.portalURL), {});

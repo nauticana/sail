@@ -24,6 +24,7 @@ export interface AgencyClient {
   acceptedAt?: string;
   expired?: boolean;
   billingModel?: string;
+  roles?: AgencyRoleGrant[];
 }
 
 export interface AgencyInvite {
@@ -42,6 +43,13 @@ export interface AgencyDelegation {
   agencyName: string;
   billingModel?: string;
   grantedAt: string;
+  roles: AgencyRoleGrant[];
+}
+
+/** One `agency_delegation_role` code a client grants its agency; no expiresAt is open-ended. */
+export interface AgencyRoleGrant {
+  role: string;
+  expiresAt?: string;
 }
 
 export interface AgencyEarningsBalance {

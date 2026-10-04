@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.27",
+   "title": "OAuth sign-in through keel's session hand-off; subscription grants; agency delegation roles",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.89. A login carrying ?return= is handed to the authorization server through keel's POST /oauth/session/handoff instead of an app session-cookie endpoint; SailGuiConfig.sessionCookieUrl is replaced by oauthServerUrl. Subscription cancel, plan change and the billing portal now need a grant, and a 403 is reported as not permitted. Agency delegations carry a role set with per-role expiry.",
+   "body_markdown": "### Breaking\n\n| Old | New |\n|---|---|\n| `SailGuiConfig.sessionCookieUrl` (app endpoint mirroring the JWT into a cookie) | `SailGuiConfig.oauthServerUrl` — base URL of keel's OAuth authorization server |\n| login POSTs `sessionCookieUrl` with `withCredentials`, then navigates to `?return=` | login POSTs `{\"return\": <raw ?return=>}` with the bearer JWT to `{oauthServerUrl}/oauth/session/handoff`, then navigates to the `redirect` keel answers |\n| `AgencyDelegation` without roles | `AgencyDelegation.roles: AgencyRoleGrant[]` is required |\n\n`allowedReturnHosts` is unchanged and still gates the `?return=` value. The request sends no cookies and no CSRF token; keel sets the authorization server's HttpOnly cookie while redeeming the redirect. A relative `?return=` is no longer accepted.\n\n### Additive\n\n| | Before | After |\n|---|---|---|\n| agency model | none | `AgencyRoleGrant { role, expiresAt? }`, `AgencyClient.roles?` |\n| `AgencyService` | none | `setDelegationRoles(roles, clientPartnerId = 0)` — POST `RestURL.agencyDelegationRolesURL` (`/api/v1/agency/delegation/roles`); replaces the whole set, an empty list removes access without revoking |\n| errors | none | `isPermissionDenied(err)` — true for HTTP 403 |\n\n### Behavioral\n\n- A failed hand-off sets `sessionHandoffError` and never redirects: 400 means keel rejected the return URL, 401 means sign in again to retry. A `redirect` outside `oauthServerUrl`'s origin is not followed.\n- `<sail-portal-button>` reports a 403 as not permitted. keel v1.2.89 answers 403 on `/api/billing/subscription/cancel`, `/change` and `/api/billing/portal` without `PARTNER_PLAN_SUBSCRIPTION` `CANCEL` / `CHANGE` / `PORTAL` (seeded for `PARTNER_ADMIN`).\n\n## Adopting it\n\n1. Replace `sessionCookieUrl` with `oauthServerUrl` from app configuration and delete the app's session-cookie endpoint. Set `OAuthASHandler.Handoff` and `UserService` on the keel side, use `handler.HandoffSessionUser` as `ResolveUser`, and allow the SPA origin by CORS on the authorization server.\n2. Grant `PARTNER_PLAN_SUBSCRIPTION` actions to any role besides `PARTNER_ADMIN` that changes subscriptions; callers of `cancelSubscription()` / `changePlan()` should branch on `isPermissionDenied(err)`.\n3. Render delegation roles from the `agency_delegation_role` constant catalogue (`LabelService.options`); do not hardcode codes. `setDelegationRoles` answers 422 for an unknown, duplicate or blank role, more than 32 roles, or an expiry not in the future, and 403 without `AGENCY_DELEGATION` / `SET_ROLE`.\n"
+  },
+  {
    "version": "v1.1.26",
    "title": "Saved cards are removed through keel's remove action; partner-document uploads; live inbox",
    "tags": [

@@ -2,12 +2,14 @@ import { ChangeDetectionStrategy, Component, ViewEncapsulation, inject, input } 
 import { MatButtonModule } from '@angular/material/button';
 import { BaseAsync } from '../abstract/base_async';
 import { BillingService } from '../../service/billing.service';
+import { isPermissionDenied } from '../../util/errors';
 
 /**
  * Button that opens a provider customer-portal session and redirects the
  * browser to the returned URL — the partner manages their payment method /
  * subscription on the provider's hosted page. Mirrors CheckoutButtonComponent;
- * uses BaseAsync for loading/error state.
+ * uses BaseAsync for loading/error state. A 403 (no PARTNER_PLAN_SUBSCRIPTION /
+ * PORTAL grant) reads as not permitted rather than as a provider failure.
  */
 @Component({
   selector: 'sail-portal-button',
@@ -26,6 +28,9 @@ export class PortalButtonComponent extends BaseAsync {
       this.billing.createPortalSession(),
       (resp) => { window.location.href = resp.portalUrl; },
       'Could not open the billing portal. Please try again.',
+      (err) => {
+        if (isPermissionDenied(err)) this.errorMessage.set('You are not permitted to manage billing.');
+      },
     );
   }
 }

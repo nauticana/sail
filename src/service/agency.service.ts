@@ -8,6 +8,7 @@ import {
   AgencyInvite,
   AgencyPayoutProfileOptions,
   AgencyProfile,
+  AgencyRoleGrant,
 } from '../model/agency';
 import { BaseRestService } from './base_rest.service';
 import { RestURL } from './rest_url';
@@ -72,5 +73,11 @@ export class AgencyService extends BaseRestService {
 
   revokeDelegation(clientPartnerId = 0): Observable<{ status: string }> {
     return this.http.post<{ status: string }>(this.url(RestURL.agencyRevokeDelegationURL), { clientPartnerId });
+  }
+
+  /** Replace the whole role set the client grants its agency; an empty list
+   *  removes access without revoking the delegation. */
+  setDelegationRoles(roles: AgencyRoleGrant[], clientPartnerId = 0): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(this.url(RestURL.agencyDelegationRolesURL), { clientPartnerId, roles });
   }
 }

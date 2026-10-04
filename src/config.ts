@@ -67,11 +67,11 @@ export interface SailGuiConfig {
   accountDeletedRoute?: string;
 
   // ── OAuth authorization-flow bridge (for an OAuth AS on a different host) ──
-  /** Backend path that mirrors the bearer JWT into an HttpOnly session cookie so
-   * a cross-site OAuth `/authorize` can see the session, e.g. '/api/v1/auth/session-cookie'.
-   * When set, login POSTs here before handing off to an allowed ?return= host. */
-  sessionCookieUrl?: string;
-  /** Hostnames a post-login `?return=` may redirect to (open-redirect allowlist),
+  /** Base URL of keel's OAuth authorization server, e.g. 'https://mcp.example.com'.
+   * When set, a login carrying an allowed ?return= POSTs it to
+   * `{oauthServerUrl}/oauth/session/handoff` and navigates to the URL keel answers. */
+  oauthServerUrl?: string;
+  /** Hostnames a post-login `?return=` may name (open-redirect allowlist),
    * e.g. ['mcp.example.com']. Anything not listed is ignored. */
   allowedReturnHosts?: string[];
 

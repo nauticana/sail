@@ -308,10 +308,23 @@ interface SailGuiConfig {
   defaultPolicyLanguage?: string;     // ISO 639-1 fallback language
   accountDeletedRoute?: string;       // Route after account deletion (default '/login/local')
   passwordPolicyUrl?: string;         // Public route serving keel's password policy (see below)
+  oauthServerUrl?: string;            // Base URL of keel's OAuth authorization server (see below)
+  allowedReturnHosts?: string[];      // Hosts a post-login ?return= may name
 }
 ```
 
 ### Password-policy validation
+
+**OAuth sign-in hand-off (v1.1.27, keel v1.2.89).** When the login page is opened with
+`?return=<authorize URL>` and both `oauthServerUrl` and `allowedReturnHosts` are set,
+`completeLogin` posts `{"return": <raw value>}` with the bearer JWT to
+`{oauthServerUrl}/oauth/session/handoff` and then leaves the SPA with a full navigation to the
+`redirect` keel answers. keel sets the authorization server's own HttpOnly cookie while
+redeeming that URL; sail sends no cookies and no CSRF token and never reads the cookie. A
+`return` whose host is not in `allowedReturnHosts`, or a `redirect` outside `oauthServerUrl`'s
+origin, is not followed. Failures set `BaseAuthService.sessionHandoffError` (rendered by
+`<sail-login>`) and never redirect: 400 means keel rejected the return URL, 401 means the user
+signs in again to retry. The authorization server must allow the SPA origin by CORS.
 
 Set `passwordPolicyUrl` to the app's public route for keel's `PublicHandler.GetPasswordPolicy`
 (e.g. `'/public/v1/auth/password/policy'`). `BaseAuthService.ensurePasswordPolicy()` fetches it
@@ -433,6 +446,11 @@ export class PricingPage {
 | `listPaymentMethods()` | `GET /api/billing/payment-methods` | `Observable<PaymentMethod[]>` |
 | `createPortalSession()` | `POST /api/billing/portal` | `Observable<PortalResponse>` |
 | `listUsage()` | `GET /api/billing/usage` | `Observable<UsageMeter[]>` |
+
+`cancelSubscription()`, `changePlan()` and `createPortalSession()` answer 403 (keel v1.2.89)
+unless the user holds `PARTNER_PLAN_SUBSCRIPTION` `CANCEL` / `CHANGE` / `PORTAL`, seeded for
+`PARTNER_ADMIN`. Test a failure with `isPermissionDenied(err)` and report it as not permitted;
+`<sail-portal-button>` does.
 
 ### Components
 
@@ -773,6 +791,15 @@ All accounting values are integer minor units. `formatMinorCurrency()` uses the
 currency exponent reported by `Intl.NumberFormat`, so zero- and three-decimal
 currencies render correctly; earnings stay separated by currency rather than
 being summed into a misleading total.
+
+**Delegation roles (v1.1.27, keel v1.2.89).** `AgencyDelegation.roles` (always present) and
+`AgencyClient.roles` carry `AgencyRoleGrant { role, expiresAt? }`; no `expiresAt` is
+open-ended, and a delegation without roles grants no access.
+`AgencyService.setDelegationRoles(roles, clientPartnerId = 0)` replaces the whole set — an
+empty list removes access without revoking the delegation. Role codes and captions come from
+the `agency_delegation_role` constant catalogue (`LabelService.options('agency_delegation_role')`);
+do not hardcode them. keel answers 422 for an unknown, duplicate or blank role, more than 32
+roles, or an expiry not in the future, and 403 without `AGENCY_DELEGATION` / `SET_ROLE`.
 
 The agency URL defaults use `/api/v1/agency/*`. Apps mounting Keel elsewhere
 must override the `RestURL.agency*URL` values with `configureRestUrls()`.

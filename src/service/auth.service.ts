@@ -25,6 +25,20 @@ export class RefreshSupersededError extends Error {
   constructor() { super('session changed during refresh'); this.name = 'RefreshSupersededError'; }
 }
 
+function handoffErrorMessage(status: number): string {
+  if (status === 400) return 'This sign-in link is not valid. Start again from the application you were connecting.';
+  if (status === 401) return 'Your session was not accepted. Please sign in again.';
+  return 'Could not complete sign-in. Please try again.';
+}
+
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a, window.location.origin).origin === new URL(b, window.location.origin).origin;
+  } catch {
+    return false;
+  }
+}
+
 /** Sort dropdown options by their visible label so long lookup lists are scannable. */
 const byCaption = (a: ConstantValue, b: ConstantValue) =>
   (a.Caption ?? '').localeCompare(b.Caption ?? '', undefined, { numeric: true, sensitivity: 'base' });
@@ -124,8 +138,8 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Last appdata load failure (null when none). */
   readonly appDataError = signal<unknown>(null);
 
-  /** Set when the OAuth session-cookie handoff fails; the UI shows it and lets the
-   *  user retry instead of being redirected into a cookieless login loop. */
+  /** Set when the OAuth session hand-off fails; the UI shows it and the user
+   *  signs in again to retry instead of being redirected without a session. */
   readonly sessionHandoffError = signal<string | null>(null);
 
   /**
@@ -205,40 +219,59 @@ export abstract class BaseAuthService extends BaseRestService {
     this.isLoggedIn.set(true);
     resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
     const ret = this.validatedReturnUrl();
-    if (ret && this.guiConfig.sessionCookieUrl) {
-      // OAuth flow: mirror the bearer into a cookie, then hand off to the
-      // (cross-origin) authorization server via a full navigation. Only hand off
-      // once the cookie is actually set — redirecting after a failed cookie request
-      // sends the user on without a session and loops them back to login.
-      this.sessionHandoffError.set(null);
-      this.http.post(this.url(this.guiConfig.sessionCookieUrl), {}, { withCredentials: true })
-          .pipe(take(1))
-          .subscribe({
-            next: () => window.location.assign(ret),
-            error: (err) => {
-              console.error('Session cookie handoff failed:', err);
-              this.sessionHandoffError.set('Could not complete sign-in. Please try again.');
-            },
-          });
+    const oauthServer = this.oauthServerBase();
+    if (ret && oauthServer) {
+      this.handOffSession(oauthServer, ret, token);
       return;
     }
     this.loadAppData();
     this.initRoutes();
   }
 
-  /** A post-login `?return=` URL, only when its host is in allowedReturnHosts and
-   * the scheme is https (or loopback) — an open-redirect guard. '' otherwise. */
+  /** Exchange the bearer session for the authorization server's own cookie session
+   * (keel POST /oauth/session/handoff), then leave the SPA for the URL it returns.
+   * Any failure stays on the login page; the browser is never sent elsewhere. */
+  private handOffSession(oauthServer: string, ret: string, token: string): void {
+    this.sessionHandoffError.set(null);
+    this.http.post<{ data?: { redirect?: unknown } }>(
+        oauthServer + '/oauth/session/handoff',
+        { return: ret },
+        { headers: { Authorization: `Bearer ${token}` } },
+    ).pipe(take(1)).subscribe({
+      next: (res) => {
+        const redirect = res?.data?.redirect;
+        if (typeof redirect !== 'string' || !sameOrigin(redirect, oauthServer)) {
+          console.error('Session handoff returned an unexpected redirect:', redirect);
+          this.sessionHandoffError.set('Could not complete sign-in. Please try again.');
+          return;
+        }
+        window.location.assign(redirect);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Session handoff failed:', err);
+        this.sessionHandoffError.set(handoffErrorMessage(err.status));
+      },
+    });
+  }
+
+  /** guiConfig.oauthServerUrl without trailing slashes; '' when unset. */
+  private oauthServerBase(): string {
+    return (this.guiConfig.oauthServerUrl ?? '').replace(/\/+$/, '');
+  }
+
+  /** The raw post-login `?return=` value, only when its host is in allowedReturnHosts
+   * and the scheme is https (or loopback) — an open-redirect guard. '' otherwise. */
   private validatedReturnUrl(): string {
     const raw = new URLSearchParams(window.location.search).get('return');
     if (!raw) return '';
     try {
-      const u = new URL(raw, window.location.origin);
+      const u = new URL(raw);
       if (u.username || u.password) return '';   // reject userinfo ("user@host") spoofing
       const host = u.hostname.toLowerCase();
       const okScheme = u.protocol === 'https:' || host === 'localhost' || host === '127.0.0.1';
       const allowed = (this.guiConfig.allowedReturnHosts ?? []).some((h) => h.toLowerCase() === host);
       if (okScheme && allowed) {
-        return u.toString();
+        return raw;
       }
     } catch { /* malformed → reject */ }
     return '';
