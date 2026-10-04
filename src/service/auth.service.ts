@@ -217,6 +217,7 @@ export abstract class BaseAuthService extends BaseRestService {
     this.sessionGeneration++;
     this.storeTokens(token, refreshToken);
     this.isLoggedIn.set(true);
+    this.sessionHandoffError.set(null);
     resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
     const ret = this.validatedReturnUrl();
     const oauthServer = this.oauthServerBase();
@@ -232,7 +233,6 @@ export abstract class BaseAuthService extends BaseRestService {
    * (keel POST /oauth/session/handoff), then leave the SPA for the URL it returns.
    * Any failure stays on the login page; the browser is never sent elsewhere. */
   private handOffSession(oauthServer: string, ret: string, token: string): void {
-    this.sessionHandoffError.set(null);
     this.http.post<{ data?: { redirect?: unknown } }>(
         oauthServer + '/oauth/session/handoff',
         { return: ret },
@@ -597,6 +597,7 @@ export abstract class BaseAuthService extends BaseRestService {
     this.cache = undefined;
     this.authIndex.clear();
     this.appDataError.set(null);
+    this.sessionHandoffError.set(null);
     this.refreshInFlight = null;
     this.sessionGeneration++;           // in-flight loads and refreshes from this session are ignored
     this.appData$.next(null);           // live subscribers see menus clear; identity stays stable

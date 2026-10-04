@@ -320,7 +320,7 @@ interface SailGuiConfig {
 `completeLogin` posts `{"return": <raw value>}` with the bearer JWT to
 `{oauthServerUrl}/oauth/session/handoff` and then leaves the SPA with a full navigation to the
 `redirect` keel answers. keel sets the authorization server's own HttpOnly cookie while
-redeeming that URL; sail sends no cookies and no CSRF token and never reads the cookie. A
+redeeming that URL; sail does not opt into cross-origin cookies or send a CSRF token. A
 `return` whose host is not in `allowedReturnHosts`, or a `redirect` outside `oauthServerUrl`'s
 origin, is not followed. Failures set `BaseAuthService.sessionHandoffError` (rendered by
 `<sail-login>`) and never redirect: 400 means keel rejected the return URL, 401 means the user
