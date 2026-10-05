@@ -159,22 +159,22 @@ export class RegisterComponent implements OnInit {
     this.registerError.set('');
     const formValue = this.registerForm.getRawValue();
     const partnerReg: PartnerRegistration = {
-      FirstName: formValue.FirstName!,
-      LastName: formValue.LastName!,
-      UserName: formValue.UserName!,
-      Email: formValue.Email!,
-      Password: formValue.Password!,
-      PartnerCaption: formValue.PartnerCaption!,
-      Address: formValue.Address!,
-      City: formValue.City!,
-      State: formValue.State!,
-      Zipcode: formValue.Zipcode!,
-      Country: formValue.Country!,
-      Phone: formValue.Phone!,
-      DomainURL: formValue.DomainURL!,
-      Latitude: formValue.Latitude,
-      Longitude: formValue.Longitude,
-      PlanID: formValue.PlanID!,
+      firstName: formValue.FirstName!,
+      lastName: formValue.LastName!,
+      userName: formValue.UserName!,
+      email: formValue.Email!,
+      password: formValue.Password!,
+      partnerCaption: formValue.PartnerCaption!,
+      address: formValue.Address!,
+      city: formValue.City!,
+      state: formValue.State!,
+      zipcode: formValue.Zipcode!,
+      country: formValue.Country!,
+      phone: formValue.Phone!,
+      domainUrl: formValue.DomainURL!,
+      latitude: formValue.Latitude ?? undefined,
+      longitude: formValue.Longitude ?? undefined,
+      planId: formValue.PlanID!,
     };
     this.auth.register(partnerReg).subscribe({
       // Pass the email along so the confirm page pre-fills it.

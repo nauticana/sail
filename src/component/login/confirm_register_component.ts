@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -24,7 +24,6 @@ import { BaseAsync } from '../abstract/base_async';
 export class ConfirmRegisterComponent extends BaseAsync implements OnInit {
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
-  private router = inject(Router);
   private route = inject(ActivatedRoute);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
@@ -49,15 +48,11 @@ export class ConfirmRegisterComponent extends BaseAsync implements OnInit {
       this.auth.confirmRegister(email!, code!),
       (resp) => {
         this.successMessage.set('Registration confirmed.');
+        // confirmRegister signed the user in and owns navigation; only a paid
+        // plan's checkout leaves the SPA (window.location: it is cross-origin).
         if (resp?.paymentRequired && resp.paymentUrl) {
-          // Paid plan: go straight to payment. Subscription is 'P' until paid.
-          // Using window.location (not router) so absolute / cross-origin
-          // payment URLs also work.
           window.location.href = resp.paymentUrl;
-          return;
         }
-        // Free plan: land on login.
-        this.router.navigate(['/login/local']);
       },
       'Confirmation failed. Please try again.',
     );

@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.29",
+   "title": "Signup on keel's registration routes",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.94. Confirmation posts to /public/register/confirm and signs the user in from the tokens it answers. PartnerRegistration is typed after keel's camelCase JSON. BaseAuthService gains createPartner() for the signed-in partner step and exchangeHandoff() for keel's single-use sign-in code.",
+   "body_markdown": "Requires keel v1.2.94; older keel answers 404 on the confirmation route.\n\n### Breaking\n\n| Old | New |\n|---|---|\n| `RestURL.confirmRegisterURL` = `/public/confirm/register` | `/public/register/confirm` |\n| `PartnerRegistration` with PascalCase fields (`FirstName`, `PartnerCaption`, `DomainURL`, `PlanID`, …) | `AccountRegistration & Partial<PartnerSetup>` with keel's camelCase fields (`firstName`, `partnerCaption`, `domainUrl`, `planId`, …); partner fields are optional |\n| `PartnerRegistration.Latitude` / `Longitude`: `number \\| null` | `latitude?` / `longitude?`: omit when unknown |\n| `ConfirmRegisterResponse` = `{status, partnerId, planId, paymentRequired, paymentUrl?}` | extends `TokenPair`; `planId`, `paymentRequired`, `paymentUrl` are present only when the registration carried a partner |\n| `register()` typed as answering a `PartnerRegistration` | answers `{status: string}` |\n\n### Behavioral\n\n| | Before | After |\n|---|---|---|\n| `confirmRegister()` | returned the response only | also completes the login (stores the token pair, loads appdata, initialises routes) |\n| `ConfirmRegisterComponent` without a payment URL | navigated to `/login/local` | stays signed in; the post-login navigation applies |\n\n### Additive\n\n- `createPartner(setup: PartnerSetup): Observable<PartnerCreated>` posts `RestURL.registerPartnerURL` (`/api/register/partner`), rotates the refresh token, restarts the session on the new JWT and emits keel's result.\n- `exchangeHandoff(code)` posts `RestURL.registerExchangeURL` (`/public/register/exchange`) and routes the answer like `login()`, including the 2FA step.\n- Types `AccountRegistration`, `PartnerSetup<TExtra>`, `PartnerCreated`.\n\n## Adopting it\n\n1. Rename the fields of any hand-built `PartnerRegistration` to camelCase.\n2. Remove a login or `acceptToken()` call that followed `confirmRegister()`, and do not navigate from its handler.\n3. Replace app-local calls to the partner-setup and hand-off-exchange routes, and their request and response types, with `createPartner()` and `exchangeHandoff()`. Drop the `refreshSession()` and `acceptToken()` that followed partner setup.\n"
+  },
+  {
    "version": "v1.1.28",
    "title": "OAuth hand-off for a signed-in user",
    "tags": [

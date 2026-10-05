@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -346,6 +346,10 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /public/otp/resend` | Re-issue OTP for an existing `otpToken` |
 | `POST /public/2fa/verify` | Login-time TOTP verification (uses `loginToken`) |
 | `POST /public/2fa/backup-verify` | Login-time backup-code verification |
+| `POST /public/register` | Start a signup from a `PartnerRegistration`; emails the confirmation code |
+| `POST /public/register/confirm` | Confirm `?email=&code=`; answers session tokens and the partner result (`confirmRegister`) |
+| `POST /public/register/exchange` | Trade a single-use hand-off `{code}` for a session (`exchangeHandoff`) |
+| `POST /api/register/partner` | Create the signed-in user's partner from a `PartnerSetup` (`createPartner`) |
 | `POST /public/token/refresh` | Rotate `{refreshToken}` → new `{token, refreshToken}`; 401 ends the session |
 | `POST /public/logout` | Revoke `{refreshToken}` (called by `BaseAuthService.logout()`) |
 | `GET /public/ws` | keel realtime hub handshake (`RealtimeService`; JWT via `?token=`) |
@@ -512,7 +516,9 @@ metadata: {
 
 ### Registration → checkout flow
 
-The registration confirmation (`ConfirmRegisterComponent`) already handles the payment redirect. When the backend returns `paymentRequired: true`, the user is sent to `resp.paymentUrl` (Stripe Checkout) automatically. No extra wiring needed — just select a paid plan during registration.
+`BaseAuthService.confirmRegister(email, code)` signs the user in from the tokens keel answers (keel v1.2.94), so no separate login follows. `ConfirmRegisterComponent` then sends the user to `resp.paymentUrl` when the backend returns `paymentRequired: true` with one; otherwise the post-login navigation applies.
+
+A two-step signup registers the account alone (a `PartnerRegistration` without partner fields), then calls `createPartner(setup)` once signed in. It posts keel's `PartnerSetup` — application fields ride in `extra` — rotates the refresh token so the session carries the new partner, reloads appdata and routes, and emits `PartnerCreated`. When `paymentRequired` comes without a `paymentUrl`, the application's billing page opens the checkout. `exchangeHandoff(code)` completes a sign-in that arrived by redirect with keel's single-use code, including the 2FA step.
 
 ### `BaseAsync`
 

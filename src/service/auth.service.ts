@@ -2,7 +2,7 @@ import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { filter, finalize, map, mergeMap, shareReplay, take, tap } from 'rxjs/operators';
 import { PasswordRules } from '../util/password_policy';
-import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerRegistration, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
+import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerCreated, PartnerRegistration, PartnerSetup, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
   OtpRequest, OtpResendRequest, OtpResponse, OtpVerifyRequest, OtpVerifyResponse,
@@ -90,6 +90,8 @@ export abstract class BaseAuthService extends BaseRestService {
   protected get registerUrl()              { return this.url(RestURL.registerURL); }
   protected get chpassUrl()                { return this.url(RestURL.chpassURL); }
   protected get confirmRegisterUrl()       { return this.url(RestURL.confirmRegisterURL); }
+  protected get registerExchangeUrl()      { return this.url(RestURL.registerExchangeURL); }
+  protected get registerPartnerUrl()       { return this.url(RestURL.registerPartnerURL); }
   protected get confirmChpassUrl()         { return this.url(RestURL.confirmChpassURL); }
   protected get loginGoogleUrl()           { return this.url(RestURL.loginGoogleURL); }
   protected get twoFactorSetupUrl()        { return this.url(RestURL.twoFactorSetupURL); }
@@ -449,9 +451,32 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.post<{ message: string }>(this.profilePhoneConfirmUrl, { value, code });
   }
 
-  confirmRegister(email: string, code: string) {
+  /** Confirm a registration; success completes the login from the tokens keel
+   *  answers. A registration without partner fields leaves `partnerId` 0. */
+  confirmRegister(email: string, code: string): Observable<ConfirmRegisterResponse> {
     const params = new HttpParams().set('email', email).set('code', code);
-    return this.http.post<ConfirmRegisterResponse>(this.confirmRegisterUrl, null, { params });
+    return this.http.post<ConfirmRegisterResponse>(this.confirmRegisterUrl, null, { params }).pipe(
+        tap((res) => this.completeLogin(res.token, res.refreshToken)),
+    );
+  }
+
+  /** Create the partner of a signed-in user who has none, then rotate the
+   *  refresh token so the session carries the partner. An error after keel
+   *  created the partner means only the rotation failed; do not post again. */
+  createPartner(setup: PartnerSetup): Observable<PartnerCreated> {
+    return this.http.post<PartnerCreated>(this.registerPartnerUrl, setup).pipe(
+        mergeMap((created) => this.refreshSession().pipe(
+            tap((token) => this.completeLogin(token, localStorage.getItem('refreshToken') ?? undefined)),
+            map(() => created),
+        )),
+    );
+  }
+
+  /** Trade keel's single-use hand-off code for a session; same contract as login(). */
+  exchangeHandoff(code: string): Observable<LoginResponse2FA> {
+    return this.http.post<LoginResponse2FA>(this.registerExchangeUrl, { code }, { withCredentials: true }).pipe(
+        tap((res) => this.handleLoginResponse(res)),
+    );
   }
 
   confirmChpass(username: string, code: string, new_password: string) {
@@ -485,7 +510,7 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   register(reg: PartnerRegistration) {
-    return this.http.post<PartnerRegistration>(this.registerUrl, reg);
+    return this.http.post<{ status: string }>(this.registerUrl, reg);
   }
 
   // ── Phone / email OTP ──

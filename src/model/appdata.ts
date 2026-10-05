@@ -198,24 +198,46 @@ export interface TrustedDevice {
   created_at:   string;
 }
 
-export interface PartnerRegistration {
-	FirstName:            string;
-	LastName:             string;
-	UserName:             string;
-	Email:                string;
-	Password:             string;
-	PartnerCaption:       string;
-	Address:              string;
-	City:                 string;
-	State:                string;
-	Zipcode:              string;
-	Country:              string;
-	Phone:                string;
-	// null when geocoding is disabled or the address wasn't verified.
-	Latitude:             number | null;
-	Longitude:            number | null;
-	DomainURL:            string;
-	PlanID:               string;
+// Mirrors keel `user.AccountRegistration`.
+export interface AccountRegistration {
+	firstName: string;
+	lastName:  string;
+	userName:  string;
+	email:     string;
+	password:  string;
+}
+
+// Mirrors keel `user.PartnerSetup`. `extra` carries the application's own fields.
+export interface PartnerSetup<TExtra = unknown> {
+	partnerCaption: string;
+	address:        string;
+	city:           string;
+	state:          string;
+	zipcode:        string;
+	country:        string;
+	phone:          string;
+	latitude?:      number;
+	longitude?:     number;
+	domainUrl:      string;
+	planId:         string;
+	// Chosen offer (PERIOD_TYPE codes); none selects the plan's cheapest.
+	billingCycle?:  string;
+	termType?:      string;
+	termCount?:     number;
+	extra?:         TExtra;
+}
+
+// Mirrors keel `user.PartnerRegistration`. Without partner fields only the
+// account is created and the partner follows through `createPartner`.
+export type PartnerRegistration<TExtra = unknown> = AccountRegistration & Partial<PartnerSetup<TExtra>>;
+
+// Mirrors keel `user.PartnerCreated`. `paymentRequired` without a `paymentUrl`
+// means the application's billing page opens the checkout.
+export interface PartnerCreated {
+	partnerId:       number;
+	planId:          string;
+	paymentRequired: boolean;
+	paymentUrl?:     string;
 }
 
 // One purchasable offer for a plan — a (billing cycle × commitment term) row of
@@ -261,15 +283,13 @@ export interface PublicPlan {
 	trialDays?:      number;
 }
 
-// ConfirmRegisterResponse — shape returned by POST /public/confirm/register.
-// When paymentRequired is true the UI should redirect the user to paymentUrl
-// before letting them log in.
-export interface ConfirmRegisterResponse {
-	status:          string;
-	partnerId:       number;
-	planId:          string;
-	paymentRequired: boolean;
-	paymentUrl?:     string;
+// ConfirmRegisterResponse — shape returned by POST /public/register/confirm:
+// the new session's tokens, plus the partner result when the registration had one.
+export interface ConfirmRegisterResponse extends TokenPair {
+	status:           string;
+	planId?:          string;
+	paymentRequired?: boolean;
+	paymentUrl?:      string;
 }
 
 // ── Billing / Payment types ──
