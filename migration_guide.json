@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.28",
+   "title": "OAuth hand-off for a signed-in user",
+   "tags": [
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.93, whose login redirect sends `return` as the absolute authorize URL. A user who is already signed in and opens the login page with an allowed `?return=` is handed off without signing in again.",
+   "body_markdown": "### Behavioral\n\n| | Before | After |\n|---|---|---|\n| `loadStoredSession()` on a `/login` route with an allowed `?return=` and `oauthServerUrl` set | loaded appdata and routed to the dashboard | posts the session hand-off and leaves for keel's `redirect`; appdata and routes are not loaded |\n| hand-off answered 401 | `sessionHandoffError` set | rotates the refresh token once and retries; a second failure sets `sessionHandoffError` |\n\nThe hand-off still requires an absolute `return` whose host is in `allowedReturnHosts`.\n\n## Adopting it\n\n1. Upgrade the backend to keel v1.2.93 so its login redirect sends an absolute `return`; older keel sends a path, which sail ignores.\n2. Point keel's `OAuthASHandler.LoginURL` at a route under `/login` that calls `loadStoredSession()` (sail's navigation shell does).\n"
+  },
+  {
    "version": "v1.1.27",
    "title": "OAuth sign-in through keel's session hand-off; subscription grants; agency delegation roles",
    "tags": [

@@ -25,7 +25,7 @@ export class RefreshSupersededError extends Error {
   constructor() { super('session changed during refresh'); this.name = 'RefreshSupersededError'; }
 }
 
-function handoffErrorMessage(status: number): string {
+function handoffErrorMessage(status: number | undefined): string {
   if (status === 400) return 'This sign-in link is not valid. Start again from the application you were connecting.';
   if (status === 401) return 'Your session was not accepted. Please sign in again.';
   return 'Could not complete sign-in. Please try again.';
@@ -219,25 +219,37 @@ export abstract class BaseAuthService extends BaseRestService {
     this.isLoggedIn.set(true);
     this.sessionHandoffError.set(null);
     resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
-    const ret = this.validatedReturnUrl();
-    const oauthServer = this.oauthServerBase();
-    if (ret && oauthServer) {
-      this.handOffSession(oauthServer, ret, token);
-      return;
-    }
+    if (this.startHandoff()) return;
     this.loadAppData();
     this.initRoutes();
   }
 
+  /** Hands the session to the OAuth authorization server when the page carries an
+   * allowed `?return=` and oauthServerUrl is set; false when there is nothing to hand off. */
+  private startHandoff(): boolean {
+    const ret = this.validatedReturnUrl();
+    const oauthServer = this.oauthServerBase();
+    if (!ret || !oauthServer) return false;
+    this.handOffSession(oauthServer, ret);
+    return true;
+  }
+
   /** Exchange the bearer session for the authorization server's own cookie session
    * (keel POST /oauth/session/handoff), then leave the SPA for the URL it returns.
-   * Any failure stays on the login page; the browser is never sent elsewhere. */
-  private handOffSession(oauthServer: string, ret: string, token: string): void {
-    this.http.post<{ data?: { redirect?: unknown } }>(
+   * A 401 rotates the refresh token once and retries. Any failure stays on the
+   * login page; the browser is never sent elsewhere. */
+  private handOffSession(oauthServer: string, ret: string): void {
+    const mint = (token: string) => this.http.post<{ data?: { redirect?: unknown } }>(
         oauthServer + '/oauth/session/handoff',
         { return: ret },
         { headers: { Authorization: `Bearer ${token}` } },
-    ).pipe(take(1)).subscribe({
+    );
+    mint(this.token ?? '').pipe(
+      catchError((err: HttpErrorResponse) => err.status === 401 && localStorage.getItem('refreshToken')
+        ? this.refreshSession().pipe(mergeMap(mint))
+        : throwError(() => err)),
+      take(1),
+    ).subscribe({
       next: (res) => {
         const redirect = res?.data?.redirect;
         if (typeof redirect !== 'string' || !sameOrigin(redirect, oauthServer)) {
@@ -247,9 +259,9 @@ export abstract class BaseAuthService extends BaseRestService {
         }
         window.location.assign(redirect);
       },
-      error: (err: HttpErrorResponse) => {
+      error: (err: unknown) => {
         console.error('Session handoff failed:', err);
-        this.sessionHandoffError.set(handoffErrorMessage(err.status));
+        this.sessionHandoffError.set(handoffErrorMessage((err as { status?: number } | null)?.status));
       },
     });
   }
@@ -448,11 +460,12 @@ export abstract class BaseAuthService extends BaseRestService {
 
   loadStoredSession() {
     this.token = localStorage.getItem('jwt');
-    if (this.token) {
-      this.isLoggedIn.set(true);
-      this.loadAppData();
-      this.initRoutes();
-    }
+    if (!this.token) return;
+    this.isLoggedIn.set(true);
+    // A signed-in user sent to the login page by the authorization server is handed off without signing in again.
+    if (window.location.pathname.startsWith('/login') && this.startHandoff()) return;
+    this.loadAppData();
+    this.initRoutes();
   }
 
   /** Revoke the refresh token server-side (best effort: the local session is
