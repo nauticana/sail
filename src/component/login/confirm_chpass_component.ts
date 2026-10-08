@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -25,7 +25,6 @@ import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password
 export class ConfirmChpassComponent extends BaseAsync implements OnInit {
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
-  private router = inject(Router);
   private route = inject(ActivatedRoute);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
@@ -67,7 +66,7 @@ export class ConfirmChpassComponent extends BaseAsync implements OnInit {
 
     this.run(
       this.auth.confirmChpass(username!, code!, new_password!),
-      () => this.router.navigate(['/login/local']),
+      () => {},
       'Confirmation failed. Please try again.',
     );
   }

@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.30",
+   "title": "Password change on keel's routes",
+   "tags": [
+    "breaking",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.99. Password change, forgot-password and reset post keel's /public/password/change, /forgot and /reset. A successful change or reset ends the session immediately, because keel revokes every refresh token, and the login page asks the user to sign in again.",
+   "body_markdown": "Requires keel v1.2.99.\n\n### Breaking\n\n| | Before | After |\n|---|---|---|\n| `RestURL.chpassURL` | `/public/login/chpass` (not a keel route) | `/public/password/change` |\n| `RestURL.confirmChpassURL` | `/public/confirm/password` (not a keel route) | `/public/password/reset` |\n| `forgotPassword()` | posted `chpassURL` | posts the new `RestURL.forgotPasswordURL` (`/public/password/forgot`) |\n| `chpass()`, `forgotPassword()`, `confirmChpass()` response type | `{message}` | `{status}`, as keel answers |\n\n### Behavioral\n\n| | Before | After |\n|---|---|---|\n| successful `chpass()` / `confirmChpass()` | a signed-in session was kept until the next refresh failed, then ended as `login?sessionExpired=true` | clears the session and routes to `login?passwordChanged=true` |\n| `ChpassComponent` on success | showed a success message | leaves for the login page |\n| `<sail-login>` | — | shows a sign-in-again notice for `?passwordChanged=true` |\n\n## Adopting it\n\n1. Delete `configureRestUrls` overrides that pointed `chpassURL`, `forgotPasswordURL` or `confirmChpassURL` at keel's `/public/password/*` routes.\n2. Remove app code that logged the user out or refreshed the session after a password change.\n3. Read `status` instead of `message` from the password responses.\n4. A custom login page should render a notice for `?passwordChanged=true`.\n"
+  },
+  {
    "version": "v1.1.29",
    "title": "Signup on keel's registration routes",
    "tags": [

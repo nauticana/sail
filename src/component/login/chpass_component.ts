@@ -90,11 +90,7 @@ export class ChpassComponent extends BaseAsync {
     this.run(
       request,
       () => {
-        if (isForgot) {
-          this.router.navigate(['/confirm/password'], { queryParams: { username } });
-        } else {
-          this.successMessage.set('Password changed successfully.');
-        }
+        if (isForgot) this.router.navigate(['/confirm/password'], { queryParams: { username } });
       },
       'Password change failed. Please try again.',
     );

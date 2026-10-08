@@ -8,12 +8,13 @@ export const RestURL = {
   realtimeURL: '/public/ws',                  // keel realtime.Hub handshake; JWT via ?token=
   loginGoogleURL: '/public/login/google',
   registerURL: '/public/register',
-  chpassURL: '/public/login/chpass',
+  chpassURL: '/public/password/change',       // keel revokes every refresh token on success
+  forgotPasswordURL: '/public/password/forgot',
   confirmRegisterURL: '/public/register/confirm',
   registerExchangeURL: '/public/register/exchange',
   registerPartnerURL: '/api/register/partner',
   plansURL: '/public/plans',
-  confirmChpassURL: '/public/confirm/password',
+  confirmChpassURL: '/public/password/reset',
   twoFactorSetupURL: '/api/user/2fa/setup',
   twoFactorVerifyURL: '/api/user/2fa/verify',          // authenticated — confirms setup
   twoFactorDisableURL: '/api/user/2fa/disable',

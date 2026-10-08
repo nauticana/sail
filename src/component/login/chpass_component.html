@@ -43,10 +43,6 @@
         <div class="auth-error" role="alert">{{ errorMessage() }}</div>
       }
 
-      @if (successMessage()) {
-        <div class="auth-success" role="status">{{ successMessage() }}</div>
-      }
-
       <button matButton="elevated" class="primary" type="submit" [disabled]="!chpassForm.valid">
         @if (forgotPassword()) {
           Send Confirmation Code

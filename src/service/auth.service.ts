@@ -89,6 +89,7 @@ export abstract class BaseAuthService extends BaseRestService {
   protected get logoutUrl()                { return this.url(RestURL.logoutURL); }
   protected get registerUrl()              { return this.url(RestURL.registerURL); }
   protected get chpassUrl()                { return this.url(RestURL.chpassURL); }
+  protected get forgotPasswordUrl()        { return this.url(RestURL.forgotPasswordURL); }
   protected get confirmRegisterUrl()       { return this.url(RestURL.confirmRegisterURL); }
   protected get registerExchangeUrl()      { return this.url(RestURL.registerExchangeURL); }
   protected get registerPartnerUrl()       { return this.url(RestURL.registerPartnerURL); }
@@ -416,11 +417,12 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   chpass(username: string, new_password: string, old_password: string) {
-    return this.http.post<{ message: string }>(this.chpassUrl, { username, old_password, new_password });
+    return this.http.post<{ status: string }>(this.chpassUrl, { username, old_password, new_password })
+      .pipe(tap(() => this.passwordChanged()));
   }
 
   forgotPassword(username: string) {
-    return this.http.post<{ message: string }>(this.chpassUrl, { username });
+    return this.http.post<{ status: string }>(this.forgotPasswordUrl, { username });
   }
 
   // ── Self-service profile (keel ProfileHandler) ──
@@ -480,7 +482,8 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   confirmChpass(username: string, code: string, new_password: string) {
-    return this.http.post<{ message: string }>(this.confirmChpassUrl, { username, code, new_password });
+    return this.http.post<{ status: string }>(this.confirmChpassUrl, { username, code, new_password })
+      .pipe(tap(() => this.passwordChanged()));
   }
 
   loadStoredSession() {
@@ -651,6 +654,11 @@ export abstract class BaseAuthService extends BaseRestService {
     if (!this.isLoggedIn()) return;
     this.clearSession();
     this.router.navigate(['/login/local'], { queryParams: { sessionExpired: 'true' } });
+  }
+
+  private passwordChanged(): void {
+    this.clearSession();
+    this.router.navigate(['/login/local'], { queryParams: { passwordChanged: 'true' } });
   }
 
   private buildAuthIndex() {

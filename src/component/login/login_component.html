@@ -9,6 +9,9 @@
     @if (loggedOut) {
       <p class="auth-message" role="status" aria-live="polite">You have been logged out successfully.</p>
     }
+    @if (passwordChanged) {
+      <p class="auth-message" role="status" aria-live="polite">Your password was changed. Sign in again with the new password.</p>
+    }
     @if (sessionHandoffError()) {
       <p class="auth-error" role="alert">{{ sessionHandoffError() }}</p>
     }

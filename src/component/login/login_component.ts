@@ -28,7 +28,9 @@ export class LoginComponent extends BaseAsync {
   private auth = inject(BaseAuthService);
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
-  protected readonly loggedOut = inject(ActivatedRoute).snapshot.queryParamMap.get('loggedOut') === 'true';
+  private readonly queryParams = inject(ActivatedRoute).snapshot.queryParamMap;
+  protected readonly loggedOut = this.queryParams.get('loggedOut') === 'true';
+  protected readonly passwordChanged = this.queryParams.get('passwordChanged') === 'true';
   /** OAuth session hand-off failure from BaseAuthService, shown below. */
   protected readonly sessionHandoffError = this.auth.sessionHandoffError;
 
