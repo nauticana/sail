@@ -1,0 +1,25 @@
+<div class="auth-container">
+  <div class="auth-card sso-return" [attr.data-state]="state()">
+    @switch (state()) {
+      @case ('signing-in') {
+        <p class="auth-message" role="status" aria-live="polite">Signing you in…</p>
+      }
+      @case ('test-passed') {
+        <p class="auth-message" role="status">Test sign-in succeeded. The connection can now be activated.</p>
+      }
+      @default {
+        <p class="auth-error" role="alert">{{ message() }}</p>
+      }
+    }
+    <div class="auth-actions">
+      @if (state() === 'error') {
+        <a routerLink="/login/local">Use another sign-in method</a>
+      }
+      @if (state() === 'test-passed' || state() === 'test-failed') {
+        @if (adminRoute(); as route) {
+          <a [routerLink]="route">Back to identity providers</a>
+        }
+      }
+    </div>
+  </div>
+</div>

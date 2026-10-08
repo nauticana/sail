@@ -1,6 +1,7 @@
 import { InjectionToken, Type } from '@angular/core';
 import { Routes } from '@angular/router';
 import { ApplicationData } from './model/appdata';
+import { SsoErrorCode } from './util/sso';
 
 export interface RouteLink {
   label: string;
@@ -74,6 +75,11 @@ export interface SailGuiConfig {
   /** Hostnames a post-login `?return=` may name (open-redirect allowlist),
    * e.g. ['mcp.example.com']. Anything not listed is ignored. */
   allowedReturnHosts?: string[];
+
+  /** Shows `<sail-sso-login>` (organization sign-in) on `<sail-login>`. Off by default. */
+  ssoLogin?: boolean;
+  /** Replaces the default wording of single sign-on error codes. */
+  ssoErrorMessages?: Partial<Record<SsoErrorCode, string>>;
 
   /** Public route serving the password policy (keel PublicHandler.GetPasswordPolicy),
    * e.g. '/public/v1/auth/password/policy'. When set, sail fetches it once and

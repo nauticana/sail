@@ -38,6 +38,10 @@
         (loginSuccess)="onSocialSuccess($event)"
         (loginError)="onSocialError($event)" />
     }
+    @if (guiConfig.ssoLogin) {
+      <hr class="auth-divider">
+      <sail-sso-login />
+    }
     <div class="auth-actions">
       <a routerLink="/login/chpass">I forgot my password</a>
     </div>

@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.31",
+   "title": "Tenant single sign-on and DNS or HTTP-file domain verification",
+   "tags": [
+    "additive"
+   ],
+   "summary": "Adopts keel v1.2.100. Opt-in organization sign-in and its return page, a protocol-aware identity provider configure dialog, masked secret action parameters, and DNS TXT or HTTP-file domain verification through the DOMAIN_VERIFIER port.",
+   "body_markdown": "Requires keel v1.2.100 for single sign-on and for DNS or HTTP-file domain verification. Nothing changes until an app opts in.\n\n### Additive\n\n| | |\n|---|---|\n| `SailGuiConfig.ssoLogin` | shows `<sail-sso-login>` on `<sail-login>` |\n| `SsoLoginComponent` (`sail-sso-login`) | navigates to `RestURL.ssoStartURL` with the email |\n| `SsoReturnComponent` (`sail-sso-return`) | keel's return URL: exchanges `code` once, shows `error` and test outcomes |\n| `SSO_ERROR_MESSAGES`, `ssoErrorMessage()`, `SailGuiConfig.ssoErrorMessages` | wording of keel's single sign-on error codes |\n| `RestURL.ssoStartURL`, `RestURL.ssoSamlMetadataURL` | `/public/sso/start`, `/public/sso/saml/metadata` |\n| `BaseAuthService.setLanding(url)` | the next route build lands on `url` instead of the dashboard |\n| `BaseAuthService.hasPermission(object, action, value)` | checks any grant against its low-limit value |\n| action parameter `dataType` `secret` / `password` | masked input, posted as a string |\n| `partner_identity_provider` `configure` | filters protocol and client-auth fields and masks the client secret |\n| `DomainVerifier.challenge?(domain, method)`, `confirm(domain, code, method?)` | DNS TXT (`DT`) and HTTP file (`HF`) challenges |\n| `<sail-domain-verification [methods]>` | methods offered, default `['EC']` |\n\n## Adopting it\n\n1. For single sign-on, set `ssoLogin: true`, route `login/sso` to `SsoReturnComponent`, and set keel's `SSOHandler.FrontendReturnURL` to that route.\n2. For DNS or HTTP-file domain verification, implement `challenge` on the `DOMAIN_VERIFIER` provider (post keel's `partner_domain` `challenge` action and emit its `challenge`), pass `method` through `confirm`, and pass `[methods]`.\n"
+  },
+  {
    "version": "v1.1.30",
    "title": "Password change on keel's routes",
    "tags": [

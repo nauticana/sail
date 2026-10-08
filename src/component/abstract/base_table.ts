@@ -1,4 +1,4 @@
-import { computed, inject, Injector, WritableSignal } from "@angular/core";
+import { computed, inject, Injector, Type, WritableSignal } from "@angular/core";
 import { ForeignKey, TableAction, TableColumn, TableDefinition } from "../../model/appdata";
 import { ConstantValue, LookupStyle, OpCode } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
@@ -9,6 +9,7 @@ import { errorDetail } from "../../util/errors";
 import { MatDialog } from "@angular/material/dialog";
 import { RevealDialog } from "../table/reveal_dialog";
 import { ActionParamsDialog } from "../table/action_params_dialog";
+import { IdentityProviderConfigureDialog } from "../sso/identity_provider_configure_dialog";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" alert. */
@@ -16,6 +17,11 @@ export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view';
 
 /** ISO-like timestamp prefix — gate for comparing two strings as instants. */
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
+
+/** Parameter dialogs for keel actions the generic dialog cannot lay out, keyed `table/action`. */
+const ACTION_DIALOGS: Record<string, Type<ActionParamsDialog>> = {
+    'partner_identity_provider/configure': IdentityProviderConfigureDialog,
+};
 
 
 export abstract class BaseTable {
@@ -146,7 +152,9 @@ export abstract class BaseTable {
         const key = action.recordSpecific && record ? this.primaryKeyValues(record) : {};
         if (action.parameters?.length) {
             this.#injector.get(MatDialog)
-                .open<ActionParamsDialog, TableAction, Record<string, unknown>>(ActionParamsDialog, { data: action, width: this.dialogWidth })
+                .open<ActionParamsDialog, TableAction, Record<string, unknown>>(
+                    ACTION_DIALOGS[this.tableName() + '/' + action.action] ?? ActionParamsDialog,
+                    { data: action, width: this.dialogWidth })
                 .afterClosed()
                 .subscribe((values) => {
                     if (values) this.postAction(action, {...key, ...values}, record);

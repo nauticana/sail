@@ -1,0 +1,8 @@
+<div class="sso-login">
+  <mat-form-field appearance="outline">
+    <mat-label>Work email</mat-label>
+    <input matInput type="email" [formControl]="email" autocomplete="email" (keydown.enter)="continue()">
+    <mat-error>Enter your work email address</mat-error>
+  </mat-form-field>
+  <button matButton="elevated" type="button" (click)="continue()">Continue with your organization</button>
+</div>

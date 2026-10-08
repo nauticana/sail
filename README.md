@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -18,7 +18,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
 | **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `AccountDeletionComponent` |
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
-| **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent` |
+| **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
 | **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `StatTileComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
@@ -236,6 +236,8 @@ sail follows a **metadata-driven** architecture. On login, the backend returns `
 
 `BaseAuthService.initRoutes()` dynamically builds Angular routes from this metadata. Each menu item automatically gets a `TableSearch` or `TableList` route with the correct API endpoint and table metadata. Custom components can override specific menu items via `menuItemRouteOverrides` in the config.
 
+Application controls can call `BaseAuthService.hasPermission(object, action, value)` for any backend grant. Table actions continue to use `canExecute()`.
+
 ## List pagination
 
 keel REST list responses are paginated:
@@ -310,6 +312,8 @@ interface SailGuiConfig {
   passwordPolicyUrl?: string;         // Public route serving keel's password policy (see below)
   oauthServerUrl?: string;            // Base URL of keel's OAuth authorization server (see below)
   allowedReturnHosts?: string[];      // Hosts a post-login ?return= may name
+  ssoLogin?: boolean;                 // Shows organization sign-in on <sail-login> (see Tenant single sign-on)
+  ssoErrorMessages?: Partial<Record<SsoErrorCode, string>>; // Rewords single sign-on errors
 }
 ```
 
@@ -601,7 +605,7 @@ A `TableAction` with `kind: 'R'` (redirect — the `constant_value` code) makes 
 
 ### Action parameters (v1.1.25)
 
-An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dialog before posting: one field per parameter, typed by `dataType` (`boolean` checkbox, numeric, `date`, `timestamp`, `file`, otherwise text), or a dropdown when `lookupTable` names a table in the client cache (a `foreign_key_lookup` dropdown table); a numeric `dataType` still posts the chosen key as a number. The dialog shows `confirmMessage` in place of the native prompt and posts `{...primaryKeyValues(record), ...values}`; empty optional values are left out. A `file` parameter turns the post into `multipart/form-data`, so a table-level `upload` action whose parameters are `file`, `document_type` (lookup `document_type`), `title`, … posts straight to keel's `DocumentHandler.Upload`. An action without parameters behaves as before.
+An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dialog before posting: one field per parameter, typed by `dataType` (`boolean` checkbox, numeric, `date`, `timestamp`, `file`, `secret` or `password` as a masked input posted as a string, otherwise text), or a dropdown when `lookupTable` names a table in the client cache (a `foreign_key_lookup` dropdown table); a numeric `dataType` still posts the chosen key as a number. The dialog shows `confirmMessage` in place of the native prompt and posts `{...primaryKeyValues(record), ...values}`; empty optional values are left out. A `file` parameter turns the post into `multipart/form-data`, so a table-level `upload` action whose parameters are `file`, `document_type` (lookup `document_type`), `title`, … posts straight to keel's `DocumentHandler.Upload`. An action without parameters behaves as before.
 
 ### Status chip (v1.0.1)
 
@@ -1006,6 +1010,29 @@ Under the hood, the component calls `BaseAuthService.loginSocial(provider, idTok
 
 For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWithGoogle(code)` (hits `/public/login/google`) is still supported; prefer `loginSocial` for new code.
 
+## Tenant single sign-on (v1.1.31)
+
+Requires keel v1.2.100 with `SSOHandler` mounted. An organization signs its users in through its own OpenID Connect or SAML identity provider; keel owns the protocol and every security decision.
+
+Opt in and add the return route:
+
+```typescript
+{
+  ssoLogin: true,   // <sail-login> shows "Continue with your organization"
+  publicRoutes: [
+    { path: 'login/sso', loadComponent: () => import('@nauticana/sail').then(m => m.SsoReturnComponent) },
+  ],
+}
+```
+
+Pair it with keel's `SSOHandler.PublicBaseURL` (the API origin) and `SSOHandler.FrontendReturnURL` (`https://<app>/login/sso`).
+
+- `<sail-sso-login>` navigates the browser to `RestURL.ssoStartURL` (`/public/sso/start?email=…`) on the API host. It is a top-level navigation, never XHR, because keel binds the sign-in to an HttpOnly cookie there.
+- `<sail-sso-return>` handles keel's answer. A `code` is removed from the address bar and exchanged once through `exchangeHandoff()`; the user lands on the dashboard. An `error` shows its message and links to `/login/local`. A test outcome (`test=passed`, or `test=failed&error=`) is shown with a link to the identity provider screen found in the menu metadata.
+- `SSO_ERROR_MESSAGES` holds the wording of every keel error code; an unknown code reads as `server_error`. Override entries through `SailGuiConfig.ssoErrorMessages`.
+
+Administration uses the generic screens for `partner_identity_provider` and the SCIM tables. The `configure` dialog filters fields by protocol and OIDC client authentication, masks the client secret, uses metadata captions for code lists, and links the SAML service-provider metadata. `test` redirects through keel; generated provisioning tokens appear once in the reveal dialog.
+
 ## Dashboard components
 
 Horizontal building blocks for an entitlement-aware dashboard. All are presentational (signals in, events out) and ship no CSS — the app styles the documented class hooks and supplies the metric data, chart, and action logic.
@@ -1045,11 +1072,11 @@ unless the backend sends
 `source.status` is `null` and a missing source is indistinguishable from an
 empty result.
 
-## Domain verification (v1.1.22)
+## Domain verification (v1.1.22; DNS and HTTP file v1.1.31)
 
-`DomainVerificationComponent` (`sail-domain-verification`) is the send-code → confirm
-flow for proving ownership of a domain: the domain field, the two steps, the resend
-cooldown, the expiry state and the errors. Every app that verifies a domain renders
+`DomainVerificationComponent` (`sail-domain-verification`) proves ownership of a
+domain: the domain field, an email code (`EC`) with its resend cooldown and expiry, a
+DNS TXT record (`DT`) or an HTTP file (`HF`) with copy buttons, and the errors. Every app that verifies a domain renders
 the same thing, so only the endpoints stay downstream.
 
 The endpoints reach it through the `DOMAIN_VERIFIER` port — sail ships no
@@ -1057,10 +1084,14 @@ implementation and knows none of the paths:
 
 ```ts
 export interface DomainVerifier {
-  requestVerification(domain: string): Observable<unknown>;
-  confirm(domain: string, code: string): Observable<unknown>;
+  requestVerification(domain: string): Observable<unknown>;            // EC: send the code
+  challenge?(domain: string, method: 'DT' | 'HF'): Observable<DomainChallenge>;
+  confirm(domain: string, code: string, method?: DomainVerificationMethod): Observable<unknown>;
 }
 ```
+
+`challenge` posts keel's `partner_domain` `challenge` action (`{domainUrl, method}`) and
+emits its `challenge`; `confirm` then posts `{domainUrl, method}` with an empty code.
 
 ```ts
 // app config — any service with those two methods satisfies the port
@@ -1082,12 +1113,14 @@ providers: [{ provide: DOMAIN_VERIFIER, useExisting: RegistrationService }]
 | `[label]` | Field label, default `Domain`. |
 | `[resendAfterSeconds]` | Resend cooldown, default `60`. |
 | `[codeExpiresInSeconds]` | Code lifetime; `0` (default) shows no expiry. Pass the backend's TTL when it publishes one. |
+| `[methods]` | Methods offered, default `['EC']`; the first is preselected. `DT` and `HF` appear only when the verifier implements `challenge`. Captions come from keel's `domain_verification_method` catalog. |
 | `(domainChange)` | Every edit, so the host form stays in sync. |
 | `(verified)` | Fires once with the proven domain. |
 
 Editing the domain returns the flow to `idle`: a code is bound to the domain it was
 issued for. The component is unstyled — style `.domain-verification`,
-`.domain-verification-field`, `.domain-verification-verified` and the
+`.domain-verification-field`, `.domain-verification-verified`,
+`.domain-verification-method`, `.domain-verification-value` and the
 `.verification-*` hooks of the step UI it composes.
 
 ## Notification inbox (v1.1.23)

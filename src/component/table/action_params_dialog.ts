@@ -10,7 +10,7 @@ import { TableAction, TableActionParameter } from "../../model/appdata";
 import { ConstantValue } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 
-type ParamKind = 'checkbox' | 'number' | 'date' | 'datetime-local' | 'file' | 'text';
+type ParamKind = 'checkbox' | 'number' | 'date' | 'datetime-local' | 'file' | 'password' | 'text';
 
 interface ParamField {
     param:    TableActionParameter;
@@ -20,7 +20,11 @@ interface ParamField {
     options?: ConstantValue[];
 }
 
-/** Collects a table action's declared parameters; closes with the typed values, or undefined on cancel. */
+/**
+ * Collects a table action's declared parameters; closes with the typed values, or
+ * undefined on cancel. A subclass for one action overrides arrange, optionsFor,
+ * shown and hint.
+ */
 @Component({
     selector: "sail-action-params-dialog",
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,12 +40,12 @@ interface ParamField {
     templateUrl: "./action_params_dialog.html",
 })
 export class ActionParamsDialog {
-    private readonly auth = inject(BaseAuthService);
+    protected readonly auth = inject(BaseAuthService);
     private readonly dialogRef = inject(MatDialogRef<ActionParamsDialog, Record<string, unknown>>);
     readonly action = inject<TableAction>(MAT_DIALOG_DATA);
 
-    readonly fields: ParamField[] = (this.action.parameters ?? []).map((param) => {
-        const options = param.lookupTable ? this.auth.getTableValues(param.lookupTable) : undefined;
+    readonly fields: ParamField[] = this.arrange(this.action.parameters ?? []).map((param) => {
+        const options = this.optionsFor(param);
         const wireKind = kindOf(param.dataType);
         return { param, kind: options ? 'select' : wireKind, wireKind, options };
     });
@@ -53,17 +57,38 @@ export class ActionParamsDialog {
     })));
 
     submit(): void {
-        if (this.form.invalid) {
+        const shown = this.fields.filter((f) => this.shown(f.param.name));
+        if (shown.some((f) => this.form.controls[f.param.name].invalid)) {
             this.form.markAllAsTouched();
             return;
         }
         const values: Record<string, unknown> = {};
-        for (const f of this.fields) {
+        for (const f of shown) {
             const raw = this.form.controls[f.param.name].value;
             if (raw === '' || raw == null) continue;
             values[f.param.name] = toWire(f.wireKind, raw);
         }
         this.dialogRef.close(values);
+    }
+
+    /** The parameters in display order. */
+    protected arrange(params: TableActionParameter[]): TableActionParameter[] {
+        return params;
+    }
+
+    /** Choices for a parameter; undefined renders a typed input. */
+    protected optionsFor(param: TableActionParameter): ConstantValue[] | undefined {
+        return param.lookupTable ? this.auth.getTableValues(param.lookupTable) : undefined;
+    }
+
+    /** Whether a parameter applies to the values entered so far; a hidden one is not posted. */
+    protected shown(_name: string): boolean {
+        return true;
+    }
+
+    /** A link shown under a parameter. */
+    protected hint(_name: string): { href: string; label: string } | null {
+        return null;
     }
 
     pickFile(name: string, event: Event): void {
@@ -91,6 +116,9 @@ function kindOf(dataType: string): ParamKind {
             return 'datetime-local';
         case 'file':
             return 'file';
+        case 'secret':
+        case 'password':
+            return 'password';
         default:
             return 'text';
     }

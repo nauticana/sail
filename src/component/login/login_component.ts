@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import { LoginResponseSocial, SocialProvider } from '../../model/auth';
 import { SocialLoginComponent } from './social_login';
+import { SsoLoginComponent } from '../sso/sso_login';
 
 @Component({
   selector: 'sail-login',
@@ -22,6 +23,7 @@ import { SocialLoginComponent } from './social_login';
     MatInputModule,
     RouterLink,
     SocialLoginComponent,
+    SsoLoginComponent,
   ],
 })
 export class LoginComponent extends BaseAsync {

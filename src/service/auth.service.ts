@@ -80,6 +80,7 @@ export abstract class BaseAuthService extends BaseRestService {
   /** The route config active before the first initRoutes() — restored on logout
    *  so the login screen doesn't keep the previous user's route tree. */
   private preLoginRoutes: Routes | null = null;
+  private landing: string | null = null;
 
   // Lazy getters, not field initializers: fields would snapshot during super(),
   // before a subclass constructor can call configureRestUrls().
@@ -640,6 +641,7 @@ export abstract class BaseAuthService extends BaseRestService {
     this.appDataError.set(null);
     this.sessionHandoffError.set(null);
     this.refreshInFlight = null;
+    this.landing = null;
     this.sessionGeneration++;           // in-flight loads and refreshes from this session are ignored
     this.appData$.next(null);           // live subscribers see menus clear; identity stays stable
     this.appDataFail$.complete();
@@ -770,14 +772,14 @@ export abstract class BaseAuthService extends BaseRestService {
   canCreate(tableName: string) { return this.checkPermission('TABLE', 'INSERT', tableName); }
   canUpdate(tableName: string) { return this.checkPermission('TABLE', 'UPDATE', tableName); }
   canDelete(tableName: string) { return this.checkPermission('TABLE', 'DELETE', tableName); }
-  /**
-   * Authorization check for a custom TableAction. authorityObject is the
-   * uppercased table_name; activity is the uppercased action_name. The
-   * grant's low_limit is checked against the table_name (lowercase) —
-   * matching the convention populated by keel's loadTableActions.
-   */
-  canExecute(authorityObject: string, activity: string, tableName: string): boolean {
-    return this.checkPermission(authorityObject, activity, tableName);
+  /** Whether a grant's low_limit pattern matches value. */
+  hasPermission(authorityObject: string, activity: string, value: string): boolean {
+    return this.checkPermission(authorityObject, activity, value);
+  }
+
+  /** Authorization check for a custom TableAction. */
+  canExecute(authorityObject: string, activity: string, value: string): boolean {
+    return this.hasPermission(authorityObject, activity, value);
   }
   canAccess(pageName: string)  { return this.checkPermission('PAGE', 'ACCESS', pageName); }
   canReport(reportName: string) { return this.checkPermission('REPORT', 'ACCESS', reportName); }
@@ -826,12 +828,23 @@ export abstract class BaseAuthService extends BaseRestService {
     return undefined;
   }
 
+  /** Lands the next route build on `url` instead of the default target, so a
+   * return page under /login keeps its outcome; null withdraws it. */
+  setLanding(url: string | null): void {
+    this.landing = url;
+  }
+
   /**
    * Where to land after routes are (re)built. A fresh login starts from the
    * root or a `/login` route → go to the dashboard. A refresh / bookmark of an
    * authenticated route → preserve it so deep links survive route restoration.
    */
   private postLoginTarget(): string {
+    if (this.landing) {
+      const url = this.landing;
+      this.landing = null;
+      return url;
+    }
     const path = window.location.pathname;
     const preserve = !!path && path !== '/' && !path.startsWith('/login');
     return preserve ? path + window.location.search : '/dashboard';

@@ -38,6 +38,9 @@ export const RestURL = {
   otpVerifyURL:        '/public/otp/verify',
   otpResendURL:        '/public/otp/resend',
   loginSocialURL:      '/public/login/social',
+  // Tenant single sign-on (keel SSOHandler): top-level navigations, never XHR.
+  ssoStartURL:         '/public/sso/start',
+  ssoSamlMetadataURL:  '/public/sso/saml/metadata',
   logoutEverywhereURL: '/api/user/logout-everywhere',
   deleteAccountURL:    '/api/user/account',
   // Self-service profile (keel ProfileHandler). GET profileURL reads the

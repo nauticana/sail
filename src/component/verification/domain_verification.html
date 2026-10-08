@@ -1,4 +1,4 @@
-<div class="domain-verification" [attr.data-step]="step()">
+<div class="domain-verification" [attr.data-step]="step()" [attr.data-method]="method()">
   <div class="domain-verification-field">
     <mat-form-field appearance="outline">
       <mat-label>{{ label() }}</mat-label>
@@ -11,13 +11,82 @@
     }
   </div>
 
-  <sail-verification-flow
-    [step]="step()"
-    [target]="domain()"
-    [errorMessage]="errorMessage()"
-    [disabled]="loading() || !domain().trim()"
-    [resendAfterSeconds]="resendAfterSeconds()"
-    [codeExpiresInSeconds]="codeExpiresInSeconds()"
-    (requestVerification)="request()"
-    (confirmCode)="confirm($event)" />
+  @if (methods().length > 1 && !isVerified()) {
+    <mat-form-field appearance="outline" class="domain-verification-method">
+      <mat-label>Verification method</mat-label>
+      <mat-select [value]="method()" (selectionChange)="selectMethod($event.value)" [disabled]="loading()">
+        @for (opt of methodOptions(); track opt.value) {
+          <mat-option [value]="opt.value">{{ opt.caption }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+
+  @if (method() === 'EC') {
+    <sail-verification-flow
+      [step]="step()"
+      [target]="domain()"
+      [errorMessage]="errorMessage()"
+      [disabled]="loading() || !domain().trim()"
+      [resendAfterSeconds]="resendAfterSeconds()"
+      [codeExpiresInSeconds]="codeExpiresInSeconds()"
+      (requestVerification)="request()"
+      (confirmCode)="confirm($event)" />
+  } @else {
+    <div class="verification-flow domain-verification-challenge" [attr.data-step]="step()">
+      @switch (step()) {
+        @case ('verified') {
+          <p class="verification-success" role="status">Verified.</p>
+        }
+        @case ('idle') {
+          @if (errorMessage()) { <p class="verification-error" role="alert">{{ errorMessage() }}</p> }
+          <button matButton="elevated" type="button" class="primary"
+                  [disabled]="loading() || !domain().trim()" (click)="issueChallenge()">
+            Start verification
+          </button>
+        }
+        @default {
+          @if (challenge(); as ch) {
+            @if (ch.recordName) {
+              <p class="verification-intro">Add this TXT record to the DNS of {{ ch.domainName }}, then confirm.</p>
+              <div class="domain-verification-value">
+                <span>Name</span><code>{{ ch.recordName }}</code>
+                <button matIconButton type="button" (click)="copy(ch.recordName)" aria-label="Copy record name">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <div class="domain-verification-value">
+                <span>Value</span><code>{{ ch.recordValue }}</code>
+                <button matIconButton type="button" (click)="copy(ch.recordValue ?? '')" aria-label="Copy record value">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            }
+            @if (ch.fileUrl) {
+              <p class="verification-intro">Serve a file with exactly this content at this address, then confirm.</p>
+              <div class="domain-verification-value">
+                <span>Address</span><code>{{ ch.fileUrl }}</code>
+                <button matIconButton type="button" (click)="copy(ch.fileUrl)" aria-label="Copy file address">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <div class="domain-verification-value">
+                <span>Content</span><code>{{ ch.fileBody }}</code>
+                <button matIconButton type="button" (click)="copy(ch.fileBody ?? '')" aria-label="Copy file content">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+            }
+          }
+          @if (errorMessage()) { <p class="verification-error" role="alert">{{ errorMessage() }}</p> }
+          <div class="verification-actions">
+            <button matButton="elevated" type="button" class="primary"
+                    [disabled]="loading()" (click)="confirm('')">
+              @if (step() === 'verifying') { Verifying… } @else { Confirm }
+            </button>
+          </div>
+        }
+      }
+    </div>
+  }
 </div>
