@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.32",
+   "title": "OAuth connect flow completes a callback ticket",
+   "tags": [
+    "breaking"
+   ],
+   "summary": "Adopts keel v1.2.101. The provider callback no longer creates the connection or redirects with ?<provider>=success. keel parks the validated callback under a single-use ticket and redirects to FrontendReturnURL?connect=<provider>&ticket=<ticket>; the connection panel redeems it as the signed-in user through the new /api/oauth/<provider>/complete route.",
+   "body_markdown": "Requires keel v1.2.101. keel binds a provider connection to the user who started it (RFC 6749 §10.12).\n\n### Breaking\n\n| | Before | After |\n|---|---|---|\n| Return URL after provider consent | `FrontendReturnURL?<provider>=success`; the callback had already stored the connection | `FrontendReturnURL?connect=<provider>&ticket=<ticket>`; nothing is stored until the ticket is redeemed |\n| `OAuthConnectionPanelComponent.ngOnInit` | recorded `?<provider>=success`, stripped it, confirmed the row on reload | strips `connect` and `ticket` (hash preserved), ignores an unconfigured provider, posts the ticket with the user's bearer token, then confirms the row on reload and emits `connected` as before |\n| Page hosting the panel at `FrontendReturnURL` | could be public | must require sign-in before the panel runs; the completion call needs the bearer token of the user who started the flow |\n\n### Additive\n\n| | |\n|---|---|\n| `OAuthConnectionService.completeOAuth(provider, ticket)` | `POST /api/oauth/<provider>/complete` with `{ticket}` → `{status, provider}` |\n| Panel messages | 403 (started by another user or partner) and 400 (missing, expired per `oauth_state_ttl_seconds`, spent, or another provider's ticket) each show a distinct \"start again\" message; other failures show keel's detail or a generic message |\n\nUnchanged: provider redirect URIs, `startOAuth`, `testConnection`, `saveApiKey`, `list`, `disconnect`.\n\n### Migration steps\n\n1. Upgrade keel to v1.2.101 and keep `FrontendReturnURL` pointing at the page that hosts `<sail-oauth-connection-panel>`.\n2. Guard that route with the app's authenticated guard if it was public.\n3. Remove any app code that looked for `?<provider>=success`."
+  },
+  {
    "version": "v1.1.31",
    "title": "Tenant single sign-on and DNS or HTTP-file domain verification",
    "tags": [

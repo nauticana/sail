@@ -24,6 +24,16 @@ export class OAuthConnectionService extends BaseRestService {
     return this.http.get<{ url: string }>(this.url(path)).pipe(map((r) => r.url));
   }
 
+  /** Finish an OAuth connect flow: redeem the single-use callback ticket keel put
+   * in `?connect=<provider>&ticket=...` for the signed-in user who started it.
+   * 400 = expired or spent ticket; 403 = started by another user or partner. */
+  completeOAuth(provider: string, ticket: string): Observable<{ status: string; provider: string }> {
+    return this.http.post<{ status: string; provider: string }>(
+      this.url(`/api/oauth/${encodeURIComponent(provider)}/complete`),
+      { ticket },
+    );
+  }
+
   /** Re-validate a stored connection (POST — it makes an outbound call and updates
    * status). entityId selects which one (0 = tenant-wide). */
   testConnection(provider: string, entityId = 0): Observable<{ status: string; message?: string }> {

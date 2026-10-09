@@ -62,21 +62,38 @@ export class OAuthConnectionPanelComponent implements OnInit {
     });
   }
 
-  // After an OAuth round-trip keel redirects back with ?<provider>=success. Record
-  // the codes (configured providers only), strip them — preserving the hash — and
-  // emit `connected` once the reload confirms the row exists (confirmSuccess).
+  // After the provider callback keel redirects back with ?connect=<provider>&ticket=…
+  // The ticket is single-use, so strip it (hash preserved) before redeeming it for
+  // the signed-in user; the reload then confirms the row exists (confirmSuccess).
   ngOnInit(): void {
     const q = new URLSearchParams(window.location.search);
-    const known = new Set(this.providers().map((p) => p.code));
-    const succeeded = new Set<string>();
-    q.forEach((value, key) => {
-      if (value === 'success' && known.has(key)) succeeded.add(key);
-    });
-    if (!succeeded.size) return;
-    this.pendingSuccess.set(succeeded);
-    for (const code of succeeded) q.delete(code);
+    const provider = q.get('connect') ?? '';
+    const ticket = q.get('ticket') ?? '';
+    if (!provider && !ticket) return;
+    q.delete('connect');
+    q.delete('ticket');
     const qs = q.toString();
     window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+    if (!ticket || !this.providers().some((p) => p.code === provider)) return;
+    this.busy.set(provider);
+    this.svc.completeOAuth(provider, ticket).subscribe({
+      next: () => {
+        this.busy.set('');
+        this.pendingSuccess.set(new Set([provider]));
+        this.reload(this.entityId());
+      },
+      error: (e) => {
+        this.busy.set('');
+        this.error.set(this.completeMsg(e));
+      },
+    });
+  }
+
+  private completeMsg(e: unknown): string {
+    const status = (e as { status?: number })?.status;
+    if (status === 403) return 'This connection was started by another user — start again from this account.';
+    if (status === 400) return 'The connection link expired — start again.';
+    return this.msg(e, 'Could not complete the connection.');
   }
 
   private reload(entityId: number): void {

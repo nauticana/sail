@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -1242,8 +1242,19 @@ catalog and any routing via the outputs.
 - Each `OAuthProviderField` has a **`role`**: `credential` (sealed secret), `endpoint` (stored
   as `api_endpoint`), or `param` (OAuth authorize query param) — so field order is
   irrelevant. `icon` is a Material name or an image URL.
+- **Connect flow (keel v1.2.101).** `startOAuth` sends the signed-in user to provider consent.
+  keel's callback validates the response, parks it under a single-use ticket and redirects the
+  browser to its `FrontendReturnURL` with `?connect=<provider>&ticket=<ticket>`. The panel on
+  that page strips both parameters from the URL (hash preserved, so a reload never re-posts a
+  spent ticket), posts the ticket with the user's bearer token to `/api/oauth/<provider>/complete`,
+  then reloads and emits `connected` once the row is visible. A `connect` value that is not a
+  configured provider is ignored. keel binds the connection to the user who started the flow
+  (RFC 6749 §10.12): a 403 ("started by another user") and a 400 (expired or already used
+  ticket) show distinct messages asking the user to start again. **The page at
+  `FrontendReturnURL` must require sign-in before the panel runs.**
 - **`OAuthConnectionService`** — `startOAuth(provider, extra)` → consent URL,
-  `testConnection`, `list(entityId)` / `disconnect` (generic `partner_credential` REST), and
+  `completeOAuth(provider, ticket)` → `{status, provider}`, `testConnection`,
+  `list(entityId)` / `disconnect` (generic `partner_credential` REST), and
   `saveApiKey` (POSTs the sealed `/api/oauth/apikey`).
 
 ```html
