@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -16,7 +16,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Form components** | `DynamicField`, `RecordForm`, `TableForm` |
 | **Navigation** | `Navigation` (sidenav + toolbar with menu, responsive) |
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
-| **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `AccountDeletionComponent` |
+| **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `SessionsComponent`, `AccountDeletionComponent` |
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
@@ -221,7 +221,7 @@ Key CSS classes used by components:
 
 /* Security */
 .twofactor-qr, .twofactor-backup, .backup-code-list,
-.trusted-devices-table
+.trusted-devices-table, .sessions-table
 ```
 
 ## How it works
@@ -331,6 +331,11 @@ origin, is not followed. Failures set `BaseAuthService.sessionHandoffError` (ren
 `<sail-login>`) and never redirect: 400 means keel rejected the return URL, 401 means the user
 signs in again to retry. The authorization server must allow the SPA origin by CORS.
 
+With `prompt=login` or `prompt=select_account`, `<sail-login>` holds back the stored session and
+offers sign-out (`isLoggedIn` stays false); account selection also offers `continueSession()`. A
+fresh sign-in, including its 2FA step, keeps the hand-off query. Any sign-in revokes the refresh
+token it replaces.
+
 Set `passwordPolicyUrl` to the app's public route for keel's `PublicHandler.GetPasswordPolicy`
 (e.g. `'/public/v1/auth/password/policy'`). `BaseAuthService.ensurePasswordPolicy()` fetches it
 once into the `passwordRules` signal, and `passwordPolicyValidator(() => auth.passwordRules())`
@@ -348,7 +353,7 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /public/otp/send` | Send OTP code to phone or email; returns opaque `otpToken` |
 | `POST /public/otp/verify` | Verify OTP code with `otpToken`, returns JWT |
 | `POST /public/otp/resend` | Re-issue OTP for an existing `otpToken` |
-| `POST /public/2fa/verify` | Login-time TOTP verification (uses `loginToken`) |
+| `POST /public/2fa/verify` | Login-time TOTP or emailed step-up code verification (uses `loginToken`) |
 | `POST /public/2fa/backup-verify` | Login-time backup-code verification |
 | `POST /public/register` | Start a signup from a `PartnerRegistration`; emails the confirmation code |
 | `POST /public/register/confirm` | Confirm `?email=&code=`; answers session tokens and the partner result (`confirmRegister`) |
@@ -367,6 +372,8 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `POST /api/user/2fa/disable` | Disable 2FA — **requires password + current TOTP code** |
 | `GET /api/user/trusted-device/list` | List trusted devices |
 | `POST /api/user/trusted-device/revoke` | Revoke a trusted device |
+| `GET /api/user/sessions` | The caller's live sign-in sessions (`getSessions`) |
+| `POST /api/user/sessions/revoke` | Sign out one session `{id}` (`revokeSession`); 404 `session_not_found` |
 | `POST /api/user/logout-everywhere` | Sign out of all devices — **requires re-auth** |
 | `DELETE /api/user/account` | Soft-delete the caller's account — **requires re-auth** |
 | `GET /api/notifications` | Notification inbox page — `?before=<id>&limit=<n>`, newest first (keel v1.2.71) |
@@ -382,13 +389,13 @@ Omit the URL to skip client-side policy checks. The server stays the authoritati
 | `GET /api/billing/invoices` | Invoice history |
 | `GET /api/billing/payment-methods` | Saved payment methods |
 
-Device registration happens within `/public/2fa/verify` when `trustDevice=true`. Since **keel v0.9 / sail v0.9.0**, the trusted-device credential is a server-minted `keel_td` cookie (HttpOnly + Secure + SameSite=Strict) — not a client-supplied fingerprint. sail sets `withCredentials: true` on the login and 2FA-verify calls so the cookie round-trips; see [Enabling 2FA → Cross-origin cookie requirement](#cross-origin-cookie-requirement) below.
+Device registration happens within `/public/2fa/verify` when `trustDevice=true`. Since **keel v0.9 / sail v0.9.0**, the trusted-device credential is a server-minted `keel_td` cookie (HttpOnly + Secure + SameSite=Strict) — not a client-supplied fingerprint. sail sets `withCredentials: true` on every session-minting call (password, Google, social, OTP, 2FA and backup verify, registration confirm and exchange) so this cookie and keel's `keel_device` cookie (keel v1.2.106: a recognized device gets no new-device notice or step-up) round-trip; see [Enabling 2FA → Cross-origin cookie requirement](#cross-origin-cookie-requirement) below.
 
 ## Enabling 2FA in your project
 
 Add the 2FA verification route to your `publicRoutes` config:
 ```typescript
-import { TwoFactorVerifyComponent, TwoFactorSetupComponent, TrustedDevicesComponent } from '@nauticana/sail';
+import { SessionsComponent, TrustedDevicesComponent, TwoFactorSetupComponent, TwoFactorVerifyComponent } from '@nauticana/sail';
 
 // In publicRoutes:
 { path: 'login/2fa', component: TwoFactorVerifyComponent }
@@ -396,9 +403,12 @@ import { TwoFactorVerifyComponent, TwoFactorSetupComponent, TrustedDevicesCompon
 // In extraRoutes or authenticated routes (optional — for user self-service):
 { path: 'security/2fa', component: TwoFactorSetupComponent }
 { path: 'security/devices', component: TrustedDevicesComponent }
+{ path: 'security/sessions', component: SessionsComponent }
 ```
 
-The login flow handles 2FA automatically: when the backend returns `twoFactorRequired: true`, sail redirects to `/login/2fa`. No other code changes needed.
+The login flow redirects `twoFactorRequired` responses to `/login/2fa`. With `twoFactorMethod: 'email'`, the page explains the new-device check and hides device trust and backup codes. Sign-in refusals `signin_network` and `stepup_unavailable` have user-facing messages.
+
+`SessionsComponent` (`<sail-sessions>`) lists the sessions with their `sign_in_method` captions, marks the current one, and signs out any other.
 
 ### Cross-origin cookie requirement
 
@@ -407,7 +417,7 @@ The "trust this device" feature (keel v0.9+) is backed by a server-set HttpOnly 
 1. On `POST /public/2fa/verify` with `trustDevice: true`, keel mints a 32-byte secret, stores its SHA-256, and returns the raw secret to the browser **only** as a `Set-Cookie: keel_td=…` header (never in the JSON body).
 2. On the next `POST /public/login/local` (or `/public/login/gmail`), the browser sends the `keel_td` cookie back, keel hashes it, finds the matching row, and **skips the 2FA prompt**.
 
-For the browser to store and resend that cookie, the requests must be credentialed. sail already sets `withCredentials: true` on `login()`, `loginWithGoogle()`, `verify2FALogin()`, and `verifyBackupCode()` — **you do not add this in your app code**. But the keel backend must permit credentialed CORS, or the browser drops the cookie and every login re-prompts for 2FA:
+For the browser to store and resend that cookie, the requests must be credentialed. sail already sets `withCredentials: true` on these calls — **you do not add this in your app code**. But the keel backend must permit credentialed CORS, or the browser drops the cookie and every login re-prompts for 2FA:
 
 - **Same-origin** deployments (SPA served from the same host as the API) work with no extra config — credentialed same-origin requests are always allowed.
 - **Cross-origin** deployments (SPA on a different host/port than the API) require the keel `HttpBackend` to set:

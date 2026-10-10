@@ -2,7 +2,7 @@ import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { filter, finalize, map, mergeMap, shareReplay, take, tap } from 'rxjs/operators';
 import { PasswordRules } from '../util/password_policy';
-import { ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerCreated, PartnerRegistration, PartnerSetup, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
+import { ActiveSession, ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerCreated, PartnerRegistration, PartnerSetup, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
   OtpRequest, OtpResendRequest, OtpResponse, OtpVerifyRequest, OtpVerifyResponse,
@@ -104,6 +104,8 @@ export abstract class BaseAuthService extends BaseRestService {
   protected get trustedDeviceListUrl()     { return this.url(RestURL.trustedDeviceListURL); }
   protected get trustedDeviceRegisterUrl() { return this.url(RestURL.trustedDeviceRegisterURL); }
   protected get trustedDeviceRevokeUrl()   { return this.url(RestURL.trustedDeviceRevokeURL); }
+  protected get sessionListUrl()           { return this.url(RestURL.sessionListURL); }
+  protected get sessionRevokeUrl()         { return this.url(RestURL.sessionRevokeURL); }
   protected get otpSendUrl()               { return this.url(RestURL.otpSendURL); }
   protected get otpVerifyUrl()             { return this.url(RestURL.otpVerifyURL); }
   protected get otpResendUrl()             { return this.url(RestURL.otpResendURL); }
@@ -145,6 +147,8 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Set when the OAuth session hand-off fails; the UI shows it and the user
    *  signs in again to retry instead of being redirected without a session. */
   readonly sessionHandoffError = signal<string | null>(null);
+
+  readonly signInPrompt = signal<'login' | 'select_account' | null>(null);
 
   /**
    * Multi-role app support. Consumers that distinguish rider/driver/admin
@@ -219,9 +223,14 @@ export abstract class BaseAuthService extends BaseRestService {
   private completeLogin(token: string, refreshToken?: string) {
     this.refreshInFlight = null;         // a rotation started under the previous session must not land
     this.sessionGeneration++;
+    const replaced = localStorage.getItem('refreshToken');
+    if (replaced && replaced !== refreshToken) this.revokeRefreshToken(replaced).subscribe();
     this.storeTokens(token, refreshToken);
+    localStorage.removeItem('loginToken');
+    localStorage.removeItem('twoFactorMethod');
     this.isLoggedIn.set(true);
     this.sessionHandoffError.set(null);
+    this.signInPrompt.set(null);
     resetAuthCircuit(); // a new session must not inherit a prior session's open circuit
     if (this.startHandoff()) return;
     this.loadAppData();
@@ -231,11 +240,25 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Hands the session to the OAuth authorization server when the page carries an
    * allowed `?return=` and oauthServerUrl is set; false when there is nothing to hand off. */
   private startHandoff(): boolean {
-    const ret = this.validatedReturnUrl();
-    const oauthServer = this.oauthServerBase();
-    if (!ret || !oauthServer) return false;
-    this.handOffSession(oauthServer, ret);
+    if (!this.handoffPending()) return false;
+    this.handOffSession(this.oauthServerBase(), this.validatedReturnUrl());
     return true;
+  }
+
+  private handoffPending(): boolean {
+    return !!this.validatedReturnUrl() && !!this.oauthServerBase();
+  }
+
+  continueSession(): void {
+    if (this.signInPrompt() !== 'select_account') return;
+    this.signInPrompt.set(null);
+    this.adoptStoredToken();
+    this.startHandoff();
+  }
+
+  private adoptStoredToken(): void {
+    this.token = localStorage.getItem('jwt');
+    this.isLoggedIn.set(!!this.token);
   }
 
   /** Exchange the bearer session for the authorization server's own cookie session
@@ -297,7 +320,10 @@ export abstract class BaseAuthService extends BaseRestService {
   private handleLoginResponse(res: LoginResponse2FA): void {
     if (res.twoFactorRequired && res.loginToken) {
         localStorage.setItem('loginToken', res.loginToken);
-        this.router.navigate(['/login/2fa']);
+        if (res.twoFactorMethod) localStorage.setItem('twoFactorMethod', res.twoFactorMethod);
+        else localStorage.removeItem('twoFactorMethod');
+        // Preserve ?return= so the login still hands off after the second factor.
+        this.router.navigate(['/login/2fa'], { queryParamsHandling: 'preserve' });
     } else {
         this.completeLogin(res.token, res.refreshToken);
     }
@@ -330,7 +356,8 @@ export abstract class BaseAuthService extends BaseRestService {
   /**
    * POST credentials; success completes the login (or routes to 2FA). Callers
    * subscribe and handle the error channel to surface failures in the UI.
-   * withCredentials sends keel's `keel_td` trusted-device cookie (skips 2FA).
+   * withCredentials sends keel's `keel_td` trusted-device cookie (skips 2FA)
+   * and `keel_device` cookie (a recognized device), as every session-minting call does.
    */
   login(username: string, password: string): Observable<LoginResponse2FA> {
     return this.http.post<LoginResponse2FA>(this.loginUrl, { username, password }, { withCredentials: true }).pipe(
@@ -362,40 +389,29 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.post<TwoFactorVerifyResponse>(this.twoFactorVerifyUrl, request);
   }
 
+  pendingTwoFactorMethod(): LoginResponse2FA['twoFactorMethod'] {
+    return localStorage.getItem('twoFactorMethod') === 'email' ? 'email' : undefined;
+  }
+
   /**
-   * Verify a TOTP code during the LOGIN flow (public endpoint, `/public/2fa/verify`).
-   * Returns the response so callers can drive loading / invalid-code UI; on a
-   * valid code the login is completed (token stored, app data + routes loaded).
+   * Verify the login-time code (`/public/2fa/verify`): a TOTP code, or the
+   * emailed code of a new-device step-up. A valid code completes the login.
    * withCredentials so the browser stores the `keel_td` cookie keel sets on a
    * `trustDevice:true` verify — that cookie is what skips 2FA next login.
    */
   verify2FALogin(code: string, trustDevice = false, deviceName?: string): Observable<TwoFactorVerifyResponse> {
-    const request: TwoFactorVerifyRequest = {
-        code,
-        loginToken: localStorage.getItem('loginToken') ?? '',
-        trustDevice,
-        deviceName,
-    };
-    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorLoginVerifyUrl, request, { withCredentials: true }).pipe(
-        tap((res) => {
-            if (res.valid && res.token) {
-                localStorage.removeItem('loginToken');
-                this.completeLogin(res.token, res.refreshToken);
-            }
-        }),
-    );
+    return this.verifyLogin(this.twoFactorLoginVerifyUrl, { code, trustDevice, deviceName });
   }
 
-  /** Verify a login-flow backup code; a valid code completes the login (same contract as verify2FALogin). */
+  /** Verify a login-flow backup code; same contract as verify2FALogin. */
   verifyBackupCode(code: string): Observable<TwoFactorVerifyResponse> {
-    const loginToken = localStorage.getItem('loginToken');
-    return this.http.post<TwoFactorVerifyResponse>(this.twoFactorBackupVerifyUrl, { code, loginToken }, { withCredentials: true }).pipe(
-        tap((res) => {
-            if (res.valid && res.token) {
-                localStorage.removeItem('loginToken');
-                this.completeLogin(res.token, res.refreshToken);
-            }
-        }),
+    return this.verifyLogin(this.twoFactorBackupVerifyUrl, { code });
+  }
+
+  private verifyLogin(url: string, body: object): Observable<TwoFactorVerifyResponse> {
+    const request = { ...body, loginToken: localStorage.getItem('loginToken') ?? '' };
+    return this.http.post<TwoFactorVerifyResponse>(url, request, { withCredentials: true }).pipe(
+        tap((res) => { if (res.valid && res.token) this.completeLogin(res.token, res.refreshToken); }),
     );
   }
 
@@ -415,6 +431,14 @@ export abstract class BaseAuthService extends BaseRestService {
 
   revokeTrustedDevice(deviceId: number) {
     return this.http.post<{ message: string }>(this.trustedDeviceRevokeUrl, { deviceId });
+  }
+
+  getSessions() {
+    return this.http.get<ActiveSession[]>(this.sessionListUrl);
+  }
+
+  revokeSession(id: number) {
+    return this.http.post<void>(this.sessionRevokeUrl, { id });
   }
 
   chpass(username: string, new_password: string, old_password: string) {
@@ -458,7 +482,7 @@ export abstract class BaseAuthService extends BaseRestService {
    *  answers. A registration without partner fields leaves `partnerId` 0. */
   confirmRegister(email: string, code: string): Observable<ConfirmRegisterResponse> {
     const params = new HttpParams().set('email', email).set('code', code);
-    return this.http.post<ConfirmRegisterResponse>(this.confirmRegisterUrl, null, { params }).pipe(
+    return this.http.post<ConfirmRegisterResponse>(this.confirmRegisterUrl, null, { params, withCredentials: true }).pipe(
         tap((res) => this.completeLogin(res.token, res.refreshToken)),
     );
   }
@@ -488,11 +512,20 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   loadStoredSession() {
-    this.token = localStorage.getItem('jwt');
-    if (!this.token) return;
-    this.isLoggedIn.set(true);
-    // A signed-in user sent to the login page by the authorization server is handed off without signing in again.
-    if (window.location.pathname.startsWith('/login') && this.startHandoff()) return;
+    if (!localStorage.getItem('jwt')) return;
+    // A signed-in user sent to the login page by the authorization server is handed
+    // off without signing in again, unless the server asks for a sign-in.
+    const handoff = window.location.pathname.startsWith('/login') && this.handoffPending();
+    const prompt = handoff ? new URLSearchParams(window.location.search).get('prompt') : null;
+    if (prompt === 'login' || prompt === 'select_account') {
+      this.signInPrompt.set(prompt);
+      return;
+    }
+    this.adoptStoredToken();
+    if (handoff) {
+      this.startHandoff();
+      return;
+    }
     this.loadAppData();
     this.initRoutes();
   }
@@ -500,13 +533,17 @@ export abstract class BaseAuthService extends BaseRestService {
   /** Revoke the refresh token server-side (best effort: the local session is
    *  cleared regardless), then land on the login screen. */
   logout() {
-    this.revokeRefreshToken().subscribe();
-    this.clearSession();
+    this.signOutHere();
     this.router.navigate(['/login/local'], { queryParams: { loggedOut: 'true' } });
   }
 
-  private revokeRefreshToken(): Observable<unknown> {
-    const refreshToken = localStorage.getItem('refreshToken');
+  /** logout() without navigating, so the login page keeps its `?return=`. */
+  signOutHere() {
+    this.revokeRefreshToken().subscribe();
+    this.clearSession();
+  }
+
+  private revokeRefreshToken(refreshToken = localStorage.getItem('refreshToken')): Observable<unknown> {
     if (!refreshToken) return EMPTY;
     return this.http.post(this.logoutUrl, { refreshToken }).pipe(
       catchError((err) => { console.warn('refresh token revocation failed:', err); return EMPTY; }),
@@ -549,7 +586,7 @@ export abstract class BaseAuthService extends BaseRestService {
    * omitted (single-role apps), the role stays unchanged.
    */
   verifyOtp(req: OtpVerifyRequest, role?: string): Observable<OtpVerifyResponse> {
-    return this.http.post<OtpVerifyResponse>(this.otpVerifyUrl, req).pipe(
+    return this.http.post<OtpVerifyResponse>(this.otpVerifyUrl, req, { withCredentials: true }).pipe(
       tap((res) => {
         if (res?.token) {
           this.completeLogin(res.token, res.refreshToken);
@@ -569,7 +606,7 @@ export abstract class BaseAuthService extends BaseRestService {
     consent?: SignupConsent,
   ): Observable<LoginResponseSocial> {
     const payload: SocialLoginRequest = { provider, token: idToken, ...consent };
-    return this.http.post<LoginResponseSocial>(this.loginSocialUrl, payload).pipe(
+    return this.http.post<LoginResponseSocial>(this.loginSocialUrl, payload, { withCredentials: true }).pipe(
       tap((res) => { if (res?.token) this.completeLogin(res.token, res.refreshToken); }),
     );
   }
@@ -635,11 +672,13 @@ export abstract class BaseAuthService extends BaseRestService {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('menu');
     localStorage.removeItem('loginToken');
+    localStorage.removeItem('twoFactorMethod');
     this.clearRole();
     this.cache = undefined;
     this.authIndex.clear();
     this.appDataError.set(null);
     this.sessionHandoffError.set(null);
+    this.signInPrompt.set(null);
     this.refreshInFlight = null;
     this.landing = null;
     this.sessionGeneration++;           // in-flight loads and refreshes from this session are ignored

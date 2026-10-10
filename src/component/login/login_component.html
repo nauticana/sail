@@ -15,6 +15,17 @@
     @if (sessionHandoffError()) {
       <p class="auth-error" role="alert">{{ sessionHandoffError() }}</p>
     }
+    @if (signInPrompt(); as prompt) {
+      <p class="auth-message" role="status">
+        {{ prompt === 'login' ? 'Sign in again to continue.' : 'Choose the account to continue with.' }}
+      </p>
+      <div class="auth-actions">
+        @if (prompt === 'select_account') {
+          <button matButton="elevated" class="primary" type="button" (click)="auth.continueSession()">Continue with the signed-in account</button>
+        }
+        <button matButton type="button" (click)="auth.signOutHere()">Sign out of the current account</button>
+      </div>
+    }
     <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
       <mat-form-field appearance="outline">
         <mat-label>Username</mat-label>

@@ -5,9 +5,11 @@
     </div>
   }
   <div class="auth-card">
-    <h2 class="auth-title">Two-Factor Verification</h2>
+    <h2 class="auth-title">{{ emailed ? 'Confirm Sign-In' : 'Two-Factor Verification' }}</h2>
     <p class="auth-instructions">
-      @if (useBackupCode()) {
+      @if (emailed) {
+        We emailed you a sign-in code because this device is new. Enter it to continue.
+      } @else if (useBackupCode()) {
         Enter one of your backup codes.
       } @else {
         Enter the 6-digit code from your authenticator app.
@@ -19,7 +21,7 @@
         <input matInput type="text" formControlName="code" autocomplete="one-time-code" required>
       </mat-form-field>
 
-      @if (!useBackupCode()) {
+      @if (!useBackupCode() && !emailed) {
         <div class="auth-checkbox">
           <mat-checkbox formControlName="trustDevice">
             Trust this device for 30 days
@@ -36,11 +38,13 @@
       </button>
     </form>
     <div class="auth-actions">
-      <a tabindex="0" role="button" (click)="toggleBackupCode()" (keydown.enter)="toggleBackupCode()"
-         (keydown.space)="$event.preventDefault(); toggleBackupCode()">
-        {{ useBackupCode() ? 'Use authenticator code' : 'Use a backup code instead' }}
-      </a>
-      <a routerLink="/login/local">Back to Login</a>
+      @if (!emailed) {
+        <a tabindex="0" role="button" (click)="toggleBackupCode()" (keydown.enter)="toggleBackupCode()"
+           (keydown.space)="$event.preventDefault(); toggleBackupCode()">
+          {{ useBackupCode() ? 'Use authenticator code' : 'Use a backup code instead' }}
+        </a>
+      }
+      <a routerLink="/login/local" queryParamsHandling="preserve">Back to Login</a>
     </div>
   </div>
 </div>

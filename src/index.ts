@@ -52,6 +52,7 @@ export * from './component/account/my_account';
 export * from './component/security/twofactor_setup';
 export * from './component/security/twofactor_verify';
 export * from './component/security/trusted_devices';
+export * from './component/security/sessions';
 export * from './component/billing/plan_selector';
 export * from './component/billing/price_selector';
 export * from './component/billing/checkout_button';

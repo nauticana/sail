@@ -1,0 +1,46 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2 class="auth-title">Sessions</h2>
+    <p class="auth-instructions">Where your account is signed in.</p>
+
+    @if (sessions().length > 0) {
+      <table class="sessions-table">
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Address</th>
+            <th>Signed In</th>
+            <th>Last Active</th>
+            <th><span class="cdk-visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (session of sessions(); track session.id) {
+            <tr>
+              <td>{{ session.userAgent || 'Unknown device' }} ({{ methodCaption(session.signInMethod) }})</td>
+              <td>{{ session.clientIp }}</td>
+              <td>{{ session.createdAt | date: 'short' }}</td>
+              <td>{{ session.lastSeenAt | date: 'short' }}</td>
+              <td>
+                @if (session.current) {
+                  This device
+                } @else {
+                  <button matButton type="button" (click)="revoke(session)" [disabled]="loading()">Sign out</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else if (!loading()) {
+      <p class="empty-state">No active sessions.</p>
+    }
+
+    @if (errorMessage()) {
+      <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+    }
+    @if (successMessage()) {
+      <div class="auth-success" role="status">{{ successMessage() }}</div>
+    }
+  </div>
+</div>

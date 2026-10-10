@@ -27,7 +27,7 @@ import { SsoLoginComponent } from '../sso/sso_login';
   ],
 })
 export class LoginComponent extends BaseAsync {
-  private auth = inject(BaseAuthService);
+  protected readonly auth = inject(BaseAuthService);
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
   private readonly queryParams = inject(ActivatedRoute).snapshot.queryParamMap;
@@ -35,6 +35,7 @@ export class LoginComponent extends BaseAsync {
   protected readonly passwordChanged = this.queryParams.get('passwordChanged') === 'true';
   /** OAuth session hand-off failure from BaseAuthService, shown below. */
   protected readonly sessionHandoffError = this.auth.sessionHandoffError;
+  protected readonly signInPrompt = this.auth.signInPrompt;
 
   /**
    * Auto-show the embedded SocialLoginComponent whenever at least one

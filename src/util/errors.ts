@@ -11,6 +11,12 @@ function problemOf(err: unknown): ProblemShape | undefined {
   return body && typeof body === 'object' ? (body as ProblemShape) : undefined;
 }
 
+const codeMessages = new Map([
+  ['signin_network', 'Sign-in is not allowed from this network.'],
+  ['signin_network_lockout', 'The allowed networks must include your current address.'],
+  ['stepup_unavailable', 'A sign-in code cannot be sent right now. Please try again later.'],
+]);
+
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
 }
@@ -58,7 +64,7 @@ export function errorDetail(err: unknown, fallback: string, statuses?: readonly 
   }
   const problem = problemOf(err);
   if (problem) {
-    const message = asString(problem.detail) ?? asString(problem.title) ?? asString(problem.message);
+    const message = codeMessages.get(asString(problem.code) ?? '') ?? asString(problem.detail) ?? asString(problem.title) ?? asString(problem.message);
     if (message) return message;
   }
   if (err instanceof Error && err.message) {

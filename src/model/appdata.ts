@@ -164,6 +164,8 @@ export interface LoginResponse2FA {
   refreshToken?: string;
   twoFactorRequired: boolean;
   loginToken?: string;
+  /** 'email': a new-device step-up code was emailed; absent: the authenticator app. */
+  twoFactorMethod?: 'email';
   userId?: number;
   partnerId?: number;
   // Populated for users with the single-device session policy enabled.
@@ -196,6 +198,16 @@ export interface TrustedDevice {
   name:       string;
   last_used_at: string;
   created_at:   string;
+}
+
+export interface ActiveSession {
+  id:           number;
+  userAgent:    string;
+  clientIp:     string;
+  signInMethod: string;
+  createdAt:    string;
+  lastSeenAt:   string;
+  current:      boolean;
 }
 
 // Mirrors keel `user.AccountRegistration`.

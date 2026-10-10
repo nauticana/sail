@@ -23,6 +23,8 @@ export const RestURL = {
   trustedDeviceListURL: '/api/user/trusted-device/list',
   trustedDeviceRegisterURL: '/api/user/trusted-device/register',
   trustedDeviceRevokeURL: '/api/user/trusted-device/revoke',
+  sessionListURL: '/api/user/sessions',
+  sessionRevokeURL: '/api/user/sessions/revoke',
   checkoutURL:       '/api/billing/checkout',
   subscriptionURL:   '/api/billing/subscription',
   cancelSubURL:      '/api/billing/subscription/cancel',

@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.33",
+   "title": "Sign-in prompt, new-device step-up and sessions",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.106. The login page honors prompt=login and prompt=select_account instead of handing off the stored session, the 2FA step accepts an emailed new-device code, every session-minting call sends the keel_device cookie, and SessionsComponent lists and signs out sign-in sessions.",
+   "body_markdown": "Requires keel v1.2.106.\n\n### Behavioral\n\n- Login pages with a valid `return` honor `prompt=login` and `prompt=select_account`: the stored session is not adopted (`isLoggedIn` stays false) until `continueSession()`, and a fresh sign-in, including its 2FA step, keeps the query.\n- Any sign-in revokes the refresh token it replaces.\n- `loginSocial`, `verifyOtp`, and `confirmRegister` send credentials so `keel_device` round-trips.\n- `errorDetail` provides messages for `signin_network`, `signin_network_lockout`, and `stepup_unavailable`.\n\n### Additive\n\n- `LoginResponse2FA.twoFactorMethod?: 'email'` identifies emailed new-device codes.\n- `BaseAuthService.signInPrompt`, `continueSession()`, and `signOutHere()` support OAuth account selection.\n- `ActiveSession`, the session URLs and auth methods, and `SessionsComponent` expose session listing and revocation.\n\n### Migration\n\nUpgrade keel to v1.2.106, keep credentialed CORS for the SPA origin, and optionally route `SessionsComponent`."
+  },
+  {
    "version": "v1.1.32",
    "title": "OAuth connect flow completes a callback ticket",
    "tags": [

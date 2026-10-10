@@ -29,6 +29,7 @@ export class TwoFactorVerifyComponent extends BaseAsync {
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
 
   readonly useBackupCode = signal(false);
+  readonly emailed = this.auth.pendingTwoFactorMethod() === 'email';
 
   readonly verifyForm = this.fb.group({
     code: ['', [Validators.required, Validators.minLength(6)]],
@@ -58,7 +59,7 @@ export class TwoFactorVerifyComponent extends BaseAsync {
       );
     } else {
       this.run(
-        this.auth.verify2FALogin(code!, trustDevice ?? false, this.getDeviceName()),
+        this.auth.verify2FALogin(code!, !this.emailed && !!trustDevice, this.getDeviceName()),
         (res) => {
           if (!res.valid || !res.token) {
             this.errorMessage.set('Invalid authentication code.');
