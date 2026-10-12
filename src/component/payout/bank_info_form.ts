@@ -1,39 +1,23 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { BankInfoFormValue, CountryProfile } from '../../model/appdata';
+import { forkJoin, map } from 'rxjs';
+import { BankInfoFormValue } from '../../model/appdata';
+import { Country } from '../../model/geo';
+import { LabelService } from '../../service/label.service';
+import { BackendService } from '../../service/rest_service';
 
 /**
- * Default country profiles bundled with sail. Covers CA / US / EU; downstream
- * apps can pass a different list via the `[countryProfiles]` input.
- *
- * Codes match basis constant_header `tax_id_type` seeded by keel:
- *   S = SIN (CA), N = SSN (US), E = EIN (US business), V = VAT (EU), O = Other.
- */
-export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
-  { code: 'CA', label: 'Canada',         currency: 'CAD', taxIdType: 'S', taxIdLabel: 'SIN',        taxIdPlaceholder: '123456789',   taxIdHint: 'Social Insurance Number — shared with the tax authority for annual reporting' },
-  { code: 'US', label: 'United States',  currency: 'USD', taxIdType: 'N', taxIdLabel: 'SSN or EIN', taxIdPlaceholder: '123-45-6789', taxIdHint: 'SSN for an individual recipient, EIN for an incorporated recipient' },
-  { code: 'DE', label: 'Germany (EU)',   currency: 'EUR', taxIdType: 'V', taxIdLabel: 'VAT number', taxIdPlaceholder: 'DE123456789', taxIdHint: 'VAT registration number' },
-];
-
-/**
- * Payout bank-info form.
- *
- * Captures the basis `user_bank_info` fields (country, currency, account
- * holder, tax id, billing address, agreement). Emits the form value via
- * `(submitted)` — first-time setup POSTs through the app's registration
- * service; CHANGES to an existing destination go through
- * PayoutService.replaceBankInfo (atomic version replacement), never a
- * generic CRUD edit.
- *
- * Ships no CSS — the consuming app styles the classes globally.
- *
- * Selector: <sail-payout-bank-info-form>
+ * Payout bank-info form over keel's `user_bank_info` fields. Countries come from the `country`
+ * table (its default currency is the payout currency) and tax-id types from the `tax_id_type`
+ * domain, so the caller's role needs `TABLE SELECT country`. Emits through `(submitted)`:
+ * first-time setup posts through the app's registration service, changes through
+ * `PayoutService.replaceBankInfo`, never generic CRUD. Ships no CSS.
  */
 @Component({
   selector: 'sail-payout-bank-info-form',
@@ -45,75 +29,47 @@ export const DEFAULT_COUNTRY_PROFILES: CountryProfile[] = [
   templateUrl: './bank_info_form.html',
 })
 export class PayoutBankInfoFormComponent {
-  /** Step title rendered above the form. */
   readonly title = input('Payment and Tax');
-  /** Optional explainer rendered below the title. */
   readonly intro = input('Tax + payout details. Bank account itself is set up with the payout provider in a separate step — only tax-reporting and dispute-correspondence fields are collected here.');
-  /** Override the list of supported countries — keep the default for most apps. */
-  readonly countryProfiles = input<CountryProfile[]>(DEFAULT_COUNTRY_PROFILES);
   /** Provider code persisted on user_bank_info.provider — must match the app's keel --payout_provider. */
   readonly provider = input.required<string>();
-  /** Wording on the provider-agreement checkbox. Override to name the live provider. */
   readonly agreementLabel = input('I agree to the payout provider account agreement');
-  /** Submit-button label — wizards usually use "Next >". */
   readonly submitLabel = input('Next >');
-  /** When true, the back button renders alongside submit. */
   readonly showBack = input(true);
 
-  /**
-   * Emitted on submit as application-layer input. The consumer must use its
-   * registration service for first-time setup or PayoutService.replaceBankInfo
-   * for changes; never send this payload through generic CRUD.
-   */
   readonly submitted = output<BankInfoFormValue>();
-  /** Emitted when the user clicks Back. */
   readonly back = output<void>();
 
-  private readonly fb = inject(FormBuilder);
+  private readonly backend = inject(BackendService);
+  private readonly labels = inject(LabelService);
 
-  readonly form = this.fb.group({
+  readonly form = inject(FormBuilder).group({
     countryCode:       ['', Validators.required],
+    taxIdType:         ['', Validators.required],
     accountHolderName: ['', Validators.required],
     taxId:             ['', Validators.required],
     billingAddress:    ['', Validators.required],
     providerAgreement: [false, Validators.requiredTrue],
   });
 
-  // linkedSignal, not a field initializer: the bound countryProfiles input
-  // isn't available yet during construction.
-  private readonly selectedCountry = linkedSignal<CountryProfile | undefined>(() => this.countryProfiles()[0]);
+  readonly options = toSignal(forkJoin({
+    countries: this.backend.list<Country>('country', undefined, { limit: 1000, orderBy: 'caption' }),
+    labels: this.labels.loadLabels('tax_id_type'),
+  }).pipe(map(({ countries }) => ({ countries, taxIdTypes: this.labels.options('tax_id_type') }))));
 
-  readonly taxIdLabel       = computed(() => this.selectedCountry()?.taxIdLabel ?? '');
-  readonly taxIdPlaceholder = computed(() => this.selectedCountry()?.taxIdPlaceholder ?? '');
-  readonly taxIdHint        = computed(() => this.selectedCountry()?.taxIdHint ?? '');
-
-  constructor() {
-    // Keep the form's country in the bound profile list (never a phantom default).
-    effect(() => {
-      const profiles = this.countryProfiles();
-      const current = this.form.controls.countryCode.value;
-      if (!profiles.some((c) => c.code === current)) {
-        this.form.controls.countryCode.setValue(profiles[0]?.code ?? '');
-      }
-    });
-    this.form.controls.countryCode.valueChanges
-      .pipe(takeUntilDestroyed())
-      .subscribe((code) => {
-        const profiles = this.countryProfiles();
-        this.selectedCountry.set(profiles.find((c) => c.code === code) ?? profiles[0]);
-      });
-  }
+  readonly country = toSignal(this.form.controls.countryCode.valueChanges, { initialValue: '' });
+  readonly currency = computed(() => this.options()?.countries.find((c) => c.Id === this.country())?.Currency ?? '');
 
   submit() {
-    const country = this.selectedCountry();
-    if (this.form.invalid || !country) return;
-    const v = this.form.value;
+    const currency = this.currency();
+    if (this.form.invalid || !currency) return;
+    const v = this.form.getRawValue();
     this.submitted.emit({
-      countryCode:       country.code,
-      currency:          country.currency,
+      countryCode:       v.countryCode!,
+      currency,
       accountHolderName: v.accountHolderName!,
       billingAddress:    v.billingAddress!,
-      taxIdType:         country.taxIdType,
+      taxIdType:         v.taxIdType!,
       taxId:             v.taxId!,
       provider:          this.provider(),
       providerAgreement: v.providerAgreement!,

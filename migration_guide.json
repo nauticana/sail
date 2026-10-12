@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.35",
+   "title": "Minor-unit money, API keys, connected apps, assistant activity, turn thread and Studio guardrails",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.112 and Scout v1.2.13: minor-unit money, catalog-backed country and currency data, API keys and connected apps, assistant activity, turn threads, the confirmation inbox and Studio guardrails.",
+   "body_markdown": "Requires keel v1.2.112; the agent entry point requires Scout v1.2.13.\n\n### Breaking\n\n- Replace `formatCurrency` and `formatMinorCurrency` with `formatMinor(minor, currency, exponent)` or `sailMoney`. Billing models now use their minor-unit fields and exponents; `PublicPlan.priceId` is removed and its current keel fields are required.\n- `CountryProfile`, `DEFAULT_COUNTRY_PROFILES` and the bank form's `countryProfiles` input are removed. The form reads keel's `country` table and `tax_id_type` domain.\n\n### Additive\n\n- `ApiKeysComponent`, `ConnectedAppsComponent`, `AccessService` and their models. API-key action URLs and grants come from backend metadata; `RestURL.oauthGrantsURL` and `oauthGrantRevokeURL` default to keel's `GrantHandler` routes.\n- `@nauticana/sail/agent`: `AssistantActivityComponent` over `AgentStudioService.decisions` (Scout's `decisions` feature), `TurnThreadComponent` over `ConversationService.turns` (`ConversationTurn`, `ConversationTurnPage`, `TurnStatus`, `TERMINAL_TURN_STATUSES`), `<sail-approval-inbox>` confirmation rows over `ApprovalService.confirmations`, `decideConfirmation`, `withdrawConfirmation`, `reconcileConfirmation` (`Confirmation`, `ConfirmationKey`, `ConfirmationStatus`), a Studio Guardrails tab, and `AGENT_READINESS_CAPTIONS`.\n- `DecisionRecord` is Scout's wire type: `id` is a number, `evidence_digest` replaces `evidence`, and `client_ref` and `work_ref` are added.\n- `CurrencyService`, `MoneyPipe`, `Currency` and `Country`. Amounts lacking an exponent require `TABLE SELECT currency`; the bank form requires `TABLE SELECT country`.\n\n### Behavioral\n\n- `sailCaption` no longer writes a signal during a cached domain's render.\n\nUpgrade the backend libraries, replace removed money fields and formatters, grant the catalog and API-key operations each screen uses, and remove `countryProfiles` bindings."
+  },
+  {
    "version": "v1.1.34",
    "title": "Apple first-authorization name, code re-authentication, Studio page and approval inbox on Scout v1.2.8",
    "tags": [

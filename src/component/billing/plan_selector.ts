@@ -37,7 +37,7 @@ export class PlanSelectorComponent {
     const overrides = this.ctaLabels();
     const out: Record<string, string> = {};
     for (const plan of this.plans()) {
-      const mode = plan.activationMode ?? '';
+      const mode = plan.activationMode;
       out[plan.id] = overrides[mode] ?? PlanSelectorComponent.DEFAULT_CTA[mode] ?? 'Choose';
     }
     return out;

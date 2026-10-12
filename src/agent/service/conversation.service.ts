@@ -7,6 +7,7 @@ import {
   ConversationStreamError,
   ConversationStreamFailure,
   ConversationTurnAccepted,
+  ConversationTurnPage,
   ConversationTurnRequest,
 } from '../model/conversation';
 import { TurnReplyFrame } from '../model/reply_frame';
@@ -32,6 +33,15 @@ export class ConversationService extends BaseRestService {
 
   submit(request: ConversationTurnRequest): Observable<ConversationTurnAccepted> {
     return this.http.post<ConversationTurnAccepted>(this.conversationUrl('turn'), request);
+  }
+
+  /** The person's turns, newest first; `before` continues from a page's `next_before`. */
+  turns(workRef = '', before = '', limit = 0): Observable<ConversationTurnPage> {
+    const params: Record<string, string> = {};
+    if (workRef) params['work_ref'] = workRef;
+    if (before) params['before'] = before;
+    if (limit) params['limit'] = String(limit);
+    return this.http.get<ConversationTurnPage>(this.conversationUrl('turns'), { params });
   }
 
   /** Cancel is a request: the turn stays open until its final frame arrives. */

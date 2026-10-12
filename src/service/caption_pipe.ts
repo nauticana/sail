@@ -18,8 +18,14 @@ export class CaptionPipe implements PipeTransform {
     this.loaded();
     if (!this.requested.has(constantId)) {
       this.requested.add(constantId);
-      this.labels.loadLabels(constantId).pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({ next: () => this.loaded.update((n) => n + 1), error: () => this.requested.delete(constantId) });
+      // A cached domain emits synchronously: its caption is already current, and a signal
+      // write during render would throw NG0600.
+      let rendering = true;
+      this.labels.loadLabels(constantId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: () => { if (!rendering) this.loaded.update((n) => n + 1); },
+        error: () => this.requested.delete(constantId),
+      });
+      rendering = false;
     }
     return this.labels.getLabel(constantId, code);
   }

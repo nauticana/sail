@@ -25,6 +25,9 @@ export const RestURL = {
   trustedDeviceRevokeURL: '/api/user/trusted-device/revoke',
   sessionListURL: '/api/user/sessions',
   sessionRevokeURL: '/api/user/sessions/revoke',
+  // keel GrantHandler (v1.2.112): the signed-in user's OAuth grants.
+  oauthGrantsURL:      '/api/user/oauth-grants',
+  oauthGrantRevokeURL: '/api/user/oauth-grants/revoke',
   checkoutURL:       '/api/billing/checkout',
   subscriptionURL:   '/api/billing/subscription',
   cancelSubURL:      '/api/billing/subscription/cancel',

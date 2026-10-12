@@ -1,0 +1,25 @@
+<div class="connected-apps">
+  @if (grants().length > 0) {
+    <table class="connected-apps__table">
+      <thead>
+        <tr><th>App</th><th>Scopes</th><th>Connected</th><th>Last used</th><th><span class="cdk-visually-hidden">Actions</span></th></tr>
+      </thead>
+      <tbody>
+        @for (grant of grants(); track grant.clientId) {
+          <tr>
+            <td>{{ grant.clientName || grant.clientId }}</td>
+            <td>{{ grant.scopes.join(', ') }}</td>
+            <td>{{ grant.authorizedAt | date: 'short' }}</td>
+            <td>{{ grant.lastIssuedAt | date: 'short' }}</td>
+            <td><button matButton type="button" [disabled]="loading()" (click)="revoke(grant)">Disconnect</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else if (!loading()) {
+    <p class="empty-state">No app is connected.</p>
+  }
+
+  @if (errorMessage()) { <div class="auth-error" role="alert">{{ errorMessage() }}</div> }
+  @if (successMessage()) { <div class="auth-success" role="status">{{ successMessage() }}</div> }
+</div>

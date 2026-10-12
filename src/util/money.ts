@@ -1,31 +1,19 @@
 import { PlanPrice } from '../model/appdata';
 
 /**
- * Format a major-unit amount in its currency, honouring the currency exponent
- * (JPY 0 decimals, BHD 3, …) via `Intl`. Falls back to "<amount> <currency>"
- * for an unknown currency code rather than throwing.
+ * Format integer minor units at the currency's exponent from keel's `currency` table.
+ * `Intl` supplies only the symbol and grouping; it never decides the decimals.
  */
-export function formatCurrency(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount} ${currency}`;
+export function formatMinor(minor: number, currency: string, exponent: number): string {
+  if (!Number.isSafeInteger(minor)) throw new Error(`sail: money must be a safe integer (${minor}).`);
+  if (!Number.isInteger(exponent) || exponent < 0 || exponent > 6) {
+    throw new Error(`sail: currency "${currency}" has no valid exponent (${exponent}).`);
   }
-}
-
-/**
- * Format an integer minor-unit amount using the currency's exponent reported
- * by Intl (JPY 0, USD 2, BHD 3, ...). No hardcoded /100 assumption.
- */
-export function formatMinorCurrency(minor: number, currency: string): string {
   const code = currency.trim().toUpperCase();
-  try {
-    const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency: code });
-    const exponent = formatter.resolvedOptions().maximumFractionDigits ?? 2;
-    return formatter.format(minor / 10 ** exponent);
-  } catch {
-    return `${minor} ${code}`;
-  }
+  if (!code) throw new Error('sail: currency is required.');
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency', currency: code, minimumFractionDigits: exponent, maximumFractionDigits: exponent,
+  }).format(minor / 10 ** exponent);
 }
 
 /** PERIOD_TYPE code vocabulary — the single source for cycle labels/durations. */
@@ -38,19 +26,15 @@ export const PERIOD_TYPE_INFO: Record<string, { label: string; noun: string; suf
 };
 
 /**
- * "From" price teaser for a plan card / dropdown — the cheapest offer once
- * normalized per month (a $2 daily offer must not undercut a $30 monthly one),
- * compared within one currency, rendered with its cycle ("from $30.00/mo").
- * Returns '' when the plan has no priced offers (free/trial). The exact offer
- * is chosen later via `<sail-price-selector>`.
+ * "From" price teaser for a plan card: the cheapest offer per month within the first
+ * offer's currency, rendered with its cycle ("from $30.00/mo"); '' when nothing is priced.
  */
-export function fromPriceLabel(prices: PlanPrice[] | undefined): string {
-  const priced = (prices ?? []).filter((p) => p.amount > 0);
+export function fromPriceLabel(prices: readonly PlanPrice[] | null | undefined): string {
+  const priced = (prices ?? []).filter((p) => p.amountMinor > 0);
   if (priced.length === 0) return '';
-  const currency = priced[0].currency;
-  const comparable = priced.filter((p) => p.currency === currency);
-  const perMonth = (p: PlanPrice) => p.amount / (PERIOD_TYPE_INFO[p.billingCycle]?.months ?? 1);
+  const comparable = priced.filter((p) => p.currency === priced[0].currency);
+  const perMonth = (p: PlanPrice) => p.amountMinor / (PERIOD_TYPE_INFO[p.billingCycle]?.months ?? 1);
   const lowest = comparable.reduce((a, b) => (perMonth(b) < perMonth(a) ? b : a));
-  const formatted = formatCurrency(lowest.amount, lowest.currency) + (PERIOD_TYPE_INFO[lowest.billingCycle]?.suffix ?? '');
-  return priced.length > 1 ? `from ${formatted}` : formatted;
+  const formatted = formatMinor(lowest.amountMinor, lowest.currency, lowest.exponent) + (PERIOD_TYPE_INFO[lowest.billingCycle]?.suffix ?? '');
+  return comparable.length > 1 ? `from ${formatted}` : formatted;
 }

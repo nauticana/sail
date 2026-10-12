@@ -1,5 +1,3 @@
-import { ObjectRef } from './turn_event';
-
 /** A allowed, D denied, P pending (`audit_decision_outcome`). */
 export type DecisionOutcome = 'A' | 'D' | 'P';
 
@@ -14,12 +12,9 @@ export interface AuthorityRef {
   grantor?: PrincipalRef;
 }
 
-/**
- * One audit record as sail renders it. The audit endpoint is the app's, so the app maps its
- * response onto this shape; `id` is whatever key the endpoint gives a record.
- */
+/** One governed decision of the tenant (Scout `api.DecisionRecord`); evidence is a digest only. */
 export interface DecisionRecord {
-  id: string | number;
+  id: number;
   category: string;
   action: string;
   resource: string;
@@ -27,15 +22,24 @@ export interface DecisionRecord {
   reason: string;
   principal: PrincipalRef;
   authority?: AuthorityRef;
+  /** The client application the principal acted through. */
+  client_ref?: string;
+  work_ref?: string;
   scope_id?: string;
   release_version?: string;
   policy_id?: string;
   policy_version?: string;
   obligations?: string[];
-  evidence?: ObjectRef;
+  evidence_digest?: string;
   request_id: string;
   conversation_id?: string;
   occurred_at: string;
+}
+
+/** Newest first; `next_before` is absent on the last page. */
+export interface DecisionPage {
+  records: DecisionRecord[];
+  next_before?: number;
 }
 
 export interface DecisionCategoryGroup {

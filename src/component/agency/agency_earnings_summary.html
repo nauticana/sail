@@ -10,15 +10,15 @@
   @for (balance of value.balances; track balance.currency) {
     <div class="agency-earnings-summary__metric" [attr.data-currency]="balance.currency">
       <span class="agency-earnings-summary__label">Held ({{ balance.currency }})</span>
-      <span class="agency-earnings-summary__value">{{ format(balance.heldMinor, balance.currency) }}</span>
+      <span class="agency-earnings-summary__value">{{ balance.heldMinor | sailMoney:balance.currency }}</span>
     </div>
     <div class="agency-earnings-summary__metric" [attr.data-currency]="balance.currency">
       <span class="agency-earnings-summary__label">Due ({{ balance.currency }})</span>
-      <span class="agency-earnings-summary__value">{{ format(balance.dueMinor, balance.currency) }}</span>
+      <span class="agency-earnings-summary__value">{{ balance.dueMinor | sailMoney:balance.currency }}</span>
     </div>
     <div class="agency-earnings-summary__metric" [attr.data-currency]="balance.currency">
       <span class="agency-earnings-summary__label">Paid ({{ balance.currency }})</span>
-      <span class="agency-earnings-summary__value">{{ format(balance.paidMinor, balance.currency) }}</span>
+      <span class="agency-earnings-summary__value">{{ balance.paidMinor | sailMoney:balance.currency }}</span>
     </div>
   }
 }

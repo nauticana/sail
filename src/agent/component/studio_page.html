@@ -10,7 +10,7 @@
               <button type="button" class="studio__agent" [class.selected]="agent.agent_name === selectedName()"
                 [attr.aria-current]="agent.agent_name === selectedName()" (click)="select(agent.agent_name)">
                 <span class="studio__agent-name">{{ agent.display_name }}</span>
-                <span [class]="'studio__readiness studio__readiness--' + agent.readiness">{{ agent.readiness }}</span>
+                <span [class]="'studio__readiness studio__readiness--' + agent.readiness">{{ readinessCaption(agent.readiness) }}</span>
                 <span class="studio__agent-meta">
                   @if (agent.is_default) { <span>Default</span> }
                   @if (agent.archived) { <span>Archived</span> }
@@ -230,6 +230,40 @@
                   <li>{{ event.event }} · {{ event.detail }} · {{ event.event_time | date: 'medium' }}</li>
                 }
               </ul>
+            }
+          }
+          @case ('guardrails') {
+            @if (guardrails(); as g) {
+              @if (g.problem) { <p class="studio__error" role="alert">{{ g.problem }}</p> }
+              @for (layer of g.inherited; track layer.layer) {
+                <h3>Inherited · layer {{ layer.layer }}@if (layer.digest) { · {{ layer.digest.slice(0, 12) }} }</h3>
+                <pre class="studio__rules">{{ layer.rules | json }}</pre>
+              }
+              <h3>This agent's rules</h3>
+              <p>Rules only add to the inherited ones or tighten a rule of the same id.</p>
+              <mat-form-field class="studio__rules-editor">
+                <mat-label>Rules (JSON array)</mat-label>
+                <textarea matInput rows="10" #rules [value]="g.rules | json" [disabled]="!can('EDIT', undefined, 'guardrails')"></textarea>
+              </mat-form-field>
+              @if (can('EDIT', undefined, 'guardrails')) {
+                <button matButton="elevated" type="button" [disabled]="busy()" (click)="saveGuardrails(rules.value)">Save rules</button>
+              }
+              <h3>Safety events</h3>
+              <ul class="studio__safety-events">
+                @for (event of safetyEvents(); track event.id) {
+                  <li>
+                    {{ event.occurred_at | date: 'medium' }} · {{ event.stage }} · layer {{ event.layer }} · {{ event.action }} ({{ event.severity }})
+                    · rules {{ event.rule_ids.join(', ') }}
+                    @if (event.version) { · v{{ event.version }} }
+                    @if (event.actor_kind) { · {{ event.actor_kind }} {{ event.actor_id }} }
+                  </li>
+                } @empty {
+                  <li>No safety event recorded.</li>
+                }
+              </ul>
+              @if (!safetyExhausted()) {
+                <button matButton type="button" [disabled]="busy()" (click)="loadSafetyEvents()">Load more</button>
+              }
             }
           }
           @default {

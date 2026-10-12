@@ -7,7 +7,7 @@
           <tr [class.commission-ledger__reversal]="entry.entryType === 'R'">
             <td>{{ entry.clientName }}</td>
             <td>{{ entry.periodStart | date: 'yyyy-MM-dd':'UTC' }} – {{ entry.periodEnd | date: 'yyyy-MM-dd':'UTC' }}</td>
-            <td>{{ format(entry.amountMinor, entry.currency) }}</td>
+            <td>{{ entry.amountMinor | sailMoney:entry.currency }}</td>
             <td><sail-status-chip domain="agency_commission_status" [value]="entry.status" /></td>
           </tr>
         }

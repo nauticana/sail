@@ -252,47 +252,32 @@ export interface PartnerCreated {
 	paymentUrl?:     string;
 }
 
-// One purchasable offer for a plan — a (billing cycle × commitment term) row of
-// keel's `subscription_plan_price` table (v1.0.5). A plan sells several; the
-// customer picks one at checkout via `<sail-price-selector>`. Mirrors keel
-// `billing.PlanPrice`.
+// One purchasable offer for a plan: a (billing cycle × commitment term) row of
+// keel's `subscription_plan_price` table. Mirrors keel `billing.PlanPrice`.
 export interface PlanPrice {
 	billingCycle: string;   // PERIOD_TYPE code (D/W/M/A) — how often charged
 	termCount:    number;   // commitment length, in termType units
 	termType:     string;   // PERIOD_TYPE code — commitment/pricing unit
-	amountMinor:  number;   // price per termType unit, in minor units (cents)
-	amount:       number;   // same amount in major units (currency-exponent applied)
+	amountMinor:  number;   // price per termType unit, in minor units
 	currency:     string;   // ISO 4217
+	exponent:     number;   // minor-unit decimals from keel's currency table
 	// Provider price id (Stripe Price). Empty for free/unpriced offers; pass to
 	// `<sail-checkout-button [priceId]>` / `createCheckout({ priceId })`.
 	priceId?:     string;
 }
 
-// PublicPlan — shape returned by GET /public/plans. Used on the registration
-// page to render the plan picker and to drive `<sail-checkout-button>` flows.
+// Mirrors keel `billing.Plan` from GET /public/plans.
 export interface PublicPlan {
 	id:          string;
 	caption:     string;
-	// NOTE: keel v1.0.7 REMOVED the flat `monthlyCost`/`annualCost` from the plan
-	// JSON (both `/public/plans` and the billing catalog). Price lives per-offer
-	// in `prices[]`; derive a display price with `fromPriceLabel(plan.prices)`.
-	// Purchasable offers (keel v1.0.5 `subscription_plan_price`, nested under the
-	// plan). The source of truth for checkout — feed a chosen offer's `priceId`
-	// to `<sail-checkout-button>`. Returned by `/public/plans` as of keel v1.0.6
-	// (so `<sail-price-selector>` works on the registration page too); absent on
-	// pre-v1.0.6 backends.
-	prices?:     PlanPrice[];
-	// @deprecated keel v1.0.5 moved per-offer prices into `prices[]`
-	// (`subscription_plan.provider_price_id` was dropped). Use
-	// `prices?.[…].priceId`. Kept optional for pre-v1.0.5 backends.
-	priceId?:    string;
-	// keel `subscription_plan.activation_mode` (SUBSCRIPTION_ACTIVATION_MODE
-	// dictionary, single char — e.g. 'P' paid, 'F' free, 'T' trial). Drives the
-	// picker CTA copy ("Start trial" / "Subscribe" / …). Optional — pre-v1.0.3
-	// backends omit it.
-	activationMode?: string;
+	currency:    string;
+	// Purchasable offers; derive a display price with `fromPriceLabel(plan.prices)`
+	// and feed the chosen offer's `priceId` to `<sail-checkout-button>`.
+	prices:      PlanPrice[] | null;
+	// keel `subscription_plan.activation_mode` ('P' paid, 'F' free, 'T' trial); drives the picker CTA.
+	activationMode: string;
 	// Length of the free trial in days when `activationMode === 'T'`.
-	trialDays?:      number;
+	trialDays:      number;
 }
 
 // ConfirmRegisterResponse — shape returned by POST /public/register/confirm:
@@ -323,7 +308,7 @@ export type CheckoutMode = 'subscription' | 'payment' | 'setup';
 export interface CheckoutRequest {
 	mode?:       CheckoutMode;        // default 'subscription'
 	// Required for 'subscription' / 'payment'; must be empty for 'setup'.
-	// Pass `PublicPlan.priceId` straight through.
+	// Pass the chosen `PlanPrice.priceId` straight through.
 	priceId?:    string;
 	quantity?:   number;
 	email?:      string;
@@ -401,33 +386,35 @@ export interface PageRequest {
 	orderBy?: string;
 }
 
+// Mirrors keel `billing.Subscription`; amounts are minor units at `exponent`.
 export interface Subscription {
-	planId:      string;
-	status:      string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via SUBSCRIPTION_STATUS dict
-	begda:       string;
-	endda?:      string;
-	monthlyCost: number;
-	currency:    string;
-	autoRenew:   boolean;
-	// PERIOD_TYPE code (D/W/M/A) the sub is charged on, copied from the chosen
-	// offer (keel `billing_cycle`); absent on pre-v1.0.5 backends.
-	billingCycle?: string;
-	// ISO timestamp the trial ends (keel `trial_end`); empty/absent when not
-	// trialing. Drives `<sail-trial-banner>`.
-	trialEnd?:   string;
-	// Seat quantity on the active/trial sub (keel `seats`); absent for
-	// non-seat plans. Drives `<sail-seat-selector>`.
-	seats?:      number;
+	planId:           string;
+	caption?:         string;  // plan display name
+	status:           string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via SUBSCRIPTION_STATUS dict
+	begda:            string;
+	endda?:           string;
+	installmentMinor: number;
+	currency:         string;
+	exponent:         number;
+	autoRenew:        boolean;
+	// PERIOD_TYPE code (D/W/M/A) the sub is charged on, copied from the chosen offer.
+	billingCycle?:    string;
+	// ISO timestamp the trial ends; empty/absent when not trialing. Drives `<sail-trial-banner>`.
+	trialEnd?:        string;
+	// Seat quantity on the active/trial sub; absent for non-seat plans. Drives `<sail-seat-selector>`.
+	seats?:           number;
 }
 
+// Mirrors keel `billing.Invoice`; `status` is keel's one-character invoice status code.
 export interface Invoice {
-	id:       string;
-	number:   string;
-	status:   string;  // 'paid' | 'open' | 'void' | ...
-	total:    number;
-	currency: string;
-	issuedAt: string;
-	paidAt?:  string;
+	id:         string;
+	number:     string;
+	status:     string;
+	totalMinor: number;
+	currency:   string;
+	exponent:   number;
+	issuedAt:   string;
+	paidAt?:    string;
 }
 
 // ── Payout types ──
@@ -469,23 +456,10 @@ export interface BankInfoFormValue {
 	currency:          string;
 	accountHolderName: string;
 	billingAddress:    string;
-	taxIdType:         string;  // 'S' SIN, 'N' SSN, 'E' EIN, 'V' VAT, 'O' other
+	taxIdType:         string;  // keel `tax_id_type` code
 	taxId:             string;
 	provider:          string;
 	providerAgreement: boolean;
-}
-
-// CountryProfile drives the country dropdown in the bank-info form.
-// Each profile bundles ISO codes + tax-id labelling so the form's
-// hint/placeholder text follows the country selection.
-export interface CountryProfile {
-	code:             string;  // ISO 3166-1 alpha-2
-	label:            string;
-	currency:         string;  // ISO 4217
-	taxIdType:        string;  // matches basis constant_header 'tax_id_type'
-	taxIdLabel:       string;
-	taxIdPlaceholder: string;
-	taxIdHint:        string;
 }
 
 // ── User payment methods ──

@@ -3,6 +3,8 @@ import { Observable } from 'rxjs';
 import { BaseRestService } from '../../service/base_rest.service';
 import {
   AgentArchiveRequest,
+  AgentGuardrailChange,
+  AgentGuardrails,
   AgentAuditEvent,
   AgentCreateRequest,
   AgentDraft,
@@ -20,9 +22,11 @@ import {
   AgentSummary,
   AgentTestRequest,
   AgentTestResult,
+  SafetyEvent,
   StudioFeature,
   StudioModel,
 } from '../model/agent_studio';
+import { DecisionOutcome, DecisionPage } from '../model/decision';
 
 const studioBasePath = '/api/agent-studio/';
 
@@ -112,6 +116,31 @@ export class AgentStudioService extends BaseRestService {
 
   models(): Observable<StudioModel[]> {
     return this.http.get<StudioModel[]>(this.studioUrl('models'));
+  }
+
+  /** Scout's optional `decisions` feature: the tenant's decision records, newest first. */
+  decisions(before = 0, limit = 0, category = '', outcome?: DecisionOutcome): Observable<DecisionPage> {
+    const params: Record<string, string> = {};
+    if (before) params['before'] = String(before);
+    if (limit) params['limit'] = String(limit);
+    if (category) params['category'] = category;
+    if (outcome) params['outcome'] = outcome;
+    return this.http.get<DecisionPage>(this.studioUrl('decisions'), { params });
+  }
+
+  /** Scout's optional `guardrails` feature. */
+  guardrails(agentName: string): Observable<AgentGuardrails> {
+    return this.http.get<AgentGuardrails>(this.studioUrl('guardrails'), { params: { agent_name: agentName } });
+  }
+
+  saveGuardrails(change: AgentGuardrailChange): Observable<AgentGuardrails> {
+    return this.http.post<AgentGuardrails>(this.studioUrl('guardrails'), change);
+  }
+
+  /** Newest first; pass the last id as `before` for the next page. */
+  safetyEvents(agentName: string, before = 0, limit = 50): Observable<SafetyEvent[]> {
+    return this.http.get<SafetyEvent[]>(this.studioUrl('safety-events'),
+      { params: { agent_name: agentName, before: String(before), limit: String(limit) } });
   }
 
   private studioUrl(route: string): string {

@@ -1,0 +1,28 @@
+<div class="assistant-activity">
+  @if (records().length > 0) {
+    <table class="assistant-activity__table">
+      <thead>
+        <tr><th>When</th><th>Action</th><th>Resource</th><th>Outcome</th><th>By</th><th>App</th><th>Acting for</th></tr>
+      </thead>
+      <tbody>
+        @for (record of records(); track record.id) {
+          <tr [class]="'assistant-activity__row assistant-activity__row--' + record.outcome">
+            <td>{{ record.occurred_at | date: 'medium' }}</td>
+            <td><code>{{ record.action }}</code></td>
+            <td>{{ record.resource }}</td>
+            <td>{{ record.outcome | sailCaption:'audit_decision_outcome' }}@if (record.reason) { <span class="assistant-activity__reason">({{ record.reason }})</span> }</td>
+            <td>{{ who()(record) }}</td>
+            <td>{{ record.client_ref }}</td>
+            <td>@if (record.authority; as a) { {{ a.subject.kind }} {{ a.subject.id }} }</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else if (!loading()) {
+    <p class="assistant-activity__empty">No assistant activity yet.</p>
+  }
+  @if (nextBefore()) {
+    <button matButton type="button" [disabled]="loading()" (click)="load(nextBefore())">Load more</button>
+  }
+  @if (errorMessage()) { <p class="assistant-activity__error" role="alert">{{ errorMessage() }}</p> }
+</div>

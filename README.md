@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -16,7 +16,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Form components** | `DynamicField`, `RecordForm`, `TableForm` |
 | **Navigation** | `Navigation` (sidenav + toolbar with menu, responsive) |
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
-| **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `SessionsComponent`, `AccountDeletionComponent` |
+| **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `SessionsComponent`, `ApiKeysComponent`, `ConnectedAppsComponent`, `AccountDeletionComponent` |
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
@@ -29,9 +29,9 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `PartnerDocumentService`, `NotificationInboxService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
-| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `Currency`, `Country`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
-| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinorCurrency()` |
+| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `CurrencyService`, `sailMoney` pipe |
 
 ## Quick start
 
@@ -262,6 +262,10 @@ this.backend.listPaginated<MyRow>('orders', { Status: 'open' }, {
 
 Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset`, and `orderBy` to keel's `_limit`, `_offset`, and `_order` query controls. Existing callers that put those string controls in the filter map remain compatible; explicit `PageRequest` values take precedence.
 
+## Money
+
+keel stores money as integer minor units and serves the `currency` table (`code`, `caption`, `exponent`) as the only source of exponents. `formatMinor(minor, currency, exponent)` renders an amount; `Intl` supplies the symbol and grouping only. Billing payloads (`PlanPrice`, `Subscription`, `Invoice`) carry `exponent` beside their `…Minor` fields, so they render without a catalog: `{{ invoice.totalMinor | sailMoney:invoice.currency:invoice.exponent }}`. Amounts without an exponent, such as the agency ledger, use `{{ minor | sailMoney:currency }}`: the pipe loads the catalog once through `CurrencyService` (generic REST `currency`, so the role needs `TABLE SELECT currency`), renders `''` until it arrives, and throws for a code the catalog lacks rather than guessing decimals.
+
 ## Backend-driven constant captions
 
 `LabelService` loads one caption map from the backend-provided `ApplicationData`: a keel `constant_value` domain from `ConstantCache` by constant id, or a catalog table registered in `foreign_key_lookup` from `TableCache` by table name. `sailCaption` is the pipe form: `{{ code | sailCaption:'constant_id' }}`. The domain is the backend `constant_id` (for example `ride_type`), not a locale: keel's constant catalogue does not contain a language column. It does not call generic `constant_value` CRUD, which is normally restricted to administrative roles.
@@ -410,6 +414,8 @@ The login flow redirects `twoFactorRequired` responses to `/login/2fa`. With `tw
 
 `SessionsComponent` (`<sail-sessions>`) lists the sessions with their `sign_in_method` captions, marks the current one, and signs out any other.
 
+`ApiKeysComponent` (`<sail-api-keys [scopes]>`) lists the partner's keys and uses the backend-provided `generate` and `restrict` table actions; controls appear only for granted actions. Pass the scopes the app offers (`LabelOption[]`) after filtering out scopes the caller may not mint. The role also needs generic `SELECT` and `DELETE` grants to list and revoke keys. `ConnectedAppsComponent` (`<sail-connected-apps>`) lists and disconnects OAuth clients through keel's `GrantHandler` routes (v1.2.112, `RestURL.oauthGrantsURL` and `oauthGrantRevokeURL`).
+
 ### Cross-origin cookie requirement
 
 The "trust this device" feature (keel v0.9+) is backed by a server-set HttpOnly cookie named `keel_td`. The lifecycle is entirely server-driven:
@@ -498,9 +504,8 @@ unless the user holds `PARTNER_PLAN_SUBSCRIPTION` `CANCEL` / `CHANGE` / `PORTAL`
 </sail-price-selector>
 ```
 
-`<sail-price-selector>` is presentational (a `radiogroup` of offers), formats each amount with `Intl` from the offer's currency (so JPY/BHD render with the right number of decimals), and maps PERIOD_TYPE codes to copy via `[cycleLabels]`. It emits the full `PlanPrice` so you keep the chosen terms, not just the id.
+`<sail-price-selector>` is presentational (a `radiogroup` of offers), formats each `amountMinor` at the offer's `exponent`, and maps PERIOD_TYPE codes to copy via `[cycleLabels]`. It emits the full `PlanPrice` so you keep the chosen terms, not just the id.
 
-> **Migration.** The flat `PublicPlan.priceId` is deprecated (keel v1.0.5 dropped `subscription_plan.provider_price_id`) — read the id from the selected offer (`offer().priceId`). **keel v1.0.7 also removed `PublicPlan.monthlyCost`/`annualCost`** from both `/public/plans` and the billing catalog, so any plan-card code reading them now gets `undefined`. Derive a display price from the offers with `fromPriceLabel(plan.prices)` (used by `<sail-plan-selector>`), or render the per-offer amounts via `<sail-price-selector>`. These fields are removed from sail's `PublicPlan` type so the compiler flags any remaining references.
 
 **Checkout button** — calls `createCheckout()` and redirects to the provider-hosted URL. Feed it the chosen offer's `priceId`:
 ```html
@@ -684,7 +689,7 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 
 ## Agent UI (v1.1.20)
 
-Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency. The wire types match Scout v1.2.8.
+Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency. The wire types match Scout v1.2.13.
 
 ```ts
 import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@nauticana/sail/agent';
@@ -694,7 +699,10 @@ import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@
 |---|---|
 | `AgentStudioService` | Client for Scout's core Studio routes under `/api/agent-studio/` (fixed, unversioned paths): the `features` manifest, list, draft, settings, create, rename, archive, enable, test, publish, restore, reset, default, history, audit, release sections, models. Models mirror the backend's JSON names. |
 | `sail-studio-page` | Embeddable Studio: an agent rail grouped by `[groupBy]` (agent type by default; pass a function for workflow or position), and Overview, Prompts, Settings (scoped bindings and what they resolve to), Test, and History (diff, restore, audit) tabs. Product tabs are `<ng-template sailStudioTab="id" label="Label" let-agent>`. A control shows only when the `agents` feature lists its action and the caller holds the `AGENT_STUDIO` grant at `agent:<name>` (`agent_type:<type>` for create); hiding is never the authorization. `hasUnsavedChanges()` serves a `canDeactivate` guard. |
-| `sail-approval-inbox` / `ApprovalService` | The signed-in person's pending approvals (`GET /api/approval/pending`) and a decision view: approve, reject, or edit a tool call's arguments (`POST /api/approval/resolve`). A `409` reloads the list; `(decided)` emits the result. |
+| `sail-studio-page` Guardrails tab | Shown when the `features` manifest lists `guardrails`: inherited layers read-only, the agent's own rules as an editable JSON array saved against `expected_agent_revision`, and its safety events paged by `before`. Edit needs the feature's `EDIT` action. The rail captions Scout's fixed readiness values (`AGENT_READINESS_CAPTIONS`). |
+| `sail-assistant-activity` | The tenant's decision records from Scout's `decisions` feature (`GET /api/agent-studio/decisions`, `AGENT_AUDIT` `VIEW`), newest first and paged by `next_before`: when, action, resource, outcome caption, who (`[who]` names a principal), app (`client_ref`), and whom it acted for. `[category]` and `[outcome]` filter. |
+| `sail-turn-thread` | The signed-in person's turns from `GET {base}turns` (`ConversationService.turns`), newest first, paged by `next_before` and optionally narrowed to `[workRef]`: `turn_status` caption, settled cost in minor units with its exponent, agent and release version. Each `task_kind` renders its result through `<ng-template sailTurnResult="kind" let-turn>`; the first page reloads every `[pollMs]` while a turn is nonterminal. |
+| `sail-approval-inbox` / `ApprovalService` | The signed-in person's pending approvals (`GET /api/approval/pending`) and MCP confirmations (`GET /api/approval/confirmations`) in one list. Approvals are approved, rejected, or edited (`POST /api/approval/resolve`); confirmations are confirmed, declined, withdrawn, or reconciled as executed or failed through `/api/approval/confirmation/*`, each control shown only when Scout says the person may. A `409` reloads the list; `(decided)` and `(confirmationChanged)` emit the result. |
 | `studioErrorMessage(err)` | One message for a failed Studio call: the conflict cause, the field errors, or the detail. |
 | `studioConflictCause(err)` | `'revision'` (reload the draft), `'sealed'` (a layer sits under a sealed one) or `'other'` for a `409`. |
 | `studioFieldErrors(err)` / `retryAfterSeconds(err)` | Field errors of a `400`; `Retry-After` of a `429`/`503`. |
@@ -708,7 +716,7 @@ import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@
 | `ConversationService` | Transport for Scout's conversation bridge: `submit`, `stream(requestId, turnStream)`, `cancel`. Mount point injected through `CONVERSATION_BASE_PATH`. |
 | `SseParser` | Incremental `text/event-stream` parser: `push(chunk)` returns whole events out of chunks that split anywhere, including between the CR and LF of a CRLF; `finish()` flushes what the closing body left pending. |
 
-Map your audit rows onto `DecisionRecord` (outcome `A`, `D`, or `P`, captioned from `audit_decision_outcome`) to feed the timeline. Style the `.prompt-*`, `.release-*`, `.turn-*`, `.decision-*`, `.studio__*`, and `.approval-inbox__*` class hooks. Scout's short codes render through `sailCaption`, a pipe over the backend's constant captions.
+`DecisionRecord` is Scout's `api.DecisionRecord` (outcome `A`, `D`, or `P`, captioned from `audit_decision_outcome`); the timeline takes the records of one request, the activity table pages the tenant's. Style the `.prompt-*`, `.release-*`, `.turn-*`, `.decision-*`, `.studio__*`, and `.approval-inbox__*` class hooks. Scout's short codes render through `sailCaption`, a pipe over the backend's constant captions.
 
 ### Conversation transport (v1.1.22)
 
@@ -816,10 +824,9 @@ pending profile. The ledger and payout-history components show default empty
 messages; pass `[emptyMessage]="''"` when a composed page should omit empty
 regions entirely.
 
-All accounting values are integer minor units. `formatMinorCurrency()` uses the
-currency exponent reported by `Intl.NumberFormat`, so zero- and three-decimal
-currencies render correctly; earnings stay separated by currency rather than
-being summed into a misleading total.
+All accounting values are integer minor units rendered through the `sailMoney` pipe at the
+exponent of keel's `currency` catalog (see [Money](#money)); earnings stay separated by
+currency rather than being summed into a misleading total.
 
 **Delegation roles (v1.1.27, keel v1.2.89).** `AgencyDelegation.roles` (always present) and
 `AgencyClient.roles` carry `AgencyRoleGrant { role, expiresAt? }`; no `expiresAt` is
@@ -1607,10 +1614,10 @@ The v0.6 / v0.7 line introduced three additive feature groups against keel v0.7.
 |---|---|---|
 | `@nauticana/sail` | `PayoutService` | keel/payout API client — onboarding, reuse, status, bank-version replacement, beneficiary registration |
 | `@nauticana/sail` | `PayoutProviderOnboardingComponent` (`<sail-payout-provider-onboarding>`) | Drop-in onboarding step with reuse picker, hosted-KYC handoff, and asynchronous-confirmation output |
-| `@nauticana/sail` | `PayoutBankInfoFormComponent` (`<sail-payout-bank-info-form>`) | Tax + payout details form (country / currency / tax ID / billing address / agreement) |
+| `@nauticana/sail` | `PayoutBankInfoFormComponent` (`<sail-payout-bank-info-form>`) | Tax + payout details form; countries from keel's `country` table, tax-id types from the `tax_id_type` domain |
 | `@nauticana/sail` | `UserPaymentMethodService` | Saved-card list / remove / set-default API client |
 | `@nauticana/sail` | `UserPaymentMethodsComponent` (`<sail-user-payment-methods>`) | List of saved cards/wallets with set-default + remove |
-| `@nauticana/sail` | `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `CountryProfile`, `UserPaymentMethod`, `DEFAULT_COUNTRY_PROFILES` | Model types / defaults |
+| `@nauticana/sail` | `TableAction`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `UserPaymentMethod` | Model types |
 
 ### 2. New keel endpoints
 

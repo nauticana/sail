@@ -309,3 +309,66 @@ export interface AgentSettingChange {
   expected_agent_revision: number;
   expected_type_defaults_revision: number;
 }
+
+/** Captions for Scout's fixed `AgentReadiness` values, which no constant domain carries. */
+export const AGENT_READINESS_CAPTIONS: Record<string, string> = {
+  ready: 'Ready',
+  disabled: 'Disabled',
+  missing_model: 'No text model',
+  unpublished: 'Unpublished',
+  error: 'Invalid definition',
+  not_entitled: 'Not entitled',
+  needs_integration: 'Needs integration',
+  forbidden: 'Forbidden',
+};
+
+/** One enforced guardrail rule; `params` is the kind's JSON parameters. */
+export interface GuardrailRule {
+  id: string;
+  kind: string;
+  stages?: string[];
+  action: string;
+  severity: string;
+  params?: unknown;
+}
+
+/** Rules an agent inherits from one layer: B baseline, P platform, T tenant, Y type. */
+export interface InheritedGuardrails {
+  layer: string;
+  digest?: string;
+  rules: GuardrailRule[];
+}
+
+/** The layers an agent inherits, widest first, and its own rules, which only add or tighten. */
+export interface AgentGuardrails {
+  agent_name: string;
+  inherited: InheritedGuardrails[];
+  rules: GuardrailRule[];
+  /** Why the agent's rules no longer fit the inherited ones. */
+  problem?: string;
+  expected_agent_revision: number;
+}
+
+/** Replaces the agent's own rules as a whole; an empty list removes them. */
+export interface AgentGuardrailChange {
+  agent_name: string;
+  rules: GuardrailRule[];
+  expected_agent_revision: number;
+}
+
+/** One stored guardrail hit: rule ids and attribution, never the inspected content. */
+export interface SafetyEvent {
+  id: number;
+  version?: string;
+  policy_version?: string;
+  stage: string;
+  layer: string;
+  action: string;
+  severity: string;
+  rule_ids: string[];
+  actor_kind?: string;
+  actor_id?: string;
+  request_id?: string;
+  duration_ms: number;
+  occurred_at: string;
+}

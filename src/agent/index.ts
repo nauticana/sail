@@ -21,3 +21,5 @@ export * from './component/decision_timeline';
 export * from './component/studio_tab';
 export * from './component/studio_page';
 export * from './component/approval_inbox';
+export * from './component/assistant_activity';
+export * from './component/turn_thread';

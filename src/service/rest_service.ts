@@ -39,7 +39,7 @@ export class SailApiError extends Error {
 
 @Injectable({providedIn: 'root'})
 export class BackendService extends BaseRestService {
-    private readonly auth = inject(BaseAuthService);
+    protected readonly auth = inject(BaseAuthService);
 
     /** Resolved per call so configureRestUrls() may run any time before the first request. */
     protected get prefix(): string {

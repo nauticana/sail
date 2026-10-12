@@ -1,16 +1,27 @@
 <div class="approval-inbox">
   <section class="approval-inbox__list" aria-label="Pending approvals">
-    @if (requests().length === 0 && !loading()) {
+    @if (requests().length === 0 && confirmations().length === 0 && !loading()) {
       <p class="approval-inbox__empty">Nothing is waiting for your decision.</p>
     }
     <ul>
       @for (request of requests(); track key(request)) {
         <li>
           <button type="button" class="approval-inbox__item" [class.selected]="key(request) === selectedKey()"
-            [attr.aria-current]="key(request) === selectedKey()" (click)="select(request)">
+            [attr.aria-current]="key(request) === selectedKey()" (click)="select(key(request))">
             <span class="approval-inbox__summary">{{ request.summary || request.action }}</span>
             @if (request.deadline_at) {
               <span class="approval-inbox__deadline">Due {{ request.deadline_at | date: 'medium' }}</span>
+            }
+          </button>
+        </li>
+      }
+      @for (c of confirmations(); track confirmationKey(c)) {
+        <li>
+          <button type="button" class="approval-inbox__item" [class.selected]="confirmationKey(c) === selectedKey()"
+            [attr.aria-current]="confirmationKey(c) === selectedKey()" (click)="select(confirmationKey(c))">
+            <span class="approval-inbox__summary">{{ c.tool }} · {{ c.status | sailCaption:'mcp_confirmation_status' }}</span>
+            @if (c.status === 'P') {
+              <span class="approval-inbox__deadline">Expires {{ c.expires_at | date: 'medium' }}</span>
             }
           </button>
         </li>
@@ -53,6 +64,42 @@
         <button matButton="elevated" type="button" [disabled]="loading()" (click)="decide('A')">Approve</button>
         <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
         <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
+      </div>
+    </section>
+  }
+
+  @if (selectedConfirmation(); as c) {
+    <section class="approval-inbox__decision" aria-label="Confirmation">
+      <h3>{{ c.tool }}</h3>
+      <dl>
+        <dt>Status</dt><dd>{{ c.status | sailCaption:'mcp_confirmation_status' }}@if (c.expired) { (expired) }</dd>
+        <dt>Requested by</dt><dd>{{ c.maker.kind }} {{ c.maker.id }}@if (c.client_ref) { through {{ c.client_ref }} }</dd>
+        <dt>Requested</dt><dd>{{ c.created_at | date: 'medium' }} · expires {{ c.expires_at | date: 'medium' }}</dd>
+        @if (c.approval_required) { <dt>Maker-checker</dt><dd>A second person must approve</dd> }
+        @if (c.decider; as d) { <dt>Decided</dt><dd>{{ d.kind }} {{ d.id }} · {{ c.decided_at | date: 'medium' }} {{ c.decision_note }}</dd> }
+        @if (c.reconciler; as r) { <dt>Reconciled</dt><dd>{{ r.kind }} {{ r.id }} {{ c.reconcile_note }}</dd> }
+        @if (c.error) { <dt>Error</dt><dd>{{ c.error }}</dd> }
+      </dl>
+      @if (c.preview !== undefined) { <pre class="approval-inbox__preview">{{ c.preview | json }}</pre> }
+
+      @if (c.can_decide || c.can_reconcile) {
+        <mat-form-field>
+          <mat-label>Note (optional)</mat-label>
+          <textarea matInput rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+        </mat-form-field>
+      }
+      <div class="approval-inbox__actions">
+        @if (c.can_decide) {
+          <button matButton="elevated" type="button" [disabled]="loading()" (click)="confirm(true)">Confirm</button>
+          <button matButton type="button" class="warn" [disabled]="loading()" (click)="confirm(false)">Decline</button>
+        }
+        @if (c.can_withdraw) {
+          <button matButton type="button" [disabled]="loading()" (click)="withdraw()">Withdraw</button>
+        }
+        @if (c.can_reconcile) {
+          <button matButton type="button" [disabled]="loading()" (click)="reconcile('D')">Mark executed</button>
+          <button matButton type="button" [disabled]="loading()" (click)="reconcile('F')">Mark failed</button>
+        }
       </div>
     </section>
   }

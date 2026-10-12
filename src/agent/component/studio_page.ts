@@ -13,8 +13,9 @@ import { BaseAuthService } from '../../service/auth.service';
 import { CaptionPipe } from '../../service/caption_pipe';
 import { LabelOption, LabelService } from '../../service/label.service';
 import {
-  AgentAuditEvent, AgentDraft, AgentLanguageDraft, AgentMergeMode, AgentModelSelection, AgentRelease, AgentSetting,
-  AgentSettings, AgentSummary, AgentTestResult, StudioFeature, StudioModel,
+  AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentDraft, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
+  AgentModelSelection, AgentRelease, AgentSetting, AgentSettings, AgentSummary, AgentTestResult, GuardrailRule,
+  SafetyEvent, StudioFeature, StudioModel,
 } from '../model/agent_studio';
 import { AgentStudioService } from '../service/agent_studio.service';
 import { ReleaseSectionDiff, diffReleaseSections } from '../util/release_diff';
@@ -29,11 +30,12 @@ const CORE_TABS = [
   { id: 'test', label: 'Test' },
   { id: 'history', label: 'History' },
 ];
+const GUARDRAILS_TAB = { id: 'guardrails', label: 'Guardrails' };
 
 /**
  * Embeddable Agent Studio over Scout's core `agents` feature: a grouped agent rail and tabs
- * for the draft, prompts, scoped settings, tests, and release history, plus product tabs
- * declared with `sailStudioTab`. A control shows only when the feature manifest lists its
+ * for the draft, prompts, scoped settings, tests, and release history, a Guardrails tab when the
+ * manifest lists that feature, plus product tabs declared with `sailStudioTab`. A control shows only when the feature manifest lists its
  * action and the caller holds the grant; hiding is never the authorization, Scout decides.
  * Selector: <sail-studio-page>.
  */
@@ -66,6 +68,9 @@ export class StudioPageComponent implements OnInit {
   readonly settings = signal<AgentSettings | null>(null);
   readonly releases = signal<AgentRelease[]>([]);
   readonly audit = signal<AgentAuditEvent[]>([]);
+  readonly guardrails = signal<AgentGuardrails | null>(null);
+  readonly safetyEvents = signal<SafetyEvent[]>([]);
+  readonly safetyExhausted = signal(true);
   readonly diff = signal<{ version: number; previous: number; rows: ReleaseSectionDiff[] } | null>(null);
   readonly testResult = signal<AgentTestResult | null>(null);
   readonly tab = signal('overview');
@@ -79,7 +84,10 @@ export class StudioPageComponent implements OnInit {
   private readonly pending = signal(0);
   readonly busy = computed(() => this.pending() > 0);
 
-  readonly tabs = computed(() => [...CORE_TABS, ...this.productTabs().map((t) => ({ id: t.id(), label: t.label() }))]);
+  readonly tabs = computed(() => [
+    ...CORE_TABS, ...(this.feature('guardrails') ? [GUARDRAILS_TAB] : []),
+    ...this.productTabs().map((t) => ({ id: t.id(), label: t.label() })),
+  ]);
   readonly productTab = computed(() => this.productTabs().find((t) => t.id() === this.tab()));
   readonly selected = computed(() => this.summaries().find((a) => a.agent_name === this.selectedName()));
   readonly dirty = computed(() => this.draft() !== null && JSON.stringify(this.draft()) !== this.baseline());
@@ -97,7 +105,6 @@ export class StudioPageComponent implements OnInit {
     }
     return [...groups].map(([name, agents]) => ({ name, agents }));
   });
-  private readonly core = computed(() => this.features().find((f) => f.id === 'agents'));
 
   ngOnInit(): void {
     this.call(this.studio.features(), (features) => this.features.set(features));
@@ -110,10 +117,18 @@ export class StudioPageComponent implements OnInit {
     return this.dirty();
   }
 
-  /** Whether the manifest serves `action` and the caller holds it at `value` (the selected agent by default). */
-  can(action: string, value = `agent:${this.selectedName()}`): boolean {
-    const core = this.core();
-    return !!core?.actions.includes(action) && this.auth.hasPermission(core.object || 'AGENT_STUDIO', action, value);
+  /** Whether `feature` serves `action` and the caller holds it at `value` (the selected agent by default). */
+  can(action: string, value = `agent:${this.selectedName()}`, feature = 'agents'): boolean {
+    const f = this.feature(feature);
+    return !!f?.actions.includes(action) && this.auth.hasPermission(f.object || 'AGENT_STUDIO', action, value);
+  }
+
+  private feature(id: string): StudioFeature | undefined {
+    return this.features().find((f) => f.id === id);
+  }
+
+  readinessCaption(code: string): string {
+    return AGENT_READINESS_CAPTIONS[code] ?? code;
   }
 
   modelsOf(type: string): StudioModel[] {
@@ -136,6 +151,8 @@ export class StudioPageComponent implements OnInit {
     this.settings.set(null);
     this.releases.set([]);
     this.audit.set([]);
+    this.guardrails.set(null);
+    this.safetyEvents.set([]);
     this.diff.set(null);
     this.testResult.set(null);
     this.errorMessage.set('');
@@ -146,6 +163,7 @@ export class StudioPageComponent implements OnInit {
   openTab(id: string): void {
     this.tab.set(id);
     if (id === 'history') this.loadHistory();
+    if (id === 'guardrails') this.loadGuardrails();
   }
 
   private loadAgent(): void {
@@ -153,6 +171,7 @@ export class StudioPageComponent implements OnInit {
     this.call(this.studio.getDraft(name), (draft) => this.applyDraft(draft), name);
     this.call(this.studio.settings(name), (settings) => this.settings.set(settings), name);
     if (this.tab() === 'history') this.loadHistory();
+    if (this.tab() === 'guardrails') this.loadGuardrails();
   }
 
   private applyDraft(draft: AgentDraft): void {
@@ -310,6 +329,44 @@ export class StudioPageComponent implements OnInit {
       this.releases.set(releases);
       this.audit.set(audit);
     }, name);
+  }
+
+  loadGuardrails(): void {
+    const name = this.selectedName();
+    this.safetyEvents.set([]);
+    this.call(this.studio.guardrails(name), (g) => this.guardrails.set(g), name);
+    this.loadSafetyEvents();
+  }
+
+  loadSafetyEvents(): void {
+    const name = this.selectedName();
+    const before = this.safetyEvents().at(-1)?.id ?? 0;
+    this.call(this.studio.safetyEvents(name, before), (events) => {
+      this.safetyEvents.update((rows) => [...rows, ...events]);
+      this.safetyExhausted.set(events.length < 50);
+    }, name);
+  }
+
+  /** Replaces the agent's own rules with the JSON array typed in. */
+  saveGuardrails(rulesText: string): void {
+    const g = this.guardrails();
+    if (!g) return;
+    let rules: GuardrailRule[];
+    try {
+      rules = JSON.parse(rulesText.trim() || '[]') as GuardrailRule[];
+    } catch {
+      this.errorMessage.set('The rules must be a JSON array.');
+      return;
+    }
+    if (!Array.isArray(rules)) {
+      this.errorMessage.set('The rules must be a JSON array.');
+      return;
+    }
+    this.act(this.studio.saveGuardrails({ agent_name: g.agent_name, rules, expected_agent_revision: g.expected_agent_revision }), (saved) => {
+      this.guardrails.set(saved);
+      this.applyRevisions(saved.expected_agent_revision);
+      this.successMessage.set('Guardrails saved.');
+    }, g.agent_name);
   }
 
   previousVersion(version: number): number {

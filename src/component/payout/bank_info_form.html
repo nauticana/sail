@@ -9,12 +9,12 @@
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Country</mat-label>
       <mat-select formControlName="countryCode">
-        @for (c of countryProfiles(); track c.code) {
-          <mat-option [value]="c.code">{{ c.label }} ({{ c.currency }})</mat-option>
+        @for (c of options()?.countries ?? []; track c.Id) {
+          <mat-option [value]="c.Id">{{ c.Caption }} ({{ c.Currency }})</mat-option>
         }
       </mat-select>
     </mat-form-field>
-    <p class="hint">Sets your tax ID format + payout currency</p>
+    <p class="hint">Sets your payout currency</p>
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Account holder name</mat-label>
@@ -23,10 +23,19 @@
     <p class="hint">Legal name on the bank account (must match government ID)</p>
 
     <mat-form-field appearance="outline" class="full-width">
-      <mat-label>{{ taxIdLabel() }}</mat-label>
-      <input matInput formControlName="taxId" [placeholder]="taxIdPlaceholder()">
+      <mat-label>Tax ID type</mat-label>
+      <mat-select formControlName="taxIdType">
+        @for (t of options()?.taxIdTypes ?? []; track t.code) {
+          <mat-option [value]="t.code">{{ t.caption }}</mat-option>
+        }
+      </mat-select>
     </mat-form-field>
-    <p class="hint">{{ taxIdHint() }}</p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Tax ID</mat-label>
+      <input matInput formControlName="taxId">
+    </mat-form-field>
+    <p class="hint">Shared with the tax authority for annual reporting</p>
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Billing address</mat-label>

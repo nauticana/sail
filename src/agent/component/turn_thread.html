@@ -1,0 +1,27 @@
+<div class="turn-thread">
+  @for (turn of turns(); track turn.request_id) {
+    <article [class]="'turn-thread__turn turn-thread__turn--' + turn.status">
+      <header class="turn-thread__head">
+        <span class="turn-thread__title">{{ label(turn.task_kind) }} · {{ turn.input_summary }}</span>
+        <span class="turn-thread__status">{{ turn.status | sailCaption:'turn_status' }}</span>
+      </header>
+      <p class="turn-thread__meta">
+        {{ turn.created_at | date: 'medium' }}
+        @if (turn.cost_minor !== undefined && turn.currency && turn.exponent !== undefined) { · {{ turn.cost_minor | sailMoney:turn.currency:turn.exponent }} }
+        @if (turn.release_version) { · {{ turn.agent_name }} v{{ turn.release_version }} }
+      </p>
+      @if (turn.status === 'F' && turn.error_text) {
+        <p class="turn-thread__error" role="alert">{{ turn.error_text }}</p>
+      }
+      @if (resultTemplate(turn.task_kind); as template) {
+        <ng-container [ngTemplateOutlet]="template" [ngTemplateOutletContext]="{ $implicit: turn }" />
+      }
+    </article>
+  } @empty {
+    @if (!loading()) { <p class="turn-thread__empty">{{ emptyMessage() }}</p> }
+  }
+  @if (nextBefore()) {
+    <button matButton type="button" [disabled]="loading()" (click)="more()">Load more</button>
+  }
+  @if (errorMessage()) { <p class="turn-thread__error" role="alert">{{ errorMessage() }}</p> }
+</div>
