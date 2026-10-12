@@ -1,0 +1,63 @@
+<div class="approval-inbox">
+  <section class="approval-inbox__list" aria-label="Pending approvals">
+    @if (requests().length === 0 && !loading()) {
+      <p class="approval-inbox__empty">Nothing is waiting for your decision.</p>
+    }
+    <ul>
+      @for (request of requests(); track key(request)) {
+        <li>
+          <button type="button" class="approval-inbox__item" [class.selected]="key(request) === selectedKey()"
+            [attr.aria-current]="key(request) === selectedKey()" (click)="select(request)">
+            <span class="approval-inbox__summary">{{ request.summary || request.action }}</span>
+            @if (request.deadline_at) {
+              <span class="approval-inbox__deadline">Due {{ request.deadline_at | date: 'medium' }}</span>
+            }
+          </button>
+        </li>
+      }
+    </ul>
+    <button matButton type="button" [disabled]="loading()" (click)="load()">Refresh</button>
+  </section>
+
+  @if (selected(); as request) {
+    <section class="approval-inbox__decision" aria-label="Decision">
+      <h3>{{ request.summary || request.action }}</h3>
+      <dl>
+        <dt>Action</dt><dd>{{ request.action }}</dd>
+        <dt>Resource</dt><dd>{{ request.resource }}</dd>
+        <dt>Effect</dt><dd>{{ request.output_class | sailCaption:'agent_output_class' }}</dd>
+        <dt>Risk tier</dt><dd>{{ request.risk_tier }}</dd>
+        <dt>Required by</dt><dd>{{ request.rule_source | sailCaption:'approval_rule_source' }} · {{ request.rule_id }}</dd>
+        @if (request.approver_reference; as approver) {
+          <dt>Assigned to</dt><dd>{{ approver.kind | sailCaption:'approval_approver_kind' }} {{ approver.ref }} (step {{ request.route_step }})</dd>
+        }
+        @if (request.deadline_at) {
+          <dt>Deadline</dt><dd>{{ request.deadline_at | date: 'medium' }}</dd>
+        }
+        @if (request.revises_step_id) {
+          <dt>Revises</dt><dd>step {{ request.revises_step_id }}</dd>
+        }
+        <dt>Requested</dt><dd>{{ request.created_at | date: 'medium' }}</dd>
+      </dl>
+
+      <mat-form-field>
+        <mat-label>Reason (optional)</mat-label>
+        <textarea matInput rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Revised tool arguments (JSON object, for Edit)</mat-label>
+        <textarea matInput rows="4" [value]="revisedArguments()" (input)="revisedArguments.set($any($event.target).value)"></textarea>
+      </mat-form-field>
+
+      <div class="approval-inbox__actions">
+        <button matButton="elevated" type="button" [disabled]="loading()" (click)="decide('A')">Approve</button>
+        <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
+        <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
+      </div>
+    </section>
+  }
+
+  @if (errorMessage()) {
+    <p class="approval-inbox__error" role="alert">{{ errorMessage() }}</p>
+  }
+</div>

@@ -6,7 +6,7 @@
         <h4 class="release-section__caption">{{ section.caption }}</h4>
         <p class="release-section__source">
           Decided by {{ section.source.scope_kind }} scope {{ section.source.scope_id }}
-          ({{ section.source.merge_mode }})
+          ({{ section.source.merge_mode | sailCaption:'config_merge_mode' }})
           @if (section.source.sealed) {
             <span class="release-section__sealed">
               <mat-icon aria-hidden="true">lock</mat-icon>

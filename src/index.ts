@@ -94,6 +94,7 @@ export * from './service/api-response.interceptor';
 export * from './service/rest_service';
 export * from './service/rest_url';
 export * from './service/label.service';
+export * from './service/caption_pipe';
 export * from './service/base_rest.service';
 export * from './util/text';
 export * from './util/money';

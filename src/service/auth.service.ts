@@ -7,7 +7,7 @@ import {
   LoginResponseSocial,
   OtpRequest, OtpResendRequest, OtpResponse, OtpVerifyRequest, OtpVerifyResponse,
   PushPlatform, PushRegisterRequest,
-  ReauthCredentials,
+  ReauthChannel, ReauthCredentials, ReauthSendResponse,
   SignupConsent, SocialLoginRequest, SocialProvider,
   UserProfile,
 } from '../model/auth';
@@ -112,6 +112,7 @@ export abstract class BaseAuthService extends BaseRestService {
   protected get loginSocialUrl()           { return this.url(RestURL.loginSocialURL); }
   protected get logoutEverywhereUrl()      { return this.url(RestURL.logoutEverywhereURL); }
   protected get deleteAccountUrl()         { return this.url(RestURL.deleteAccountURL); }
+  protected get reauthSendUrl()            { return this.url(RestURL.reauthSendURL); }
   protected get pushRegisterUrl()          { return this.url(RestURL.pushRegisterURL); }
   protected get pushRevokeUrl()            { return this.url(RestURL.pushRevokeURL); }
   protected get profileUrl()               { return this.url(RestURL.profileURL); }
@@ -625,9 +626,14 @@ export abstract class BaseAuthService extends BaseRestService {
 
   // ── Account lifecycle ──
 
+  /** Send a one-time code for ReauthCredentials.reauthCode; no channel prefers email. */
+  sendReauthCode(channel?: ReauthChannel): Observable<ReauthSendResponse> {
+    return this.http.post<ReauthSendResponse>(this.reauthSendUrl, { channel });
+  }
+
   /**
    * Soft-delete the caller's account. Requires recent re-authentication —
-   * pass current `password` and/or `twoFactorCode`. Server anonymizes
+   * pass `password`, `twoFactorCode` or `reauthCode`. Server anonymizes
    * user_account, revokes all tokens / trusted devices / social links.
    * Clears local session on success.
    */
@@ -640,8 +646,8 @@ export abstract class BaseAuthService extends BaseRestService {
 
   /**
    * Revoke every active refresh token for this user (sign out everywhere).
-   * Requires recent re-authentication — pass current `password` and/or
-   * `twoFactorCode`.
+   * Requires recent re-authentication — pass `password`, `twoFactorCode`
+   * or `reauthCode`.
    */
   logoutEverywhere(reauth: ReauthCredentials): Observable<void> {
     return this.http.post<void>(this.logoutEverywhereUrl, reauth);

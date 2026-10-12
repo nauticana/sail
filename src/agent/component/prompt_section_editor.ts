@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -7,6 +7,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { map } from 'rxjs';
+import { CaptionPipe } from '../../service/caption_pipe';
+import { LabelOption, LabelService } from '../../service/label.service';
 import { AgentMergeMode, AgentPromptLayer, AgentPromptSection } from '../model/agent_studio';
 
 type LayerForm = FormGroup<{
@@ -25,7 +28,7 @@ export type EditableLayerSlot = 'type' | 'agent';
 
 function layerContentRequired(group: LayerForm): ValidationErrors | null {
   const { instruction, output, merge_mode } = group.getRawValue();
-  if (merge_mode === 'replace') return instruction.trim() ? null : { instructionRequired: true };
+  if (merge_mode === 'R') return instruction.trim() ? null : { instructionRequired: true };
   return instruction.trim() || output.trim() ? null : { contentRequired: true };
 }
 
@@ -37,7 +40,7 @@ function layerContentRequired(group: LayerForm): ValidationErrors | null {
 @Component({
   selector: 'sail-prompt-section-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, CaptionPipe],
   templateUrl: './prompt_section_editor.html',
 })
 export class PromptSectionEditorComponent {
@@ -49,6 +52,10 @@ export class PromptSectionEditorComponent {
   readonly sectionChange = output<AgentPromptSection>();
   readonly validChange = output<boolean>();
 
+  private readonly labels = inject(LabelService);
+  /** A prompt layer appends or replaces; intersect applies to other settings only. */
+  protected readonly mergeModes = toSignal(this.labels.loadLabels('config_merge_mode').pipe(
+    map(() => this.labels.options('config_merge_mode').filter((o) => o.code !== 'I'))), { initialValue: [] as LabelOption[] });
   protected readonly forms = new FormArray<LayerForm>([]);
   protected readonly rows = signal<LayerRow[]>([]);
   private emitted?: AgentPromptSection;
@@ -95,7 +102,7 @@ export class PromptSectionEditorComponent {
     const layer: AgentPromptLayer = {
       scope_id: slot === 'type' ? this.typeScopeId() : this.agentScopeId(),
       scope_kind: '',
-      merge_mode: 'append',
+      merge_mode: 'A',
       sealed: false,
       editable: true,
       instruction: '',

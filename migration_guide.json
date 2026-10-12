@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.34",
+   "title": "Apple first-authorization name, code re-authentication, Studio page and approval inbox on Scout v1.2.8",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "SocialLoginComponent passes Apple's first-authorization name to the app, and accounts without a password re-authenticate with a one-time code. @nauticana/sail/agent moves to Scout v1.2.8 and adds an embeddable Studio page and an approval inbox.",
+   "body_markdown": "Requires keel v1.2.102 for `POST /api/user/reauth/send` (`OTPHandler.GetAuthRoutes`). Apps that do not import `@nauticana/sail/agent` take only the additive core changes and need no Scout; the agent entry point requires Scout v1.2.8.\n\n### Additive (`@nauticana/sail`)\n\n- `LoginResponseSocial.socialName?: SocialName` carries the name Apple returns only on first authorization; pre-fill the profile from it.\n- `ReauthCredentials.reauthCode`, `BaseAuthService.sendReauthCode(channel?)`, `RestURL.reauthSendURL`, `ReauthChannel`, and `ReauthSendResponse`. `<sail-account-deletion reauthMethod=\"code\">` starts on the code path; the user can switch.\n- `CaptionPipe` (`sailCaption`) renders a code's backend caption; `LabelService.loadLabels` also serves catalog tables registered in `foreign_key_lookup`, by table name.\n\n### Breaking (`@nauticana/sail/agent`)\n\n- `ConversationTurnRequest.agent_id` → `agent_type`, plus optional `agent_name`, `release`, `release_reason`, `work_ref`.\n- `AgentMergeMode` is `'R' | 'A' | 'I'` (was `'replace' | 'append'`); `DecisionOutcome` is `'A' | 'D' | 'P'` (was `'allow' | 'deny' | 'pending'`).\n- `AgentDraft.approval_policy`, `AgentApprovalPolicy`, and `AgentRelease.require_approval` are removed; approval is an `approval_routing` or policy setting.\n- `AgentAuditEvent.user_id` is optional, set only when a person acted.\n\n### Additive (`@nauticana/sail/agent`)\n\n- `AgentStudioService.features`, `create`, `rename`, `archive`, `unarchive`, `settings`, `saveSetting` with their types; `AgentSummary.archived`, `AgentPromptLayer.bound_by`, publish `canary_percentage` and `effective_at`, `AgentRelease.activation`.\n- `<sail-studio-page>` with `sailStudioTab` product tabs, `diffReleaseSections`, and `studioErrorMessage`.\n- `ApprovalService` and `<sail-approval-inbox>` over Scout's approval desk.\n- The `citations` turn event renders as a link list. An empty turn-level `approval_pending` no longer adds a blank tool row.\n\n### Migration\n\nCore only: no change required. Agent entry point: upgrade Scout to v1.2.8, send `agent_type` on turn submit, map decision outcomes and merge modes to their codes, and drop `approval_policy` from draft handling."
+  },
+  {
    "version": "v1.1.33",
    "title": "Sign-in prompt, new-device step-up and sessions",
    "tags": [

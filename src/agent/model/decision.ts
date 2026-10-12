@@ -1,6 +1,7 @@
 import { ObjectRef } from './turn_event';
 
-export type DecisionOutcome = 'allow' | 'deny' | 'pending';
+/** A allowed, D denied, P pending (`audit_decision_outcome`). */
+export type DecisionOutcome = 'A' | 'D' | 'P';
 
 export interface PrincipalRef {
   kind: string;

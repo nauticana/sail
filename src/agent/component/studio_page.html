@@ -1,0 +1,269 @@
+<div class="studio">
+  <aside class="studio__rail" aria-label="Agents">
+    <mat-slide-toggle [checked]="showArchived()" (change)="showArchived.set($event.checked)">Show archived</mat-slide-toggle>
+    @for (group of groups(); track group.name) {
+      <section class="studio__group" [attr.aria-label]="group.name">
+        <h3 class="studio__group-name">{{ group.name }}</h3>
+        <ul>
+          @for (agent of group.agents; track agent.agent_name) {
+            <li>
+              <button type="button" class="studio__agent" [class.selected]="agent.agent_name === selectedName()"
+                [attr.aria-current]="agent.agent_name === selectedName()" (click)="select(agent.agent_name)">
+                <span class="studio__agent-name">{{ agent.display_name }}</span>
+                <span [class]="'studio__readiness studio__readiness--' + agent.readiness">{{ agent.readiness }}</span>
+                <span class="studio__agent-meta">
+                  @if (agent.is_default) { <span>Default</span> }
+                  @if (agent.archived) { <span>Archived</span> }
+                  @if (agent.published_version > 0) { <span>v{{ agent.published_version }}</span> } @else { <span>Never published</span> }
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </aside>
+
+  <main class="studio__main">
+    @if (draft(); as d) {
+      <header class="studio__header">
+        <h2>{{ d.display_name }}</h2>
+        @if (selected(); as agent) {
+          <p>{{ agent.purpose }} @if (agent.readiness_reason) { · {{ agent.readiness_reason }} }</p>
+        }
+        @if (d.drift; as drift) {
+          <p class="studio__drift" role="status">
+            {{ drift.causes.join(', ') }} changed since version {{ drift.active_version }} ({{ drift.changed_languages.join(', ') }}). Publishing adopts it.
+          </p>
+        }
+      </header>
+
+      <nav class="studio__tabs" role="tablist" aria-label="Agent">
+        @for (t of tabs(); track t.id) {
+          <button type="button" role="tab" [class.active]="tab() === t.id" [attr.aria-selected]="tab() === t.id"
+            (click)="openTab(t.id)">{{ t.label }}</button>
+        }
+      </nav>
+
+      <div class="studio__panel" role="tabpanel">
+        @switch (tab()) {
+          @case ('overview') {
+            <mat-form-field>
+              <mat-label>Display name</mat-label>
+              <input matInput [value]="d.display_name" [disabled]="!can('EDIT')"
+                (input)="patchDraft({ display_name: $any($event.target).value })">
+            </mat-form-field>
+            <mat-slide-toggle [checked]="d.enabled" [disabled]="!can('EDIT') || busy()"
+              (change)="setEnabled($event.checked)">Enabled</mat-slide-toggle>
+            <mat-form-field>
+              <mat-label>Text model</mat-label>
+              <mat-select [value]="d.models.text_model" [disabled]="!can('EDIT')" (selectionChange)="patchModel('text_model', $event.value)">
+                @for (m of modelsOf('T'); track m.id) { <mat-option [value]="m.id">{{ m.display_name }} · {{ m.provider }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+            @if (modelsOf('I').length > 0) {
+              <mat-form-field>
+                <mat-label>Image model</mat-label>
+                <mat-select [value]="d.models.image_model" [disabled]="!can('EDIT')" (selectionChange)="patchModel('image_model', $event.value)">
+                  <mat-option value="">None</mat-option>
+                  @for (m of modelsOf('I'); track m.id) { <mat-option [value]="m.id">{{ m.display_name }} · {{ m.provider }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (modelsOf('V').length > 0) {
+              <mat-form-field>
+                <mat-label>Video model</mat-label>
+                <mat-select [value]="d.models.video_model" [disabled]="!can('EDIT')" (selectionChange)="patchModel('video_model', $event.value)">
+                  <mat-option value="">None</mat-option>
+                  @for (m of modelsOf('V'); track m.id) { <mat-option [value]="m.id">{{ m.display_name }} · {{ m.provider }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
+            <p class="studio__key">Internal key <code>{{ d.agent_name }}</code> · type {{ d.agent_type }}</p>
+            <div class="studio__actions">
+              @if (!d.is_default && can('PUBLISH')) {
+                <button matButton type="button" [disabled]="busy()" (click)="makeDefault()">Make default {{ d.agent_type }}</button>
+              }
+              @if (can('ARCHIVE')) {
+                <button matButton type="button" [disabled]="busy()" (click)="setArchived(!selected()?.archived)">
+                  {{ selected()?.archived ? 'Unarchive' : 'Archive' }}
+                </button>
+              }
+            </div>
+            @if (can('CREATE', 'agent_type:' + d.agent_type)) {
+              <div class="studio__create">
+                <mat-form-field>
+                  <mat-label>New {{ d.agent_type }} agent, copied from this one</mat-label>
+                  <input matInput #newName>
+                </mat-form-field>
+                <button matButton type="button" [disabled]="busy() || dirty()" (click)="createCopy(newName.value); newName.value = ''">Create</button>
+              </div>
+            }
+          }
+          @case ('prompts') {
+            @if (d.languages.length > 1) {
+              <mat-form-field>
+                <mat-label>Language</mat-label>
+                <mat-select [value]="currentLanguage()?.language_code" (selectionChange)="language.set($event.value)">
+                  @for (l of d.languages; track l.language_code) { <mat-option [value]="l.language_code">{{ l.language_code }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
+            @if (currentLanguage(); as lang) {
+              <sail-prompt-language-editor [language]="lang" [agentScopeId]="d.agent_scope_id ?? ''" [typeScopeId]="d.type_scope_id ?? ''"
+                [disabled]="!can('EDIT') || busy()" (languageChange)="updateLanguage($event)"
+                (validChange)="promptsValid.set($event)" (resetRequested)="reset($event)" />
+            }
+          }
+          @case ('settings') {
+            @if (settings(); as s) {
+              @if (s.problem) { <p class="studio__error" role="alert">{{ s.problem }}</p> }
+              <h3>In effect</h3>
+              <ul class="studio__settings">
+                @for (e of s.effective; track e.resource_kind + '/' + e.resource_id) {
+                  <li>
+                    <strong>{{ e.resource_kind }} / {{ e.resource_id }}</strong>
+                    from {{ e.source.scope_kind }} ({{ e.source.merge_mode | sailCaption:'config_merge_mode' }}@if (e.source.sealed) {, sealed})
+                    <pre>{{ e.value | json }}</pre>
+                  </li>
+                }
+              </ul>
+              <h3>Editable bindings</h3>
+              <ul class="studio__settings">
+                @for (b of s.bindings; track b.scope_id + '/' + b.resource_kind + '/' + b.resource_id) {
+                  @if (b.editable) {
+                    <li>
+                      <strong>{{ b.resource_kind }} / {{ b.resource_id }}</strong> at {{ b.scope_kind }}
+                      ({{ b.merge_mode | sailCaption:'config_merge_mode' }}@if (b.sealed) {, sealed})
+                      <mat-form-field>
+                        <mat-label>Value (JSON)</mat-label>
+                        <textarea matInput rows="4" #value [value]="b.value | json" [disabled]="!can('EDIT')"></textarea>
+                      </mat-form-field>
+                      @if (can('EDIT')) {
+                        <button matButton type="button" [disabled]="busy()" (click)="saveSetting(b, value.value)">Save</button>
+                        <button matButton type="button" [disabled]="busy()" (click)="saveSetting(b, '', true)">Remove</button>
+                      }
+                    </li>
+                  }
+                }
+              </ul>
+              @if (can('EDIT')) {
+                <fieldset class="studio__add-setting">
+                  <legend>Add a binding</legend>
+                  <mat-form-field>
+                    <mat-label>Scope</mat-label>
+                    <mat-select #scope [value]="s.agent_scope_id">
+                      <mat-option [value]="s.agent_scope_id">This agent</mat-option>
+                      <mat-option [value]="s.type_scope_id">Every {{ d.agent_type }} agent</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field><mat-label>Resource kind</mat-label><input matInput #kind></mat-form-field>
+                  <mat-form-field><mat-label>Resource id</mat-label><input matInput #rid></mat-form-field>
+                  <mat-form-field>
+                    <mat-label>Merge mode</mat-label>
+                    <mat-select #merge value="R">
+                      @for (mode of mergeModes(); track mode.code) { <mat-option [value]="mode.code">{{ mode.caption }}</mat-option> }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field><mat-label>Value (JSON)</mat-label><textarea matInput rows="3" #val></textarea></mat-form-field>
+                  <button matButton type="button" [disabled]="busy()"
+                    (click)="addSetting(scope.value, kind.value, rid.value, merge.value, val.value)">Add</button>
+                </fieldset>
+              }
+            }
+          }
+          @case ('test') {
+            @if (can('TEST')) {
+              @if (dirty()) { <p role="status">Unsaved changes are not tested; save the draft first.</p> }
+              <mat-form-field><mat-label>Task (optional)</mat-label><input matInput #task></mat-form-field>
+              <mat-form-field><mat-label>Sample input (optional)</mat-label><textarea matInput rows="3" #sample></textarea></mat-form-field>
+              <button matButton="elevated" type="button" [disabled]="busy()" (click)="runTest(task.value, sample.value)">Run test</button>
+              @if (testResult(); as r) {
+                <div class="studio__test-result" aria-live="polite">
+                  <p>{{ r.model }} · {{ r.latency_ms }} ms · {{ r.input_tokens }} in / {{ r.output_tokens }} out · cost {{ r.credits }} · config {{ r.digest.slice(0, 12) }}</p>
+                  <p>Sections: {{ r.sections.join(', ') }}</p>
+                  <pre>{{ r.output }}</pre>
+                </div>
+              }
+            } @else {
+              <p>You are not authorized to run tests.</p>
+            }
+          }
+          @case ('history') {
+            @if (diff(); as df) {
+              <section class="studio__diff" aria-label="Version comparison">
+                <h3>v{{ df.previous }} → v{{ df.version }}</h3>
+                <button matButton type="button" (click)="diff.set(null)">Close</button>
+                @for (row of df.rows; track row.language_code + '#' + row.prompt_header_id) {
+                  <div [class]="'studio__diff-row studio__diff-row--' + row.status">
+                    <span>{{ row.caption }} · {{ row.language_code }} · {{ row.status }}</span>
+                    @if (row.old_text) { <pre class="studio__diff-old">{{ row.old_text }}</pre> }
+                    @if (row.new_text) { <pre class="studio__diff-new">{{ row.new_text }}</pre> }
+                  </div>
+                } @empty {
+                  <p>Prompt sections are identical; the versions differ only in configuration.</p>
+                }
+              </section>
+            }
+            <ul class="studio__releases">
+              @for (release of releases(); track release.version) {
+                <li>
+                  <strong>v{{ release.version }}</strong> @if (release.active) { <span>Active</span> }
+                  {{ release.change_summary || 'No change summary' }}
+                  · {{ release.published_at | date: 'medium' }} · {{ release.languages.join(', ') }}
+                  @if (release.activation; as a) { · scheduled {{ a.effective_at | date: 'medium' }} ({{ a.state | sailCaption:'release_activation_state' }}) }
+                  @if (previousVersion(release.version) > 0) {
+                    <button matButton type="button" [disabled]="busy()" (click)="compare(release.version)">Diff</button>
+                  }
+                  @if (!release.active && can('RESTORE')) {
+                    <button matButton type="button" [disabled]="busy()" (click)="restore(release.version)">Restore</button>
+                  }
+                </li>
+              } @empty {
+                <li>Nothing published yet.</li>
+              }
+            </ul>
+            @if (audit().length > 0) {
+              <h3>Audit</h3>
+              <ul class="studio__audit">
+                @for (event of audit(); track $index) {
+                  <li>{{ event.event }} · {{ event.detail }} · {{ event.event_time | date: 'medium' }}</li>
+                }
+              </ul>
+            }
+          }
+          @default {
+            @if (productTab(); as t) {
+              @if (selected(); as agent) {
+                <ng-container [ngTemplateOutlet]="t.template" [ngTemplateOutletContext]="{ $implicit: agent }" />
+              }
+            }
+          }
+        }
+      </div>
+
+      @if (successMessage()) { <p class="studio__success" role="status">{{ successMessage() }}</p> }
+      @if (errorMessage()) { <p class="studio__error" role="alert">{{ errorMessage() }}</p> }
+
+      <footer class="studio__footer" [class.dirty]="dirty()">
+        @if (dirty()) {
+          <span>Unsaved changes</span>
+          <button matButton type="button" [disabled]="busy()" (click)="discard()">Discard</button>
+        }
+        @if (can('EDIT')) {
+          <button matButton="elevated" type="button" [disabled]="!dirty() || !promptsValid() || busy()" (click)="save()">Save draft</button>
+        }
+        @if (can('PUBLISH')) {
+          <mat-form-field>
+            <mat-label>Change summary</mat-label>
+            <input matInput [value]="changeSummary()" (input)="changeSummary.set($any($event.target).value)">
+          </mat-form-field>
+          <button matButton="elevated" type="button" [disabled]="dirty() || busy()" (click)="publish()">Publish</button>
+        }
+      </footer>
+    } @else {
+      @if (errorMessage()) { <p class="studio__error" role="alert">{{ errorMessage() }}</p> }
+      @if (!busy() && summaries().length === 0) { <p>No agents yet.</p> }
+    }
+  </main>
+</div>

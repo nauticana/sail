@@ -37,8 +37,9 @@
             <mat-form-field>
               <mat-label>Merge mode</mat-label>
               <mat-select formControlName="merge_mode">
-                <mat-option value="append">Append</mat-option>
-                <mat-option value="replace">Replace</mat-option>
+                @for (mode of mergeModes(); track mode.code) {
+                  <mat-option [value]="mode.code">{{ mode.caption }}</mat-option>
+                }
               </mat-select>
             </mat-form-field>
             <mat-form-field>
@@ -64,7 +65,7 @@
         } @else {
           <dl class="prompt-layer__readonly">
             <dt>Merge mode</dt>
-            <dd>{{ row.layer.merge_mode }}</dd>
+            <dd>{{ row.layer.merge_mode | sailCaption:'config_merge_mode' }}</dd>
             <dt>Instruction</dt>
             <dd class="prompt-layer__text">{{ row.layer.instruction }}</dd>
             <dt>Output</dt>

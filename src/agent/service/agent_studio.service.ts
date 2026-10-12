@@ -2,27 +2,38 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { BaseRestService } from '../../service/base_rest.service';
 import {
+  AgentArchiveRequest,
   AgentAuditEvent,
+  AgentCreateRequest,
   AgentDraft,
   AgentEnabledState,
   AgentPublishRequest,
   AgentRelease,
   AgentReleaseSection,
+  AgentRenameRequest,
   AgentResetRequest,
   AgentRestoreRequest,
   AgentSetDefaultRequest,
   AgentSetEnabledRequest,
+  AgentSettingChange,
+  AgentSettings,
   AgentSummary,
   AgentTestRequest,
   AgentTestResult,
+  StudioFeature,
   StudioModel,
 } from '../model/agent_studio';
 
 const studioBasePath = '/api/agent-studio/';
 
-/** Client for the `studio-v2` Agent Studio routes, which are fixed and unversioned. */
+/** Client for Scout's core Agent Studio routes, which are fixed and unversioned. */
 @Injectable({ providedIn: 'root' })
 export class AgentStudioService extends BaseRestService {
+  /** The optional Studio APIs the backend mounted; `agents` is the core set. */
+  features(): Observable<StudioFeature[]> {
+    return this.http.get<StudioFeature[]>(this.studioUrl('features'));
+  }
+
   listAgents(): Observable<AgentSummary[]> {
     return this.http.get<AgentSummary[]>(this.studioUrl('agents'));
   }
@@ -34,6 +45,30 @@ export class AgentStudioService extends BaseRestService {
   /** Every editable layer must be sent back: one missing from `draft` ends its binding. */
   saveDraft(draft: AgentDraft): Observable<AgentDraft> {
     return this.http.post<AgentDraft>(this.studioUrl('draft'), draft);
+  }
+
+  create(request: AgentCreateRequest): Observable<AgentSummary> {
+    return this.http.post<AgentSummary>(this.studioUrl('create'), request);
+  }
+
+  rename(request: AgentRenameRequest): Observable<AgentSummary> {
+    return this.http.post<AgentSummary>(this.studioUrl('rename'), request);
+  }
+
+  archive(request: AgentArchiveRequest): Observable<AgentSummary> {
+    return this.http.post<AgentSummary>(this.studioUrl('archive'), request);
+  }
+
+  unarchive(request: AgentArchiveRequest): Observable<AgentSummary> {
+    return this.http.post<AgentSummary>(this.studioUrl('unarchive'), request);
+  }
+
+  settings(agentName: string): Observable<AgentSettings> {
+    return this.http.get<AgentSettings>(this.studioUrl('settings'), { params: { agent_name: agentName } });
+  }
+
+  saveSetting(change: AgentSettingChange): Observable<AgentSettings> {
+    return this.http.post<AgentSettings>(this.studioUrl('setting'), change);
   }
 
   setEnabled(request: AgentSetEnabledRequest): Observable<AgentEnabledState> {

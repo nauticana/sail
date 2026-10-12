@@ -36,9 +36,10 @@ export class LabelService {
     }
 
     /**
-     * Load one backend-provided `constant_value` domain from ApplicationData.
-     * Completed and concurrent requests are cached; a failed application-data
-     * load is evicted so a later call can retry.
+     * Load one caption map from ApplicationData: a `constant_value` domain by its
+     * constant id, or a catalog table registered in `foreign_key_lookup` by its
+     * table name. Completed and concurrent requests are cached; a failed
+     * application-data load is evicted so a later call can retry.
      */
     loadLabels(constantId: string): Observable<void> {
         const domain = constantId.trim();
@@ -53,7 +54,7 @@ export class LabelService {
             tap({
                 next: (data) => this.labels.set(
                     domain,
-                    new Map(Object.entries(data.ConstantCache?.[domain] ?? {})),
+                    new Map(Object.entries(data.ConstantCache?.[domain] ?? data.TableCache?.[domain] ?? {})),
                 ),
                 error: () => this.pendingLoads.delete(domain),
             }),

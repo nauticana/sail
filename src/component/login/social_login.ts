@@ -7,7 +7,7 @@ import { BaseAuthService } from '../../service/auth.service';
 import { loadScript } from '../../service/script_loader';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import {
-  ConsentState, LoginResponseSocial, SignupConsent, SocialProvider,
+  ConsentState, LoginResponseSocial, SignupConsent, SocialName, SocialProvider,
 } from '../../model/auth';
 import { firstValueFrom } from 'rxjs';
 
@@ -22,7 +22,8 @@ const APPLE_URL = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/
  * buttons using each provider's official SDK.
  *
  * Flow: click → SDK returns ID token → BaseAuthService.loginSocial(provider,
- * idToken, signupConsent) → emits loginSuccess / loginError.
+ * idToken, signupConsent) → emits loginSuccess / loginError. Apple's
+ * first-authorization name rides along as loginSuccess.socialName.
  *
  * Requires `googleClientId` / `appleServiceId` in SailGuiConfig; providers
  * without config are hidden (with a console.warn for diagnostics).
@@ -104,17 +105,17 @@ export class SocialLoginComponent extends BaseAsync implements OnInit {
     try {
       const res = await AppleID.auth.signIn();
       const token = res?.authorization?.id_token;
-      if (token) this.onIdToken('apple', token);
+      if (token) this.onIdToken('apple', token, res.user?.name);
     } catch (err: unknown) {
       this.loginError.emit(err instanceof Error ? err : new Error(String(err)));
     }
   }
 
-  private onIdToken(provider: SocialProvider, idToken: string) {
+  private onIdToken(provider: SocialProvider, idToken: string, socialName?: SocialName) {
     const fallback = `Sign-in with ${provider} failed.`;
     this.run(
       this.auth.loginSocial(provider, idToken, this.buildSignupConsent()),
-      (resp) => this.loginSuccess.emit(resp),
+      (resp) => this.loginSuccess.emit(socialName ? { ...resp, socialName } : resp),
       fallback,
       (err) => this.loginError.emit(this.toError(err, fallback)),
     );

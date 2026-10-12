@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
+import { CaptionPipe } from '../../service/caption_pipe';
 import { AgentReleaseSection } from '../model/agent_studio';
 
 interface ReleaseLanguageGroup {
@@ -14,7 +15,7 @@ interface ReleaseLanguageGroup {
 @Component({
   selector: 'sail-release-sections',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIconModule],
+  imports: [MatIconModule, CaptionPipe],
   templateUrl: './release_sections.html',
 })
 export class ReleaseSectionsComponent {

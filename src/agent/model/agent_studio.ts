@@ -1,6 +1,7 @@
-/** Agent Studio `studio-v2` wire types. Field names are the backend's JSON names. */
+/** Agent Studio wire types (Scout v1.2.7). Field names are the backend's JSON names. */
 
-export type AgentMergeMode = 'append' | 'replace';
+/** R replace, A append, I intersect (non-prompt settings only). */
+export type AgentMergeMode = 'R' | 'A' | 'I';
 export type AgentResetScope = 'agent_override' | 'type_default' | 'platform_baseline';
 
 export interface AgentSummary {
@@ -10,6 +11,7 @@ export interface AgentSummary {
   purpose: string;
   enabled: boolean;
   is_default: boolean;
+  archived: boolean;
   readiness: string;
   readiness_reason: string;
   type_defaults_revision: number;
@@ -35,10 +37,6 @@ export interface AgentModelSelection {
   video_model: string;
 }
 
-export interface AgentApprovalPolicy {
-  require_approval: boolean;
-}
-
 /** One contribution to a prompt section. `editable` is response-only. */
 export interface AgentPromptLayer {
   scope_id: string;
@@ -48,6 +46,8 @@ export interface AgentPromptLayer {
   editable: boolean;
   instruction: string;
   output: string;
+  /** Who last edited the layer; absent on the baseline. */
+  bound_by?: number;
 }
 
 export interface AgentPromptSection {
@@ -77,7 +77,6 @@ export interface AgentDraft {
   display_name: string;
   enabled: boolean;
   is_default: boolean;
-  approval_policy: AgentApprovalPolicy;
   models: AgentModelSelection;
   languages: AgentLanguageDraft[];
   agent_scope_id?: string;
@@ -103,6 +102,7 @@ export interface AgentTestResult {
   latency_ms: number;
   input_tokens: number;
   output_tokens: number;
+  /** Cost in minor units. */
   credits: number;
   sections: string[];
 }
@@ -110,6 +110,10 @@ export interface AgentTestResult {
 export interface AgentPublishRequest {
   agent_name: string;
   change_summary: string;
+  /** 1–99 deploys the release as a canary. */
+  canary_percentage?: number;
+  /** RFC 3339; a future time schedules the release. */
+  effective_at?: string;
   expected_agent_revision: number;
   expected_type_defaults_revision: number;
 }
@@ -137,6 +141,7 @@ export interface AgentSetDefaultRequest {
 export interface AgentSetEnabledRequest {
   agent_name: string;
   enabled: boolean;
+  reason?: string;
   expected_agent_revision: number;
 }
 
@@ -151,19 +156,41 @@ export interface AgentRelease {
   version: number;
   enabled: boolean;
   models: AgentModelSelection;
-  require_approval: boolean;
   definition_digest: string;
   change_summary: string;
   published_by: number;
   published_at: string;
   active: boolean;
   languages: string[];
+  activation?: ReleaseActivation;
+}
+
+/** A scheduled publish; state P pending, A activated, R refused, X cancelled. */
+export interface ReleaseActivation {
+  id: number;
+  agent_name: string;
+  version: number;
+  definition_digest: string;
+  canary_percentage?: number;
+  effective_at: string;
+  state: 'P' | 'A' | 'R' | 'X';
+  scheduled_by: string;
+  scheduled_at: string;
+  attempts: number;
+  next_attempt_at?: string;
+  reason?: string;
+  detail?: string;
+  decided_by?: string;
+  decided_at?: string;
 }
 
 export interface AgentAuditEvent {
   event: string;
   detail: string;
-  user_id: number;
+  actor_kind?: string;
+  actor_id?: string;
+  /** Set only when a person acted. */
+  user_id?: number;
   event_time: string;
 }
 
@@ -195,4 +222,90 @@ export interface StudioModel {
   output_credits_per_1k: number;
   image_credits: number;
   video_credits_per_sec: number;
+}
+
+/** One optional Studio API the backend mounted. Unknown ids are ignored; grants still decide. */
+export interface StudioFeature {
+  id: string;
+  version: number;
+  actions: string[];
+  /** Authorization object of the actions; empty is AGENT_STUDIO. */
+  object?: string;
+}
+
+/** `copy_from` and `template_id` are exclusive. */
+export interface AgentCreateRequest {
+  agent_type: string;
+  display_name: string;
+  copy_from?: string;
+  template_id?: string;
+  template_version?: number;
+  references?: Record<string, Record<string, string>>;
+  idempotency_key: string;
+}
+
+export interface AgentRenameRequest {
+  agent_name: string;
+  display_name: string;
+  expected_agent_revision: number;
+}
+
+export interface AgentArchiveRequest {
+  agent_name: string;
+  expected_agent_revision: number;
+}
+
+export interface AgentSettingSource {
+  scope_id: string;
+  scope_kind: string;
+  resource_version: string;
+  merge_mode: AgentMergeMode;
+  sealed: boolean;
+}
+
+/** One binding on the agent's scope chain; `editable` marks the agent's and its type's scopes. */
+export interface AgentSetting {
+  scope_id: string;
+  scope_kind: string;
+  editable: boolean;
+  resource_kind: string;
+  resource_id: string;
+  resource_version: string;
+  merge_mode: AgentMergeMode;
+  sealed: boolean;
+  value: unknown;
+}
+
+export interface AgentEffectiveSetting {
+  resource_kind: string;
+  resource_id: string;
+  value: unknown;
+  source: AgentSettingSource;
+  superseded?: AgentSettingSource[];
+}
+
+/** Bindings other than prompt sections; `problem` says why they do not compile. */
+export interface AgentSettings {
+  agent_name: string;
+  agent_scope_id: string;
+  type_scope_id: string;
+  bindings: AgentSetting[];
+  effective: AgentEffectiveSetting[];
+  problem?: string;
+  expected_agent_revision: number;
+  expected_type_defaults_revision: number;
+}
+
+/** Binds, or with `remove` ends, one resource at the agent or type scope. */
+export interface AgentSettingChange {
+  agent_name: string;
+  scope_id: string;
+  resource_kind: string;
+  resource_id: string;
+  merge_mode?: AgentMergeMode;
+  sealed: boolean;
+  value?: unknown;
+  remove: boolean;
+  expected_agent_revision: number;
+  expected_type_defaults_revision: number;
 }

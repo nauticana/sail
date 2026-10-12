@@ -5,14 +5,14 @@
       @for (record of group.records; track record.id) {
         <li
           class="decision-record"
-          [class.decision-record--allow]="record.outcome === 'allow'"
-          [class.decision-record--deny]="record.outcome === 'deny'"
-          [class.decision-record--pending]="record.outcome === 'pending'"
+          [class.decision-record--allow]="record.outcome === 'A'"
+          [class.decision-record--deny]="record.outcome === 'D'"
+          [class.decision-record--pending]="record.outcome === 'P'"
         >
           <time class="decision-record__time" [attr.datetime]="record.occurred_at">{{ record.occurred_at }}</time>
           <span class="decision-record__action">{{ record.action }}</span>
           <span class="decision-record__resource">{{ record.resource }}</span>
-          <span class="decision-record__outcome">{{ record.outcome }}</span>
+          <span class="decision-record__outcome">{{ record.outcome | sailCaption:'audit_decision_outcome' }}</span>
           <span class="decision-record__principal">{{ record.principal.kind }} {{ record.principal.id }}</span>
           @if (record.reason) {
             <p class="decision-record__reason">{{ record.reason }}</p>

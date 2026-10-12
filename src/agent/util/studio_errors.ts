@@ -1,3 +1,4 @@
+import { errorDetail } from '../../util/errors';
 import { AgentFieldError, AgentValidationProblem } from '../model/agent_studio';
 
 /**
@@ -58,4 +59,14 @@ export function retryAfterSeconds(err: unknown): number | undefined {
   if (!raw) return undefined;
   const seconds = Number(raw);
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
+}
+
+/** One message for a failed Studio call: the conflict cause, the field errors, or the detail. */
+export function studioErrorMessage(err: unknown, fallback = 'Request failed.'): string {
+  const cause = studioConflictCause(err);
+  if (cause === 'revision') return 'This agent changed since you opened it. Reload and reapply your edits.';
+  if (cause === 'sealed') return 'A wider scope sealed this section, so narrower layers cannot change it.';
+  const fields = studioFieldErrors(err);
+  if (fields.length > 0) return fields.map((f) => `${f.field}: ${f.message}`).join('; ');
+  return errorDetail(err, fallback);
 }

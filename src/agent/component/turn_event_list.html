@@ -89,6 +89,15 @@
           }
         </li>
       }
+      @case ('citations') {
+        <li class="turn-citations">
+          <ol>
+            @for (citation of item.citations; track citation.position) {
+              <li><a [href]="citation.url" rel="noopener noreferrer nofollow" target="_blank">{{ citation.title || citation.domain || citation.url }}</a></li>
+            }
+          </ol>
+        </li>
+      }
       @case ('extension') {
         @if (extensionTemplate(); as template) {
           <li class="turn-extension">

@@ -10,6 +10,7 @@ export const TURN_EVENT_KINDS = [
   'effect',
   'progress',
   'result',
+  'citations',
   'extension',
 ] as const;
 
@@ -73,6 +74,14 @@ export interface TurnExtensionEvent {
   payload?: unknown;
 }
 
+export interface Citation {
+  url: string;
+  domain?: string;
+  title?: string;
+  snippet?: string;
+  position: number;
+}
+
 export interface TurnEvent {
   v: number;
   kind: TurnEventKind;
@@ -83,6 +92,7 @@ export interface TurnEvent {
   effect?: TurnEffectEvent;
   progress?: TurnProgressEvent;
   extension?: TurnExtensionEvent;
+  citations?: Citation[];
 }
 
 const knownKinds: ReadonlySet<string> = new Set(TURN_EVENT_KINDS);

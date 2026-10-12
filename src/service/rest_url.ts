@@ -45,6 +45,7 @@ export const RestURL = {
   ssoSamlMetadataURL:  '/public/sso/saml/metadata',
   logoutEverywhereURL: '/api/user/logout-everywhere',
   deleteAccountURL:    '/api/user/account',
+  reauthSendURL:       '/api/user/reauth/send',
   // Self-service profile (keel ProfileHandler). GET profileURL reads the
   // current profile; POST updates name/locale. Email/phone are verify-before-
   // apply (request → confirm). A consumer whose backend mounts these under a

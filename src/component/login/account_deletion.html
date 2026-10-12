@@ -13,10 +13,23 @@
         <input matInput formControlName="confirm" autocomplete="off" required>
       </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Confirm your password</mat-label>
-        <input matInput type="password" formControlName="password" autocomplete="current-password" required>
-      </mat-form-field>
+      @if (method() === 'password') {
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm your password</mat-label>
+          <input matInput type="password" formControlName="credential" autocomplete="current-password" required>
+        </mat-form-field>
+      } @else {
+        <button matButton type="button" [disabled]="loading()" (click)="sendCode()">
+          {{ codeSent() ? 'Resend code' : 'Send me a code' }}
+        </button>
+        <mat-form-field appearance="outline">
+          <mat-label>One-time code</mat-label>
+          <input matInput formControlName="credential" inputmode="numeric" autocomplete="one-time-code" required>
+        </mat-form-field>
+      }
+      <button matButton type="button" (click)="toggleMethod()">
+        {{ method() === 'password' ? 'Use a one-time code instead' : 'Use my password instead' }}
+      </button>
 
       <mat-form-field appearance="outline">
         <mat-label>Reason (optional)</mat-label>

@@ -115,11 +115,19 @@ export interface UserProfile {
 
 // ── Re-authentication credentials ──
 // Required by Setup2FA, Disable2FA, DeleteAccount, LogoutEverywhere — server
-// rejects with 401 if neither `password` nor `twoFactorCode` is supplied.
-// Disable2FA additionally requires the current TOTP `code` alongside password.
+// rejects with 401 unless one is supplied. `reauthCode` comes from
+// sendReauthCode(). Disable2FA additionally requires the current TOTP `code`.
 export interface ReauthCredentials {
   password?:      string;
   twoFactorCode?: string;
+  reauthCode?:    string;
+}
+
+export type ReauthChannel = 'email' | 'phone';
+
+export interface ReauthSendResponse {
+  channel:            ReauthChannel;
+  resendCountdownSec: number;
 }
 
 // ── Social login (ID token flow) ──
@@ -144,6 +152,13 @@ export interface LoginResponseSocial {
   isNewUser:               boolean;
   singleDeviceSession?:    boolean;
   previousDeviceRevoked?:  boolean;
+  // Client-side: the name Apple returns only on first authorization, never in the ID token.
+  socialName?:             SocialName;
+}
+
+export interface SocialName {
+  firstName?: string;
+  lastName?:  string;
 }
 
 // ── Push notification tokens ──

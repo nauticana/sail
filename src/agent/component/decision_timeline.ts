@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { CaptionPipe } from '../../service/caption_pipe';
 import { DecisionCategoryGroup, DecisionRecord } from '../model/decision';
 
 /**
@@ -8,6 +9,7 @@ import { DecisionCategoryGroup, DecisionRecord } from '../model/decision';
 @Component({
   selector: 'sail-decision-timeline',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CaptionPipe],
   templateUrl: './decision_timeline.html',
 })
 export class DecisionTimelineComponent {

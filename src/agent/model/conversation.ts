@@ -4,7 +4,15 @@ import { InjectionToken } from '@angular/core';
 export interface ConversationTurnRequest {
   request_id: string;
   conversation_id: string;
-  agent_id: string;
+  /** The agent type alias; its default agent serves a new conversation. */
+  agent_type: string;
+  /** One agent of that type instead of its default. */
+  agent_name?: string;
+  /** Pins a new conversation to one release; needs `release_reason`. */
+  release?: string;
+  release_reason?: string;
+  /** The product's opaque reference to the work the turn serves. */
+  work_ref?: string;
   /** Opaque product payload; the backend forwards it to the agent unread. */
   input: unknown;
 }

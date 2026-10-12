@@ -1,4 +1,5 @@
 import {
+  Citation,
   EvidenceRef,
   TurnApprovalEvent,
   TurnEffectEvent,
@@ -31,6 +32,7 @@ export type TurnTimelineItem =
   | { kind: 'evidence'; refs: EvidenceRef[] }
   | { kind: 'progress'; progress: TurnProgressEvent }
   | { kind: 'extension'; extension: TurnExtensionEvent }
+  | { kind: 'citations'; citations: Citation[] }
   | { kind: 'result' };
 
 function errorClassOf(tool: TurnToolEvent): string | undefined {
@@ -62,7 +64,8 @@ export function buildTurnTimeline(events: readonly unknown[]): TurnTimelineItem[
   };
 
   const applyApproval = (approval: TurnApprovalEvent | undefined, state: ToolCallApproval): void => {
-    if (!approval) return;
+    // A turn-level suspension carries an empty approval; turn status shows it, not a tool row.
+    if (!approval?.call_id) return;
     const call = callFor(approval);
     call.approval = state;
     call.decision = approval.decision;
@@ -105,6 +108,9 @@ export function buildTurnTimeline(events: readonly unknown[]): TurnTimelineItem[
         break;
       case 'extension':
         if (event.extension) items.push({ kind: 'extension', extension: event.extension });
+        break;
+      case 'citations':
+        if (event.citations?.length) items.push({ kind: 'citations', citations: event.citations });
         break;
       case 'result':
         items.push({ kind: 'result' });

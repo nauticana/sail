@@ -264,7 +264,7 @@ Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset
 
 ## Backend-driven constant captions
 
-`LabelService` loads one keel `constant_value` domain from the backend-provided `ApplicationData.ConstantCache` and caches its value-to-caption map. The domain is the backend `constant_id` (for example `ride_type`), not a locale: keel's constant catalogue does not contain a language column. It does not call generic `constant_value` CRUD, which is normally restricted to administrative roles.
+`LabelService` loads one caption map from the backend-provided `ApplicationData`: a keel `constant_value` domain from `ConstantCache` by constant id, or a catalog table registered in `foreign_key_lookup` from `TableCache` by table name. `sailCaption` is the pipe form: `{{ code | sailCaption:'constant_id' }}`. The domain is the backend `constant_id` (for example `ride_type`), not a locale: keel's constant catalogue does not contain a language column. It does not call generic `constant_value` CRUD, which is normally restricted to administrative roles.
 
 ```typescript
 this.labels.loadLabels('ride_type').subscribe(() => {
@@ -684,7 +684,7 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 
 ## Agent UI (v1.1.20)
 
-Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency.
+Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency. The wire types match Scout v1.2.8.
 
 ```ts
 import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@nauticana/sail/agent';
@@ -692,7 +692,10 @@ import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@
 
 | Export | Purpose |
 |---|---|
-| `AgentStudioService` | Client for the thirteen `studio-v2` routes under `/api/agent-studio/` (fixed, unversioned paths). Models mirror the backend's JSON names. |
+| `AgentStudioService` | Client for Scout's core Studio routes under `/api/agent-studio/` (fixed, unversioned paths): the `features` manifest, list, draft, settings, create, rename, archive, enable, test, publish, restore, reset, default, history, audit, release sections, models. Models mirror the backend's JSON names. |
+| `sail-studio-page` | Embeddable Studio: an agent rail grouped by `[groupBy]` (agent type by default; pass a function for workflow or position), and Overview, Prompts, Settings (scoped bindings and what they resolve to), Test, and History (diff, restore, audit) tabs. Product tabs are `<ng-template sailStudioTab="id" label="Label" let-agent>`. A control shows only when the `agents` feature lists its action and the caller holds the `AGENT_STUDIO` grant at `agent:<name>` (`agent_type:<type>` for create); hiding is never the authorization. `hasUnsavedChanges()` serves a `canDeactivate` guard. |
+| `sail-approval-inbox` / `ApprovalService` | The signed-in person's pending approvals (`GET /api/approval/pending`) and a decision view: approve, reject, or edit a tool call's arguments (`POST /api/approval/resolve`). A `409` reloads the list; `(decided)` emits the result. |
+| `studioErrorMessage(err)` | One message for a failed Studio call: the conflict cause, the field errors, or the detail. |
 | `studioConflictCause(err)` | `'revision'` (reload the draft), `'sealed'` (a layer sits under a sealed one) or `'other'` for a `409`. |
 | `studioFieldErrors(err)` / `retryAfterSeconds(err)` | Field errors of a `400`; `Retry-After` of a `429`/`503`. |
 | `sail-prompt-language-editor` | One language's prompt sections. Emits the whole language on every edit — a save must send every layer back, because an editable layer missing from the request ends its binding. Emits `resetRequested` with the scope, section, and language to reset. |
@@ -705,7 +708,7 @@ import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@
 | `ConversationService` | Transport for Scout's conversation bridge: `submit`, `stream(requestId, turnStream)`, `cancel`. Mount point injected through `CONVERSATION_BASE_PATH`. |
 | `SseParser` | Incremental `text/event-stream` parser: `push(chunk)` returns whole events out of chunks that split anywhere, including between the CR and LF of a CRLF; `finish()` flushes what the closing body left pending. |
 
-Map your audit rows onto `DecisionRecord` to feed the timeline. Style the `.prompt-*`, `.release-*`, `.turn-*`, and `.decision-*` class hooks.
+Map your audit rows onto `DecisionRecord` (outcome `A`, `D`, or `P`, captioned from `audit_decision_outcome`) to feed the timeline. Style the `.prompt-*`, `.release-*`, `.turn-*`, `.decision-*`, `.studio__*`, and `.approval-inbox__*` class hooks. Scout's short codes render through `sailCaption`, a pipe over the backend's constant captions.
 
 ### Conversation transport (v1.1.22)
 
@@ -719,7 +722,7 @@ providers: [{ provide: CONVERSATION_BASE_PATH, useValue: '/api/wingmate/' }]
 
 ```ts
 const stream = new TurnStream(requestId);
-this.conversation.submit({ request_id: requestId, conversation_id: conversationId, agent_id: 'wingmate', input })
+this.conversation.submit({ request_id: requestId, conversation_id: conversationId, agent_type: 'wingmate', input })
   .pipe(switchMap(() => this.conversation.stream(requestId, stream)), takeUntilDestroyed())
   .subscribe({ error: (err) => this.onStreamError(err) });
 ```
@@ -1016,7 +1019,7 @@ Config required in `SAIL_GUI_CONFIG`:
 }
 ```
 
-Under the hood, the component calls `BaseAuthService.loginSocial(provider, idToken, consent)` → `POST /public/login/social` and emits `loginSuccess: LoginResponseSocial`. The session is completed automatically (token stored, app data loaded, routes initialized).
+Under the hood, the component calls `BaseAuthService.loginSocial(provider, idToken, consent)` → `POST /public/login/social` and emits `loginSuccess: LoginResponseSocial`. Apple sends the user's name only on the first authorization and never in the ID token, so that sign-in carries it as `socialName: {firstName?, lastName?}` for the app to pre-fill its profile. The session is completed automatically (token stored, app data loaded, routes initialized).
 
 For backward compatibility, the older OAuth-code flow `BaseAuthService.loginWithGoogle(code)` (hits `/public/login/google`) is still supported; prefer `loginSocial` for new code.
 
@@ -1383,14 +1386,16 @@ These are App Store / Play Store compliance primitives from keel. All are opt-in
 
 ### Re-authentication gate
 
-The four sensitive endpoints below require **recent re-authentication** before they will run — pass `password` and/or `twoFactorCode` to prove the user is still present at the keyboard. The shipped components already capture this; only callers using the service methods directly need to do this.
+The four sensitive endpoints below require **recent re-authentication** before they will run — pass `password`, `twoFactorCode` or `reauthCode` to prove the user is still present at the keyboard. The shipped components already capture this; only callers using the service methods directly need to do this.
 
 | Method | Required re-auth |
 |--------|-----------------|
 | `setup2FA(reauth)` | `password` (or `twoFactorCode` when re-rotating) |
 | `disable2FA(password, code)` | **both** `password` and current TOTP `code` |
-| `deleteAccount(reauth, reason?)` | `password` (or `twoFactorCode`) |
-| `logoutEverywhere(reauth)` | `password` (or `twoFactorCode`) |
+| `deleteAccount(reauth, reason?)` | `password`, `twoFactorCode` or `reauthCode` |
+| `logoutEverywhere(reauth)` | `password`, `twoFactorCode` or `reauthCode` |
+
+An account without a password re-authenticates with `reauthCode`, a one-time code sent by `sendReauthCode(channel?)` (`POST /api/user/reauth/send`; no channel prefers email).
 
 The `ReauthCredentials` type is exported as a shared shape:
 ```typescript
@@ -1402,10 +1407,10 @@ auth.deleteAccount(reauth, 'Closing my account.').subscribe();
 ### Account deletion
 
 ```html
-<sail-account-deletion [confirmationText]="'DELETE'"></sail-account-deletion>
+<sail-account-deletion [confirmationText]="'DELETE'" reauthMethod="code"></sail-account-deletion>
 ```
 
-Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** confirms their password. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`).
+Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** re-authenticates. `reauthMethod` (`password` default, or `code`) picks the initial method; the user can switch, and the code path sends, resends and submits a `reauthCode`. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`).
 
 ### Logout everywhere
 
@@ -1433,6 +1438,7 @@ Platform codes: `'I'` iOS, `'A'` Android, `'W'` Web. The token acquisition (Capa
 |----------|---------------|
 | `DELETE /api/user/account` | `deleteAccount(reauth, reason?)` |
 | `POST /api/user/logout-everywhere` | `logoutEverywhere(reauth)` |
+| `POST /api/user/reauth/send` | `sendReauthCode(channel?)` |
 | `POST /api/push/register` | `registerPushToken(platform, token, appVersion?, deviceModel?)` |
 | `POST /api/push/revoke` | `revokePushToken(token)` |
 
