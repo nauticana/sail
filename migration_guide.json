@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.38",
+   "title": "Addressable conversation agents",
+   "tags": [
+    "additive"
+   ],
+   "summary": "ConversationService lists the agents of a type the signed-in person may address.",
+   "body_markdown": "Requires the agent entry point's Scout v1.2.16 conversation bridge (unchanged from v1.1.37).\n\n### Additive\n\n- `ConversationService.agents(agentType)` reads `GET {base}agents?agent_type=` and returns `ConversationAgent[]` (`agent_name`, `display_name`, `is_default`, `release`), default first. Pass a chosen `agent_name` on `ConversationTurnRequest` to address that agent instead of the type's default. Replace an app-local client and model of this endpoint with these."
+  },
+  {
    "version": "v1.1.37",
    "title": "Approval inbox summary, withdraw step and history window; API key scope domains",
    "tags": [

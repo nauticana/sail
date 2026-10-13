@@ -4,6 +4,7 @@ import { BaseAuthService } from '../../service/auth.service';
 import { BaseRestService } from '../../service/base_rest.service';
 import {
   CONVERSATION_BASE_PATH,
+  ConversationAgent,
   ConversationStreamError,
   ConversationStreamFailure,
   ConversationTurnAccepted,
@@ -19,7 +20,7 @@ const REPLAY_EXPIRED = 410;
 
 /**
  * Transport for Scout's conversation bridge: `POST {base}turn`,
- * `GET {base}turn/stream` as SSE, `POST {base}turn/cancel`. Submit and cancel go through
+ * `GET {base}turn/stream` as SSE, `POST {base}turn/cancel`, `GET {base}turns`, `GET {base}agents`. Submit and cancel go through
  * `HttpClient` (and so through sail's interceptors); the stream cannot, because
  * `EventSource` sends no `Authorization` header — it is a `fetch` body reader that carries
  * the bearer itself and rotates it through `BaseAuthService.refreshSession()` once on a 401.
@@ -33,6 +34,11 @@ export class ConversationService extends BaseRestService {
 
   submit(request: ConversationTurnRequest): Observable<ConversationTurnAccepted> {
     return this.http.post<ConversationTurnAccepted>(this.conversationUrl('turn'), request);
+  }
+
+  /** The agents of `agentType` the person may address, the default first. */
+  agents(agentType: string): Observable<ConversationAgent[]> {
+    return this.http.get<ConversationAgent[]>(this.conversationUrl('agents'), { params: { agent_type: agentType } });
   }
 
   /** The person's turns, newest first; `before` continues from a page's `next_before`. */

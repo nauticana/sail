@@ -17,6 +17,14 @@ export interface ConversationTurnRequest {
   input: unknown;
 }
 
+/** One agent the person may address through an agent type (`agent_name` on a turn request). */
+export interface ConversationAgent {
+  agent_name: string;
+  display_name: string;
+  is_default: boolean;
+  release: string;
+}
+
 export interface ConversationTurnAccepted {
   request_id: string;
 }
