@@ -11,9 +11,9 @@
             <td><code>{{ record.action }}</code></td>
             <td>{{ record.resource }}</td>
             <td>{{ record.outcome | sailCaption:'audit_decision_outcome' }}@if (record.reason) { <span class="assistant-activity__reason">({{ record.reason }})</span> }</td>
-            <td>{{ who()(record) }}</td>
-            <td>{{ record.client_ref }}</td>
-            <td>@if (record.authority; as a) { {{ a.subject.kind }} {{ a.subject.id }} }</td>
+            <td>{{ name(record.principal) }}</td>
+            <td>{{ record.client_label || record.client_ref }}</td>
+            <td>@if (record.authority; as a) { {{ name(a.subject) }} }</td>
           </tr>
         }
       </tbody>

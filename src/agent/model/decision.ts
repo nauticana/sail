@@ -4,6 +4,8 @@ export type DecisionOutcome = 'A' | 'D' | 'P';
 export interface PrincipalRef {
   kind: string;
   id: string;
+  /** The product's caption for the principal (Scout `contract.Labeler`). */
+  label?: string;
 }
 
 export interface AuthorityRef {
@@ -24,6 +26,7 @@ export interface DecisionRecord {
   authority?: AuthorityRef;
   /** The client application the principal acted through. */
   client_ref?: string;
+  client_label?: string;
   work_ref?: string;
   scope_id?: string;
   release_version?: string;
@@ -45,4 +48,9 @@ export interface DecisionPage {
 export interface DecisionCategoryGroup {
   category: string;
   records: DecisionRecord[];
+}
+
+/** A principal's label, or its kind and id. */
+export function principalName(ref: PrincipalRef): string {
+  return ref.label || `${ref.kind} ${ref.id}`;
 }

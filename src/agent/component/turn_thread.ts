@@ -9,14 +9,22 @@ import { MoneyPipe } from '../../service/money_pipe';
 import { ConversationTurn, TERMINAL_TURN_STATUSES } from '../model/conversation';
 import { ConversationService } from '../service/conversation.service';
 
+export interface TurnResultContext {
+  $implicit: ConversationTurn;
+}
+
 /**
- * The result card of one task kind: `<ng-template sailTurnResult="kind" let-turn>…</ng-template>`.
- * The template's context is the turn.
+ * The result card of one task kind, or of every other kind with `"*"`:
+ * `<ng-template sailTurnResult="kind" let-turn>…</ng-template>`.
  */
 @Directive({ selector: 'ng-template[sailTurnResult]' })
 export class TurnResultDirective {
   readonly kind = input.required<string>({ alias: 'sailTurnResult' });
-  readonly template = inject<TemplateRef<{ $implicit: ConversationTurn }>>(TemplateRef);
+  readonly template = inject<TemplateRef<TurnResultContext>>(TemplateRef);
+
+  static ngTemplateContextGuard(_dir: TurnResultDirective, ctx: unknown): ctx is TurnResultContext {
+    return true;
+  }
 }
 
 /**
@@ -39,6 +47,8 @@ export class TurnThreadComponent extends BaseAsync implements OnInit {
   readonly kindLabels = input<Record<string, string>>({});
   readonly pollMs = input(10000);
   readonly emptyMessage = input('Nothing yet.');
+  /** Shown for a failed turn that carries no error text. */
+  readonly failedText = input('The turn failed.');
 
   readonly turns = signal<ConversationTurn[]>([]);
   readonly nextBefore = signal('');
@@ -77,7 +87,8 @@ export class TurnThreadComponent extends BaseAsync implements OnInit {
     return this.kindLabels()[kind] ?? kind;
   }
 
-  resultTemplate(kind: string): TemplateRef<{ $implicit: ConversationTurn }> | undefined {
-    return this.results().find((r) => r.kind() === kind)?.template;
+  resultTemplate(kind: string): TemplateRef<TurnResultContext> | undefined {
+    const results = this.results();
+    return (results.find((r) => r.kind() === kind) ?? results.find((r) => r.kind() === '*'))?.template;
   }
 }

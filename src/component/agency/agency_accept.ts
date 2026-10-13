@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AgencyInvite } from '../../model/agency';
 import { AgencyService } from '../../service/agency.service';
-import { errorCode, errorDetail } from '../../util/errors';
+import { errorCode, errorDetail, httpStatus } from '../../util/errors';
 
 const NO_PARTNER_CODE = 'agency_no_partner';
 
@@ -71,7 +71,7 @@ export class AgencyAcceptComponent implements OnInit {
       },
       error: (error: unknown) => {
         this.accepting.set(false);
-        if (this.statusOf(error) === 409 && errorCode(error) === NO_PARTNER_CODE) {
+        if (httpStatus(error) === 409 && errorCode(error) === NO_PARTNER_CODE) {
           localStorage.setItem(this.tokenStorageKey(), this.activeToken);
           this.needsBusiness.set(true);
           return;
@@ -84,11 +84,5 @@ export class AgencyAcceptComponent implements OnInit {
   requestBusinessSetup(): void {
     localStorage.setItem(this.tokenStorageKey(), this.activeToken);
     this.businessSetupRequested.emit(this.activeToken);
-  }
-
-  private statusOf(error: unknown): number | undefined {
-    return typeof error === 'object' && error !== null && 'status' in error
-      ? Number((error as { status?: unknown }).status)
-      : undefined;
   }
 }

@@ -12,7 +12,7 @@ export interface AgentSummary {
   enabled: boolean;
   is_default: boolean;
   archived: boolean;
-  readiness: string;
+  readiness: AgentReadiness;
   readiness_reason: string;
   type_defaults_revision: number;
   agent_revision: number;
@@ -310,8 +310,11 @@ export interface AgentSettingChange {
   expected_type_defaults_revision: number;
 }
 
-/** Captions for Scout's fixed `AgentReadiness` values, which no constant domain carries. */
-export const AGENT_READINESS_CAPTIONS: Record<string, string> = {
+/** Scout's fixed `AgentReadiness` values, which no constant domain carries. */
+export type AgentReadiness =
+  'ready' | 'disabled' | 'missing_model' | 'unpublished' | 'error' | 'not_entitled' | 'needs_integration' | 'forbidden';
+
+export const AGENT_READINESS_CAPTIONS: Record<AgentReadiness, string> = {
   ready: 'Ready',
   disabled: 'Disabled',
   missing_model: 'No text model',

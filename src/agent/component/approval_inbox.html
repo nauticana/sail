@@ -1,38 +1,42 @@
 <div class="approval-inbox">
-  <section class="approval-inbox__list" aria-label="Pending approvals">
-    @if (requests().length === 0 && confirmations().length === 0 && !loading()) {
-      <p class="approval-inbox__empty">Nothing is waiting for your decision.</p>
+  <nav class="approval-inbox__list" aria-label="Approvals">
+    @for (section of sections(); track section.title) {
+      <section [attr.aria-label]="section.title">
+        <h3>{{ section.title }} ({{ section.requests.length + section.confirmations.length }})</h3>
+        <ul>
+          @for (request of section.requests; track key(request)) {
+            <li>
+              <button type="button" class="approval-inbox__item" [class.selected]="key(request) === selectedKey()"
+                [attr.aria-current]="key(request) === selectedKey()" (click)="select(key(request))">
+                <span class="approval-inbox__summary">{{ request.summary || request.action }}</span>
+                @if (request.deadline_at) {
+                  <span class="approval-inbox__deadline">Due {{ request.deadline_at | date: 'medium' }}</span>
+                }
+              </button>
+            </li>
+          }
+          @for (c of section.confirmations; track confirmationKey(c)) {
+            <li>
+              <button type="button" class="approval-inbox__item" [class.selected]="confirmationKey(c) === selectedKey()"
+                [attr.aria-current]="confirmationKey(c) === selectedKey()" (click)="select(confirmationKey(c))">
+                <span class="approval-inbox__summary">{{ c.tool }} · {{ c.status | sailCaption:'mcp_confirmation_status' }}</span>
+                @if (c.status === 'P') {
+                  <span class="approval-inbox__deadline">Expires {{ c.expires_at | date: 'medium' }}</span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    } @empty {
+      @if (!loading()) { <p class="approval-inbox__empty">Nothing is waiting for your decision.</p> }
     }
-    <ul>
-      @for (request of requests(); track key(request)) {
-        <li>
-          <button type="button" class="approval-inbox__item" [class.selected]="key(request) === selectedKey()"
-            [attr.aria-current]="key(request) === selectedKey()" (click)="select(key(request))">
-            <span class="approval-inbox__summary">{{ request.summary || request.action }}</span>
-            @if (request.deadline_at) {
-              <span class="approval-inbox__deadline">Due {{ request.deadline_at | date: 'medium' }}</span>
-            }
-          </button>
-        </li>
-      }
-      @for (c of confirmations(); track confirmationKey(c)) {
-        <li>
-          <button type="button" class="approval-inbox__item" [class.selected]="confirmationKey(c) === selectedKey()"
-            [attr.aria-current]="confirmationKey(c) === selectedKey()" (click)="select(confirmationKey(c))">
-            <span class="approval-inbox__summary">{{ c.tool }} · {{ c.status | sailCaption:'mcp_confirmation_status' }}</span>
-            @if (c.status === 'P') {
-              <span class="approval-inbox__deadline">Expires {{ c.expires_at | date: 'medium' }}</span>
-            }
-          </button>
-        </li>
-      }
-    </ul>
     <button matButton type="button" [disabled]="loading()" (click)="load()">Refresh</button>
-  </section>
+  </nav>
 
   @if (selected(); as request) {
     <section class="approval-inbox__decision" aria-label="Decision">
-      <h3>{{ request.summary || request.action }}</h3>
+      <h3 #heading tabindex="-1">{{ request.summary || request.action }}</h3>
       <dl>
         <dt>Action</dt><dd>{{ request.action }}</dd>
         <dt>Resource</dt><dd>{{ request.resource }}</dd>
@@ -60,45 +64,64 @@
         <textarea matInput rows="4" [value]="revisedArguments()" (input)="revisedArguments.set($any($event.target).value)"></textarea>
       </mat-form-field>
 
-      <div class="approval-inbox__actions">
-        <button matButton="elevated" type="button" [disabled]="loading()" (click)="decide('A')">Approve</button>
-        <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
-        <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
+      <div class="approval-inbox__actions" role="group" aria-label="Decide">
+        @if (confirming()) {
+          <span>Approve this action? It runs exactly as shown.</span>
+          <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="decide('A')">Yes, approve</button>
+          <button matButton type="button" [disabled]="loading()" (click)="cancelApprove()">Cancel</button>
+        } @else {
+          <button matButton="filled" type="button" [disabled]="loading()" (click)="askApprove()">Approve</button>
+          <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
+          <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
+        }
       </div>
     </section>
   }
 
   @if (selectedConfirmation(); as c) {
     <section class="approval-inbox__decision" aria-label="Confirmation">
-      <h3>{{ c.tool }}</h3>
+      <h3 #heading tabindex="-1">{{ c.tool }}</h3>
       <dl>
+        <dt>Workspace</dt><dd>{{ c.tenant_label || c.tenant_id }}</dd>
         <dt>Status</dt><dd>{{ c.status | sailCaption:'mcp_confirmation_status' }}@if (c.expired) { (expired) }</dd>
-        <dt>Requested by</dt><dd>{{ c.maker.kind }} {{ c.maker.id }}@if (c.client_ref) { through {{ c.client_ref }} }</dd>
+        <dt>Requested by</dt><dd>{{ name(c.maker) }}@if (c.client_label || c.client_ref) { through {{ c.client_label || c.client_ref }} }</dd>
         <dt>Requested</dt><dd>{{ c.created_at | date: 'medium' }} · expires {{ c.expires_at | date: 'medium' }}</dd>
         @if (c.approval_required) { <dt>Maker-checker</dt><dd>A second person must approve</dd> }
-        @if (c.decider; as d) { <dt>Decided</dt><dd>{{ d.kind }} {{ d.id }} · {{ c.decided_at | date: 'medium' }} {{ c.decision_note }}</dd> }
-        @if (c.reconciler; as r) { <dt>Reconciled</dt><dd>{{ r.kind }} {{ r.id }} {{ c.reconcile_note }}</dd> }
+        @if (c.decider; as d) { <dt>Decided</dt><dd>{{ name(d) }} · {{ c.decided_at | date: 'medium' }} {{ c.decision_note }}</dd> }
+        @if (c.completed_at) { <dt>Finished</dt><dd>{{ c.completed_at | date: 'medium' }}</dd> }
+        @if (c.reconciler; as r) { <dt>Reconciled</dt><dd>{{ name(r) }} {{ c.reconcile_note }}</dd> }
         @if (c.error) { <dt>Error</dt><dd>{{ c.error }}</dd> }
       </dl>
-      @if (c.preview !== undefined) { <pre class="approval-inbox__preview">{{ c.preview | json }}</pre> }
+      @if (previewTemplate(c.tool); as template) {
+        <ng-container [ngTemplateOutlet]="template" [ngTemplateOutletContext]="{ $implicit: c }" />
+      } @else if (c.preview !== undefined) {
+        <pre class="approval-inbox__preview">{{ c.preview | json }}</pre>
+      }
 
       @if (c.can_decide || c.can_reconcile) {
         <mat-form-field>
-          <mat-label>Note (optional)</mat-label>
-          <textarea matInput rows="2" [value]="reason()" (input)="reason.set($any($event.target).value)"></textarea>
+          <mat-label>{{ c.can_reconcile ? 'What you verified (required)' : 'Note (optional)' }}</mat-label>
+          <textarea matInput rows="2" [maxLength]="noteMax" [required]="c.can_reconcile" [value]="reason()"
+            (input)="reason.set($any($event.target).value)"></textarea>
         </mat-form-field>
       }
-      <div class="approval-inbox__actions">
+      <div class="approval-inbox__actions" role="group" aria-label="Decide">
         @if (c.can_decide) {
-          <button matButton="elevated" type="button" [disabled]="loading()" (click)="confirm(true)">Confirm</button>
-          <button matButton type="button" class="warn" [disabled]="loading()" (click)="confirm(false)">Decline</button>
+          @if (confirming()) {
+            <span>Confirm this action? It runs exactly as shown.</span>
+            <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="confirm(true)">Yes, confirm</button>
+            <button matButton type="button" [disabled]="loading()" (click)="cancelApprove()">Cancel</button>
+          } @else {
+            <button matButton="filled" type="button" [disabled]="loading()" (click)="askApprove()">Confirm</button>
+            <button matButton type="button" class="warn" [disabled]="loading()" (click)="confirm(false)">Decline</button>
+          }
         }
         @if (c.can_withdraw) {
           <button matButton type="button" [disabled]="loading()" (click)="withdraw()">Withdraw</button>
         }
         @if (c.can_reconcile) {
-          <button matButton type="button" [disabled]="loading()" (click)="reconcile('D')">Mark executed</button>
-          <button matButton type="button" [disabled]="loading()" (click)="reconcile('F')">Mark failed</button>
+          <button matButton type="button" [disabled]="loading() || !reason().trim()" (click)="reconcile('D')">Mark executed</button>
+          <button matButton type="button" [disabled]="loading() || !reason().trim()" (click)="reconcile('F')">Mark failed</button>
         }
       </div>
     </section>
@@ -107,4 +130,5 @@
   @if (errorMessage()) {
     <p class="approval-inbox__error" role="alert">{{ errorMessage() }}</p>
   }
+  <p class="approval-inbox__status" role="status">{{ successMessage() }}</p>
 </div>

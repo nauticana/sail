@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
-import { ApiKey, MintedApiKey, OAuthGrant } from '../model/access';
+import { ApiKey, MintedApiKey, NewApiKey, OAuthGrant } from '../model/access';
 import { TableAction } from '../model/appdata';
 import { BackendService } from './rest_service';
 import { RestURL } from './rest_url';
@@ -12,9 +12,8 @@ export class AccessService extends BackendService {
     return this.list<ApiKey>('api_key', undefined, { orderBy: 'created_at desc' });
   }
 
-  mintApiKey(keyName: string, scopes: string[], allowedCidrs: string): Observable<MintedApiKey> {
-    return this.apiKeyAction<MintedApiKey>('generate',
-      { key_name: keyName, scopes: scopes.join(','), allowed_cidrs: allowedCidrs });
+  mintApiKey(key: NewApiKey): Observable<MintedApiKey> {
+    return this.apiKeyAction<MintedApiKey>('generate', key);
   }
 
   restrictApiKey(id: number, allowedCidrs: string): Observable<void> {

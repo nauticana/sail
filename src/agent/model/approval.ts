@@ -1,6 +1,6 @@
 import { PrincipalRef } from './decision';
 
-/** Scout approval desk and MCP confirmation inbox wire types (v1.2.13). Codes render through backend captions. */
+/** Scout approval desk and MCP confirmation inbox wire types (v1.2.14). Codes render through backend captions. */
 
 /** A approved, X rejected, E edited (tool-call proposals only, with revised arguments). */
 export type ApprovalVerdict = 'A' | 'X' | 'E';
@@ -46,6 +46,12 @@ export interface ApprovalResolveRequest {
 /** `mcp_confirmation_status`: P pending, A approved, R running, D executed, F failed, U unknown, X declined, W withdrawn, T expired. */
 export type ConfirmationStatus = 'P' | 'A' | 'R' | 'D' | 'F' | 'U' | 'X' | 'W' | 'T';
 
+/** A verified reconciliation outcome. */
+export type ReconcileOutcome = Extract<ConfirmationStatus, 'D' | 'F'>;
+
+/** Scout's bound on decision and reconciliation notes, in characters. */
+export const CONFIRMATION_NOTE_MAX = 500;
+
 export interface ConfirmationKey {
   tenant_id: number;
   id: number;
@@ -53,8 +59,10 @@ export interface ConfirmationKey {
 
 /** One MCP tool call awaiting or past a person's confirmation; never its payload. */
 export interface Confirmation extends ConfirmationKey {
+  tenant_label?: string;
   maker: PrincipalRef;
   client_ref?: string;
+  client_label?: string;
   tool: string;
   payload_digest: string;
   /** The product's preview of the complete action. */

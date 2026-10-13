@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { BaseRestService } from '../../service/base_rest.service';
-import { ApprovalRequest, ApprovalResolveRequest, Confirmation, ConfirmationKey } from '../model/approval';
+import { ApprovalRequest, ApprovalResolveRequest, Confirmation, ConfirmationKey, ReconcileOutcome } from '../model/approval';
 
 const base = '/api/approval/';
 
@@ -31,8 +31,8 @@ export class ApprovalService extends BaseRestService {
     return this.http.post<ConfirmationKey>(this.url(base + 'confirmation/withdraw'), key);
   }
 
-  /** Records the verified outcome of an unknown confirmation: D executed or F failed. */
-  reconcileConfirmation(key: ConfirmationKey, outcome: 'D' | 'F', note = ''): Observable<Confirmation> {
+  /** Records the verified outcome of an unknown confirmation; the note is required. */
+  reconcileConfirmation(key: ConfirmationKey, outcome: ReconcileOutcome, note: string): Observable<Confirmation> {
     return this.http.post<Confirmation>(this.url(base + 'confirmation/reconcile'), { ...key, outcome, note });
   }
 }

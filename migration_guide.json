@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.36",
+   "title": "Approval inbox parity, labels, API key expiry and turn thread fallbacks",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.113 and Scout v1.2.14: the approval inbox groups, previews, labels and confirms; activity shows labels; API keys take an expiry; the turn thread has fallbacks and a typed template context.",
+   "body_markdown": "Requires keel v1.2.113; the agent entry point requires Scout v1.2.14.\n\n### Breaking\n\n- `<sail-assistant-activity [who]>` is removed; set Scout's `Labeler` on `StudioDecisionsHandler.Labels` to name principals and apps.\n- `AccessService.mintApiKey(keyName, scopes, allowedCidrs)` becomes `mintApiKey(NewApiKey)` (keel's `generate` request, with `expires_at`).\n- `ApprovalService.reconcileConfirmation` requires its note and takes a `ReconcileOutcome`.\n- `AgentSummary.readiness` and `AGENT_READINESS_CAPTIONS` are typed by the new `AgentReadiness` union.\n\n### Additive\n\n- `PrincipalRef.label`, `DecisionRecord.client_label`, `Confirmation.tenant_label` and `client_label`, and `principalName(ref)`.\n- `<sail-approval-inbox>`: `[open]` (an item key or a linked confirmation id), sections (`groupInbox`), `<ng-template sailApprovalPreview=\"tool\" let-c>` (`\"*\"` for any tool), `CONFIRMATION_NOTE_MAX`.\n- `<sail-turn-thread>`: `[failedText]`, `sailTurnResult=\"*\"`, and `TurnResultContext` typing `let-turn`.\n- `<sail-api-keys>`: an expiry field and column; `[scopes]` is optional, and without a selection keel's `ScopePolicy` supplies the scopes.\n- `httpStatus(err)`.\n\n### Behavioral\n\n- The inbox loads approvals and confirmations independently; a list answering `404` stays empty. Approving or confirming asks once more, reconciling requires a note, 403 and 404 have their own messages, a 404 reloads the list, and focus moves to the decision after an action.\n\nUpgrade the backend libraries, set the Scout `Labeler` on the approval and Studio decisions handlers, and replace `[who]` and `mintApiKey` call sites."
+  },
+  {
    "version": "v1.1.35",
    "title": "Minor-unit money, API keys, connected apps, assistant activity, turn thread and Studio guardrails",
    "tags": [

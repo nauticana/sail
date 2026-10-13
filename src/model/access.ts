@@ -12,6 +12,15 @@ export interface ApiKey {
   AllowedCidrs?: string;   // CSV of networks; absent allows any address
 }
 
+/** keel `api_key/generate` request; blank scopes are the product `ScopePolicy`'s to supply. */
+export type NewApiKey = {
+  key_name:      string;
+  scopes:        string;   // CSV
+  allowed_cidrs: string;
+  /** RFC 3339; absent never expires. */
+  expires_at?:   string;
+};
+
 /** keel `api_key/generate` reply: the plaintext is shown once and never stored. */
 export interface MintedApiKey {
   api_key:    string;

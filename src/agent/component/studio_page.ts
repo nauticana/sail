@@ -13,7 +13,7 @@ import { BaseAuthService } from '../../service/auth.service';
 import { CaptionPipe } from '../../service/caption_pipe';
 import { LabelOption, LabelService } from '../../service/label.service';
 import {
-  AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentDraft, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
+  AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentReadiness, AgentDraft, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
   AgentModelSelection, AgentRelease, AgentSetting, AgentSettings, AgentSummary, AgentTestResult, GuardrailRule,
   SafetyEvent, StudioFeature, StudioModel,
 } from '../model/agent_studio';
@@ -127,7 +127,7 @@ export class StudioPageComponent implements OnInit {
     return this.features().find((f) => f.id === id);
   }
 
-  readinessCaption(code: string): string {
+  readinessCaption(code: AgentReadiness): string {
     return AGENT_READINESS_CAPTIONS[code] ?? code;
   }
 

@@ -2,6 +2,7 @@ import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { filter, finalize, map, mergeMap, shareReplay, take, tap } from 'rxjs/operators';
 import { PasswordRules } from '../util/password_policy';
+import { httpStatus } from '../util/errors';
 import { ActiveSession, ApplicationData, ConfirmRegisterResponse, DictionaryPath, LoginResponse2FA, PartnerCreated, PartnerRegistration, PartnerSetup, RestReport, TableDefinition, TokenPair, TrustedDevice, TwoFactorSetupResponse, TwoFactorVerifyRequest, TwoFactorVerifyResponse } from '../model/appdata';
 import {
   LoginResponseSocial,
@@ -289,7 +290,7 @@ export abstract class BaseAuthService extends BaseRestService {
       },
       error: (err: unknown) => {
         console.error('Session handoff failed:', err);
-        this.sessionHandoffError.set(handoffErrorMessage((err as { status?: number } | null)?.status));
+        this.sessionHandoffError.set(handoffErrorMessage(httpStatus(err)));
       },
     });
   }

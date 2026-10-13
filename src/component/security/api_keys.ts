@@ -11,9 +11,9 @@ import { LabelOption } from '../../service/label.service';
 import { BaseAsync } from '../abstract/base_async';
 
 /**
- * The partner's API keys: mint one with scopes and allowed networks (the plaintext shows once),
- * restrict its networks later, or revoke it. The app passes the scopes it offers; keel's
- * `ScopePolicy` still decides. Selector: <sail-api-keys>.
+ * The partner's API keys: mint one with scopes, allowed networks and an optional expiry (the
+ * plaintext shows once), restrict its networks later, or revoke it. The app passes the scopes it
+ * offers; keel's `ScopePolicy` decides and may supply them. Selector: <sail-api-keys>.
  */
 @Component({
   selector: 'sail-api-keys',
@@ -27,7 +27,7 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   private readonly fb = inject(FormBuilder).nonNullable;
 
   /** Scopes offered for a new key, as code and caption. */
-  readonly scopes = input.required<LabelOption[]>();
+  readonly scopes = input<LabelOption[]>([]);
 
   readonly canGenerate = this.access.canApiKeyAction('generate');
   readonly canRestrict = this.access.canApiKeyAction('restrict');
@@ -39,7 +39,8 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   readonly form = this.fb.group({
     keyName:      ['', [Validators.required, Validators.maxLength(100)]],
     allowedCidrs: ['', Validators.maxLength(2000)],
-    scopes:       [[] as string[], Validators.required],
+    scopes:       [[] as string[]],
+    expiresAt:    [''],
   });
   readonly networks = this.fb.control('', Validators.maxLength(2000));
 
@@ -58,8 +59,13 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
 
   mint(): void {
     if (this.form.invalid) return;
-    const { keyName, scopes, allowedCidrs } = this.form.getRawValue();
-    this.run(this.access.mintApiKey(keyName, scopes, allowedCidrs), (key) => {
+    const { keyName, scopes, allowedCidrs, expiresAt } = this.form.getRawValue();
+    this.run(this.access.mintApiKey({
+      key_name: keyName,
+      scopes: scopes.join(','),
+      allowed_cidrs: allowedCidrs,
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+    }), (key) => {
       this.minted.set(key);
       this.form.reset();
       this.load();

@@ -67,7 +67,10 @@ export interface ConversationTurnPage {
   next_before?: string;
 }
 
-/** Where the app mounts Scout's ConversationHandler, e.g. '/api/wingmate/'. */
+/**
+ * Where the app mounts Scout's ConversationHandler, e.g. '/api/wingmate/'. `ConversationService` is a
+ * root singleton: provide this at bootstrap, or provide both together on a component.
+ */
 export const CONVERSATION_BASE_PATH = new InjectionToken<string>('SailConversationBasePath', {
   providedIn: 'root',
   factory: () => '/api/conversation/',

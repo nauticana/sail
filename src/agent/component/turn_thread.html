@@ -10,8 +10,8 @@
         @if (turn.cost_minor !== undefined && turn.currency && turn.exponent !== undefined) { · {{ turn.cost_minor | sailMoney:turn.currency:turn.exponent }} }
         @if (turn.release_version) { · {{ turn.agent_name }} v{{ turn.release_version }} }
       </p>
-      @if (turn.status === 'F' && turn.error_text) {
-        <p class="turn-thread__error" role="alert">{{ turn.error_text }}</p>
+      @if (turn.status === 'F') {
+        <p class="turn-thread__error" role="alert">{{ turn.error_text || failedText() }}</p>
       }
       @if (resultTemplate(turn.task_kind); as template) {
         <ng-container [ngTemplateOutlet]="template" [ngTemplateOutletContext]="{ $implicit: turn }" />

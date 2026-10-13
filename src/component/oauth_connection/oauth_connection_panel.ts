@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { OAuthConnectionService } from '../../service/oauth_connection.service';
+import { httpStatus } from '../../util/errors';
 import { OAuthConnectionStatus, OAuthConnectionView, PartnerCredential, OAuthProviderDescriptor, OAuthProviderFieldRole } from '../../model/oauth_connection';
 
 /**
@@ -90,7 +91,7 @@ export class OAuthConnectionPanelComponent implements OnInit {
   }
 
   private completeMsg(e: unknown): string {
-    const status = (e as { status?: number })?.status;
+    const status = httpStatus(e);
     if (status === 403) return 'This connection was started by another user — start again from this account.';
     if (status === 400) return 'The connection link expired — start again.';
     return this.msg(e, 'Could not complete the connection.');

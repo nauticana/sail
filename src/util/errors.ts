@@ -21,7 +21,8 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
 }
 
-function statusOf(err: unknown): number | undefined {
+/** The HTTP status of any sail error shape; undefined when it carries none. */
+export function httpStatus(err: unknown): number | undefined {
   if (!err || typeof err !== 'object') return undefined;
   const s = (err as { status?: unknown }).status;
   return typeof s === 'number' ? s : undefined;
@@ -34,12 +35,12 @@ function statusOf(err: unknown): number | undefined {
  * available. Use it to offer a retry rather than reporting a backend rejection.
  */
 export function isTransportFailure(err: unknown): boolean {
-  return statusOf(err) === 0;
+  return httpStatus(err) === 0;
 }
 
 /** True for keel's 403: the session is valid but lacks the grant for this action. */
 export function isPermissionDenied(err: unknown): boolean {
-  return statusOf(err) === 403;
+  return httpStatus(err) === 403;
 }
 
 /**
@@ -55,7 +56,7 @@ export function isPermissionDenied(err: unknown): boolean {
  * exposing their response text.
  */
 export function errorDetail(err: unknown, fallback: string, statuses?: readonly number[]): string {
-  const status = statusOf(err);
+  const status = httpStatus(err);
   if (statuses && status !== undefined && !statuses.includes(status)) {
     return fallback;
   }
