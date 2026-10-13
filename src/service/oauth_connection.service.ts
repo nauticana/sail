@@ -8,8 +8,8 @@ import { PartnerCredential } from '../model/oauth_connection';
 /**
  * OAuthConnectionService — frontend client for keel oauth/connect.
  *
- * OAuth flow endpoints live under /api/oauth/*; the stored connection rows are
- * read/removed through the generic REST `partner_credential` API. entityId (0 =
+ * Flow and write endpoints live under /api/oauth/*; stored connection rows are
+ * listed through the generic REST `partner_credential` API. entityId (0 =
  * tenant-wide, >0 = a specific business) scopes per-entity connections.
  */
 @Injectable({ providedIn: 'root' })
@@ -49,9 +49,9 @@ export class OAuthConnectionService extends BaseRestService {
     return this.backend.list<PartnerCredential>(this.crudApi, { EntityId: String(entityId) });
   }
 
-  /** Remove a stored connection by id. */
-  disconnect(id: number): Observable<{ message: string }> {
-    return this.backend.delete(this.crudApi, { Id: String(id) });
+  /** Remove the partner's connection to a provider in one entity scope. */
+  disconnect(provider: string, entityId = 0): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(this.url('/api/oauth/disconnect'), { provider, entity_id: entityId });
   }
 
   /** Save an API-key connection (sealed server-side by the connect handler). */

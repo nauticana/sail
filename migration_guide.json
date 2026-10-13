@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.40",
+   "title": "Disconnect through the connect route",
+   "tags": [
+    "breaking"
+   ],
+   "summary": "OAuthConnectionService.disconnect posts to keel's connect disconnect route instead of deleting the partner_credential row.",
+   "body_markdown": "Requires keel v1.2.115 (unchanged from v1.1.39).\n\n### Breaking\n\n- `OAuthConnectionService.disconnect(id)` becomes `disconnect(provider, entityId = 0)` and posts `POST /api/oauth/disconnect`, so keel's `DisconnectConnection` runs and announces the change. `<sail-oauth-connection-panel>` uses it; the role no longer needs a generic `DELETE` grant on `partner_credential` for it."
+  },
+  {
    "version": "v1.1.39",
    "title": "Billing captions, provider-managed subscriptions, OAuth-only connection test",
    "tags": [

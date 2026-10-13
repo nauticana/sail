@@ -245,9 +245,9 @@ export class OAuthConnectionPanelComponent implements OnInit {
   }
 
   disconnect(v: OAuthConnectionView): void {
-    if (!v.connection?.Id) return;
+    if (!v.connection) return;
     this.busy.set(v.provider.code);
-    this.svc.disconnect(v.connection.Id).subscribe({
+    this.svc.disconnect(v.provider.code, this.entityId()).subscribe({
       next: () => {
         this.busy.set('');
         this.disconnected.emit(v.provider.code);
