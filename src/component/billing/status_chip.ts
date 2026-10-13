@@ -5,8 +5,7 @@ import { BaseAuthService } from '../../service/auth.service';
 /**
  * Status chip/label that resolves a code to its caption from the client cache
  * `constant_value` dictionary — no per-app `@switch`. Defaults to the
- * `SUBSCRIPTION_STATUS` domain (A active / T trialing / X past-due / …) but
- * works for any constant domain via `[domain]`.
+ * `subscription_status` domain but works for any constant domain via `[domain]`.
  *
  * The caption is backend-authoritative (read from the dictionary); when the
  * domain row is absent the raw code is shown rather than a fabricated label.
@@ -25,7 +24,7 @@ export class StatusChipComponent {
   /** The code to resolve (e.g. a Subscription.status value). */
   readonly value = input<string>('');
   /** Constant-value domain to look the caption up in. */
-  readonly domain = input<string>('SUBSCRIPTION_STATUS');
+  readonly domain = input<string>('subscription_status');
 
   // Recompute when the cache (app data) loads or the inputs change.
   private readonly appData = toSignal(this.auth.getAppData());

@@ -22,6 +22,8 @@ export class PortalButtonComponent extends BaseAsync {
   private readonly billing = inject(BillingService);
 
   readonly label = input('Manage billing');
+  /** Subscription.providerManaged; the button hides when false. */
+  readonly providerManaged = input(true);
 
   openPortal(): void {
     this.run(

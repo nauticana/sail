@@ -35,7 +35,9 @@
               Connect
             </button>
           } @else {
-            <button matButton [disabled]="busy() === v.provider.code" (click)="test(v)">Test</button>
+            @if (v.provider.authType === 'oauth') {
+              <button matButton [disabled]="busy() === v.provider.code" (click)="test(v)">Test</button>
+            }
             <button matButton [disabled]="busy() === v.provider.code" (click)="connect(v)">Reconnect</button>
             <button matButton [disabled]="busy() === v.provider.code" (click)="disconnect(v)">Disconnect</button>
           }

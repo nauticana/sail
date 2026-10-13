@@ -4,6 +4,7 @@ import { UsageMeter } from '../../model/appdata';
 /** Per-row view model derived from a UsageMeter for accessible rendering. */
 interface UsageRow {
   resource:  string;
+  caption:   string;
   hasBar:    boolean;   // limit > 0 → determinate progress bar; else text-only
   percent:   number;    // fill width 0..100 (clamped)
   ariaMax:   number;    // limit (only meaningful when hasBar)
@@ -33,6 +34,7 @@ export class UsageMeterComponent {
       const hasBar = m.limit > 0;
       return {
         resource:  m.resource,
+        caption:   m.caption || m.resource,
         hasBar,
         percent:   hasBar ? Math.min(100, Math.max(0, Math.round((m.used / m.limit) * 100))) : 0,
         ariaMax:   m.limit,

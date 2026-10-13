@@ -344,6 +344,7 @@ export interface PortalResponse {
 /** One resource's current-period usage vs its plan limit (matches keel UsageItem). */
 export interface UsageMeter {
 	resource: string;
+	caption:  string;
 	used:     number;
 	limit:    number;
 }
@@ -390,7 +391,7 @@ export interface PageRequest {
 export interface Subscription {
 	planId:           string;
 	caption?:         string;  // plan display name
-	status:           string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via SUBSCRIPTION_STATUS dict
+	status:           string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via subscription_status
 	begda:            string;
 	endda?:           string;
 	installmentMinor: number;
@@ -403,6 +404,8 @@ export interface Subscription {
 	trialEnd?:        string;
 	// Seat quantity on the active/trial sub; absent for non-seat plans. Drives `<sail-seat-selector>`.
 	seats?:           number;
+	// False when the provider holds no subscription or customer: hide provider actions (portal, cancel, plan change).
+	providerManaged:  boolean;
 }
 
 // Mirrors keel `billing.Invoice`; `status` is keel's one-character invoice status code.

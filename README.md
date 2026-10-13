@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.39 adopts keel v1.2.115 (usage captions, provider-managed subscriptions), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -598,12 +598,14 @@ Add to `src/styles.css` to match the rest of the library:
 `createPortalSession()` + `<sail-portal-button>` mirror checkout — POST `/api/billing/portal`, then redirect to the provider-hosted customer portal where the partner manages their payment method / subscription:
 
 ```html
-<sail-portal-button [label]="'Manage billing'"></sail-portal-button>
+<sail-portal-button [label]="'Manage billing'" [providerManaged]="sub()?.providerManaged ?? true" />
 ```
+
+`Subscription.providerManaged` is false for a subscription the provider does not hold (no provider subscription or customer); the button then hides. Gate an app's cancel and plan-change actions on it too.
 
 ### Usage meters (v1.0.0)
 
-`listUsage()` returns `UsageMeter[]` (`{ resource, used, limit }`, matching keel's `UsageItem`); `<sail-usage-meter>` renders one progress bar per resource (a `limit < 0` shows "Unlimited"):
+`listUsage()` returns `UsageMeter[]` (`{ resource, caption, used, limit }`, matching keel's `UsageItem`); `<sail-usage-meter>` renders one progress bar per resource labelled by `caption` (a `limit < 0` shows "Unlimited"):
 
 ```typescript
 readonly meters = toSignal(this.billing.listUsage(), { initialValue: [] });
@@ -624,11 +626,11 @@ An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dial
 
 ### Status chip (v1.0.1)
 
-`<sail-status-chip>` resolves a code to its caption from the client-cache `constant_value` dictionary — no per-app `@switch`. It defaults to the `SUBSCRIPTION_STATUS` domain (so `T` trialing / `X` past-due render with no app code) and works for any constant domain via `[domain]`. The code is exposed as `[attr.data-status]` so the app can colour the chip:
+`<sail-status-chip>` resolves a code to its caption from the client-cache `constant_value` dictionary — no per-app `@switch`. It defaults to the `subscription_status` domain (so `T` trialing / `X` past-due render with no app code) and works for any constant domain via `[domain]`. The code is exposed as `[attr.data-status]` so the app can colour the chip:
 
 ```html
 <sail-status-chip [value]="sub()?.status"></sail-status-chip>
-<sail-status-chip [value]="invoice.status" domain="INVOICE_STATUS"></sail-status-chip>
+<sail-status-chip [value]="client.status" domain="agency_client_status"></sail-status-chip>
 ```
 
 > Replaces a downstream app's hardcoded status `@switch` (e.g. seo's): captions are backend-authoritative — when a dictionary row is absent the raw code shows, never a fabricated label.
@@ -666,7 +668,7 @@ onPlanPicked(planId: string) {
 `<sail-dunning-banner>` shows only when `Subscription.status === 'X'` (past-due / keel `SetDunningState`), prompting the partner to update their card and deep-linking to the provider portal via an embedded `<sail-portal-button>`:
 
 ```html
-<sail-dunning-banner [status]="sub()?.status"></sail-dunning-banner>
+<sail-dunning-banner [status]="sub()?.status" [providerManaged]="sub()?.providerManaged ?? true"></sail-dunning-banner>
 ```
 
 ### Compose a full Billing screen
@@ -683,7 +685,7 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 <sail-checkout-button [priceId]="offer()!.priceId!" [quantity]="seats()" [successUrl]="okUrl" [cancelUrl]="backUrl"></sail-checkout-button>
 <sail-usage-meter [meters]="usage()"></sail-usage-meter>
 <sail-payment-methods></sail-payment-methods>
-<sail-portal-button></sail-portal-button>
+<sail-portal-button [providerManaged]="sub()?.providerManaged ?? true" />
 <!-- invoices: render listInvoices() rows directly -->
 ```
 
@@ -1252,7 +1254,8 @@ then test / disconnect. Presentational and CSS-free; the app owns the provider
 catalog and any routing via the outputs.
 
 - **`OAuthConnectionPanelComponent`** (`sail-oauth-connection-panel`) — renders a card per
-  `[providers]: OAuthProviderDescriptor[]` with connect / test / reconnect / disconnect.
+  `[providers]: OAuthProviderDescriptor[]` with connect / reconnect / disconnect, plus test for `authType: 'oauth'`
+  (keel serves no test route for an API key).
   Providers with `fields` or a `connectNote` open an inline form/consent step first (API-key
   credentials, a Shopify `shop`, or a "you'll be redirected to…" note); a bare field-less OAuth
   provider redirects straight to consent. `[entityId]` scopes per-business connections and

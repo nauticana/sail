@@ -17,6 +17,8 @@ import { PortalButtonComponent } from './portal_button';
 export class DunningBannerComponent {
   /** Subscription.status — the banner shows when this is 'X' (past-due). */
   readonly status = input<string | undefined>(undefined);
+  /** Subscription.providerManaged; the portal button hides when false. */
+  readonly providerManaged = input(true);
   readonly message = input('Your payment is past due — please update your card to keep your subscription active.');
 
   readonly isPastDue = computed(() => this.status() === 'X');

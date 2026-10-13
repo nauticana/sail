@@ -12,7 +12,8 @@ import { OAuthConnectionStatus, OAuthConnectionView, PartnerCredential, OAuthPro
 
 /**
  * ConnectionPanel — drop-in UI for keel oauth/connect. Renders a card per
- * app-supplied OAuthProviderDescriptor with connect / disconnect / test. Providers
+ * app-supplied OAuthProviderDescriptor with connect / disconnect, and test for
+ * OAuth providers (keel serves no test route for an API key). Providers
  * that need inputs (API-key credentials, Shopify's shop) open an inline form;
  * field-less OAuth providers redirect on one click. Ships no CSS — style the
  * documented `.connection-*` hooks. `entityId` scopes per-business connections

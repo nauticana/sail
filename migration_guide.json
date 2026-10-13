@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.39",
+   "title": "Billing captions, provider-managed subscriptions, OAuth-only connection test",
+   "tags": [
+    "breaking",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.115: usage meters show the resource caption, provider actions hide for a subscription the provider does not manage, and the status chip reads the seeded subscription_status domain.",
+   "body_markdown": "Requires keel v1.2.115.\n\n### Breaking\n\n- `UsageMeter.caption` and `Subscription.providerManaged` are required; build fixtures with them.\n\n### Behavioral\n\n- `<sail-status-chip>` defaults `domain` to `subscription_status` (was `SUBSCRIPTION_STATUS`, which matched no seeded domain and rendered the code).\n- `<sail-usage-meter>` labels a meter by `caption`, falling back to `resource`.\n- `<sail-portal-button>` and `<sail-dunning-banner>` take `[providerManaged]` (default `true`); pass `Subscription.providerManaged` to hide the portal button for a subscription the provider does not hold. Gate app cancel and plan-change actions the same way.\n- `<sail-oauth-connection-panel>` shows **Test** only for `authType: 'oauth'`; keel serves no test route for an API-key connection."
+  },
+  {
    "version": "v1.1.38",
    "title": "Addressable conversation agents",
    "tags": [
