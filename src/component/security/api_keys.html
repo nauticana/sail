@@ -22,10 +22,10 @@
         <mat-label>Expires (optional)</mat-label>
         <input matInput type="datetime-local" formControlName="expiresAt">
       </mat-form-field>
-      @if (scopes().length) {
+      @if (offered().length) {
         <fieldset class="api-keys__scopes">
           <legend>Scopes</legend>
-          @for (scope of scopes(); track scope.code) {
+          @for (scope of offered(); track scope.code) {
             <mat-checkbox [checked]="form.controls.scopes.value.includes(scope.code)"
               (change)="toggleScope(scope.code, $event.checked)">{{ scope.caption }}</mat-checkbox>
           }

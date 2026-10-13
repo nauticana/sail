@@ -1,4 +1,4 @@
-/** Agent Studio wire types (Scout v1.2.7). Field names are the backend's JSON names. */
+/** Agent Studio wire types (Scout v1.2.16). Field names are the backend's JSON names. */
 
 /** R replace, A append, I intersect (non-prompt settings only). */
 export type AgentMergeMode = 'R' | 'A' | 'I';
@@ -333,6 +333,8 @@ export interface GuardrailRule {
   action: string;
   severity: string;
   params?: unknown;
+  /** Why the rule exists; a blocked answer names it. */
+  reason?: string;
 }
 
 /** Rules an agent inherits from one layer: B baseline, P platform, T tenant, Y type. */

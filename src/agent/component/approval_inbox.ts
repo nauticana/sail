@@ -49,8 +49,8 @@ const actionErrors: Record<number, string> = {
 /**
  * The signed-in person's pending approvals and MCP confirmations, grouped as waiting, submitted,
  * needing reconciliation and recent, with a decision view: approve, reject, or edit a tool call's
- * arguments; confirm, decline, withdraw, or reconcile a confirmation. Approving asks once more, and
- * reconciling requires a note. A list the backend does not serve (404) stays empty.
+ * arguments; confirm, decline, withdraw, or reconcile a confirmation. Approving and withdrawing ask
+ * once more, and reconciling requires a note. A list the backend does not serve (404) stays empty.
  * Selector: <sail-approval-inbox>.
  */
 @Component({
@@ -69,6 +69,12 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
 
   /** The item to open first: an approval or confirmation key, or a confirmation id from a link. */
   readonly open = input('');
+  /** How a confirmation reads in the list and as its heading. */
+  readonly summary = input<(c: Confirmation) => string>((c) => c.tool);
+  /** Days back a closed confirmation may have been created and still list; open ones always list. */
+  readonly historyDays = input(30);
+  /** Most confirmations listed, newest first. */
+  readonly limit = input(200);
 
   readonly decided = output<ApprovalRequest>();
   readonly confirmationChanged = output<Confirmation>();
@@ -81,8 +87,8 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   readonly selectedKey = signal('');
   readonly reason = signal('');
   readonly revisedArguments = signal('');
-  /** The approve step awaits its second click. */
-  readonly confirming = signal(false);
+  /** The step awaiting its second click. */
+  readonly confirming = signal<'' | 'approve' | 'withdraw'>('');
   readonly selected = computed(() => this.requests().find((r) => this.key(r) === this.selectedKey()));
   readonly selectedConfirmation = computed(() => this.confirmations().find((c) => this.confirmationKey(c) === this.selectedKey()));
 
@@ -93,7 +99,8 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   load(): void {
     this.run(forkJoin([
       this.listed(this.approvals.pending(), this.requests(), 'Failed to load approvals.'),
-      this.listed(this.approvals.confirmations(), this.confirmations(), 'Failed to load confirmations.'),
+      this.listed(this.approvals.confirmations(new Date(Date.now() - this.historyDays() * 86_400_000).toISOString(), this.limit()),
+        this.confirmations(), 'Failed to load confirmations.'),
     ]), ([requests, confirmations]) => {
       this.requests.set(requests);
       this.confirmations.set(confirmations);
@@ -121,16 +128,16 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
     this.selectedKey.set(key);
     this.reason.set('');
     this.revisedArguments.set('');
-    this.confirming.set(false);
+    this.confirming.set('');
   }
 
-  askApprove(): void {
-    this.confirming.set(true);
+  ask(step: 'approve' | 'withdraw'): void {
+    this.confirming.set(step);
     this.focus(this.yes);
   }
 
-  cancelApprove(): void {
-    this.confirming.set(false);
+  cancelAsk(): void {
+    this.confirming.set('');
     this.focus(this.heading);
   }
 
@@ -174,7 +181,7 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
 
   withdraw(): void {
     const c = this.selectedConfirmation();
-    if (!c || !window.confirm('Withdraw this confirmation?')) return;
+    if (!c) return;
     this.act(this.approvals.withdrawConfirmation(c), () => {
       this.load();
       return 'Withdrawn; nothing will be done.';
@@ -207,7 +214,7 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   private act<T>(request: Observable<T>, done: (result: T) => string): void {
     this.run(request, (result) => {
       this.reason.set('');
-      this.confirming.set(false);
+      this.confirming.set('');
       this.successMessage.set(done(result));
       this.focus(this.heading);
     }, 'Failed to record the decision.', (err) => {

@@ -18,9 +18,9 @@ export class ApprovalService extends BaseRestService {
     return this.http.post<ApprovalRequest>(this.url(base + 'resolve'), request);
   }
 
-  /** Open confirmations and those created since `since` (RFC 3339), across the person's tenants. */
-  confirmations(since = ''): Observable<Confirmation[]> {
-    return this.http.get<Confirmation[]>(this.url(base + 'confirmations'), { params: since ? { since } : {} });
+  /** Lists open confirmations plus those since the RFC 3339 time; zero limit takes Scout's batch. */
+  confirmations(since = '', limit = 0): Observable<Confirmation[]> {
+    return this.http.get<Confirmation[]>(this.url(base + 'confirmations'), { params: { since, limit } });
   }
 
   decideConfirmation(key: ConfirmationKey, approve: boolean, note = ''): Observable<Confirmation> {

@@ -1,6 +1,6 @@
 import { PrincipalRef } from './decision';
 
-/** Scout approval desk and MCP confirmation inbox wire types (v1.2.14). Codes render through backend captions. */
+/** Scout approval desk and MCP confirmation inbox wire types (v1.2.16). Codes render through backend captions. */
 
 /** A approved, X rejected, E edited (tool-call proposals only, with revised arguments). */
 export type ApprovalVerdict = 'A' | 'X' | 'E';

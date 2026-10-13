@@ -19,7 +19,7 @@
             <li>
               <button type="button" class="approval-inbox__item" [class.selected]="confirmationKey(c) === selectedKey()"
                 [attr.aria-current]="confirmationKey(c) === selectedKey()" (click)="select(confirmationKey(c))">
-                <span class="approval-inbox__summary">{{ c.tool }} · {{ c.status | sailCaption:'mcp_confirmation_status' }}</span>
+                <span class="approval-inbox__summary">{{ summary()(c) }} · {{ c.status | sailCaption:'mcp_confirmation_status' }}</span>
                 @if (c.status === 'P') {
                   <span class="approval-inbox__deadline">Expires {{ c.expires_at | date: 'medium' }}</span>
                 }
@@ -68,9 +68,9 @@
         @if (confirming()) {
           <span>Approve this action? It runs exactly as shown.</span>
           <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="decide('A')">Yes, approve</button>
-          <button matButton type="button" [disabled]="loading()" (click)="cancelApprove()">Cancel</button>
+          <button matButton type="button" [disabled]="loading()" (click)="cancelAsk()">Cancel</button>
         } @else {
-          <button matButton="filled" type="button" [disabled]="loading()" (click)="askApprove()">Approve</button>
+          <button matButton="filled" type="button" [disabled]="loading()" (click)="ask('approve')">Approve</button>
           <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
           <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
         }
@@ -80,7 +80,7 @@
 
   @if (selectedConfirmation(); as c) {
     <section class="approval-inbox__decision" aria-label="Confirmation">
-      <h3 #heading tabindex="-1">{{ c.tool }}</h3>
+      <h3 #heading tabindex="-1">{{ summary()(c) }}</h3>
       <dl>
         <dt>Workspace</dt><dd>{{ c.tenant_label || c.tenant_id }}</dd>
         <dt>Status</dt><dd>{{ c.status | sailCaption:'mcp_confirmation_status' }}@if (c.expired) { (expired) }</dd>
@@ -106,18 +106,22 @@
         </mat-form-field>
       }
       <div class="approval-inbox__actions" role="group" aria-label="Decide">
-        @if (c.can_decide) {
-          @if (confirming()) {
-            <span>Confirm this action? It runs exactly as shown.</span>
-            <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="confirm(true)">Yes, confirm</button>
-            <button matButton type="button" [disabled]="loading()" (click)="cancelApprove()">Cancel</button>
-          } @else {
-            <button matButton="filled" type="button" [disabled]="loading()" (click)="askApprove()">Confirm</button>
+        @if (c.can_decide && confirming() === 'approve') {
+          <span>Confirm this action? It runs exactly as shown.</span>
+          <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="confirm(true)">Yes, confirm</button>
+          <button matButton type="button" [disabled]="loading()" (click)="cancelAsk()">Cancel</button>
+        } @else if (c.can_withdraw && confirming() === 'withdraw') {
+          <span>Withdraw this confirmation? Nothing will be done.</span>
+          <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="withdraw()">Yes, withdraw</button>
+          <button matButton type="button" [disabled]="loading()" (click)="cancelAsk()">Cancel</button>
+        } @else {
+          @if (c.can_decide) {
+            <button matButton="filled" type="button" [disabled]="loading()" (click)="ask('approve')">Confirm</button>
             <button matButton type="button" class="warn" [disabled]="loading()" (click)="confirm(false)">Decline</button>
           }
-        }
-        @if (c.can_withdraw) {
-          <button matButton type="button" [disabled]="loading()" (click)="withdraw()">Withdraw</button>
+          @if (c.can_withdraw) {
+            <button matButton type="button" [disabled]="loading()" (click)="ask('withdraw')">Withdraw</button>
+          }
         }
         @if (c.can_reconcile) {
           <button matButton type="button" [disabled]="loading() || !reason().trim()" (click)="reconcile('D')">Mark executed</button>

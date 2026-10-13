@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.1.37",
+   "title": "Approval inbox summary, withdraw step and history window; API key scope domains",
+   "tags": [
+    "breaking",
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.114 and Scout v1.2.16: the approval inbox names confirmations through a summary function, confirms withdrawal inline and bounds its history; API keys load scopes from constant domains.",
+   "body_markdown": "Requires keel v1.2.114; the agent entry point requires Scout v1.2.16.\n\n### Breaking\n\n- `ApprovalInboxComponent.confirming` holds the pending step (`''`, `'approve'`, `'withdraw'`); `askApprove()` and `cancelApprove()` become `ask(step)` and `cancelAsk()`.\n\n### Additive\n\n- `<sail-approval-inbox>`: `[summary]` (`(c: Confirmation) => string`, default the tool code) names a confirmation in the list and heading; `[historyDays]` (default 30) and `[limit]` (default 200) bound the confirmations listed.\n- `ApprovalService.confirmations(since, limit)`.\n- `<sail-api-keys [scopeDomains]>`: constant ids whose values are offered after `[scopes]`.\n- `GuardrailRule.reason`.\n\n### Behavioral\n\n- Withdrawing a confirmation asks inline instead of through `window.confirm`.\n- The inbox requests closed confirmations created within `historyDays`, at most `limit`, instead of Scout's whole default batch.\n\nReplace `[scopes]` built from `LabelService` with `[scopeDomains]`, and pass `[summary]` where a tool code is not readable."
+  },
+  {
    "version": "v1.1.36",
    "title": "Approval inbox parity, labels, API key expiry and turn thread fallbacks",
    "tags": [
