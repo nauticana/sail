@@ -9,6 +9,25 @@
  },
  "migrations": [
   {
+   "version": "v1.1.42",
+   "title": "Browser time zone on keel requests",
+   "tags": [
+    "behavioral"
+   ],
+   "summary": "Adopts keel v1.2.118: keel requests carry the browser time zone, and timestamps arrive as RFC 3339.",
+   "body_markdown": "Requires keel v1.2.118.\n\n### Behavioral\n\n- `authInterceptor` sends `X-Time-Zone` (the browser's IANA zone, read once per page load) on every keel `/api/` and `/public/` request, signed in or not; keel renders emails, notifications and exports in it. Other origins receive no sail headers.\n- keel v1.2.118 sends billing and device timestamps as RFC 3339 UTC; `<sail-scheduled-change-banner>` passes `scheduledAt` straight to the `date` pipe. Remove any app-side parser for the old `2026-11-12 00:00:00 +0000 UTC` layout."
+  },
+  {
+   "version": "v1.1.41",
+   "title": "Scheduled plan changes",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "Adopts keel v1.2.117: a subscription reports a scheduled change, changePlan returns its outcome, and a banner offers to keep the current plan.",
+   "body_markdown": "Requires keel v1.2.117.\n\n### Breaking\n\n- `BillingService.changePlan(planId)` returns `Observable<PlanChangeResult>` (`{ status: 'changed' | 'scheduled' }`) instead of `Observable<void>`. Re-selecting the current plan resumes renewal and clears a scheduled change.\n\n### Additive\n\n- `Subscription.scheduledPlanId?` and `scheduledAt?`: the plan that starts when the current one ends, and when.\n- `<sail-scheduled-change-banner [subscription] [plans] (kept)>` names the ending plan, its end date and the plan that follows, with a Keep my plan action. Replace an app-local notice with it."
+  },
+  {
    "version": "v1.1.40",
    "title": "Disconnect through the connect route",
    "tags": [

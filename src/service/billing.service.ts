@@ -7,6 +7,7 @@ import {
   CheckoutResponse,
   Invoice,
   PaymentMethod,
+  PlanChangeResult,
   PortalResponse,
   PublicPlan,
   SetupIntentResponse,
@@ -52,11 +53,12 @@ export class BillingService extends BaseRestService {
 
   /**
    * Upgrade / downgrade the current subscription to `planId` — distinct from
-   * first-time checkout. Routes to keel's `SubscriptionLifecycle.ChangePlan`
-   * (atomic close+open). 403 without PARTNER_PLAN_SUBSCRIPTION / CHANGE.
+   * first-time checkout. keel applies it now (`changed`) or at the period end
+   * (`scheduled`); the current plan resumes renewal. 403 without
+   * PARTNER_PLAN_SUBSCRIPTION / CHANGE.
    */
-  changePlan(planId: string): Observable<void> {
-    return this.http.post<void>(this.url(RestURL.changePlanURL), { planId });
+  changePlan(planId: string): Observable<PlanChangeResult> {
+    return this.http.post<PlanChangeResult>(this.url(RestURL.changePlanURL), { planId });
   }
 
   /** Set the seat quantity on the current active/trial subscription. */

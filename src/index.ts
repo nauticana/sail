@@ -67,6 +67,7 @@ export * from './component/billing/status_chip';
 export * from './component/billing/trial_banner';
 export * from './component/billing/seat_selector';
 export * from './component/billing/dunning_banner';
+export * from './component/billing/scheduled_change_banner';
 export * from './component/payout/provider_onboarding';
 export * from './component/payout/bank_info_form';
 export * from './component/agency/agency_status_banner';

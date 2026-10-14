@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpEvent, HttpEventType, HttpHandlerFn, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject, Injector } from '@angular/core';
 import { Observable, catchError, switchMap, tap, throwError } from 'rxjs';
-import { isKeelApiUrl } from './rest_url';
+import { isKeelApiUrl, isKeelUrl } from './rest_url';
 import { BaseAuthService, RefreshSupersededError } from './auth.service';
 
 // A 401 on an authed call first tries one refresh-token rotation (keel
@@ -24,6 +24,9 @@ const OPEN_KEY = 'keel_auth_circuit_until';
  *  real 401 and from a network failure (status 0). */
 export const AUTH_CIRCUIT_OPEN_CODE = 'sail_auth_circuit_open';
 
+// The browser's IANA zone, read once per page load; keel renders emails, notifications and exports in it.
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Resolved lazily per event to avoid a DI cycle (BaseAuthService → HttpClient
   // → interceptors) and so an open circuit clears the dead session even when it
@@ -31,6 +34,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const injector = inject(Injector);
   const auth = () => injector.get(BaseAuthService, null, { optional: true });
   const expireSession = () => auth()?.sessionExpired();
+
+  if (isKeelUrl(req.url)) {
+    req = req.clone({ setHeaders: { 'X-Time-Zone': TIME_ZONE } });
+  }
 
   const token = localStorage.getItem('jwt');
   const authedApi = !!token && isKeelApiUrl(req.url);

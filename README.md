@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -19,7 +19,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `SessionsComponent`, `ApiKeysComponent`, `ConnectedAppsComponent`, `AccountDeletionComponent` |
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
 | **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
-| **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
+| **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `ScheduledChangeBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
 | **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `StatTileComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
 | **Agency** | `AgencyClientsComponent`, `AgencyStatusBannerComponent`, `AgencyAcceptComponent`, `AgencyEarningsSummaryComponent`, `CommissionLedgerComponent`, `AgencyPayoutHistoryComponent`, `AgencyPayoutProfileComponent` |
@@ -29,7 +29,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Services** | `BaseAuthService` (OTP / social / push / deleteAccount / logoutEverywhere / profile: `getProfile`, `updateProfile`, `request`+`confirmEmailChange`, `request`+`confirmPhoneChange`), `BillingService`, `AgencyService`, `BackendService`, `PayoutService`, `UserPaymentMethodService`, `PartnerDocumentService`, `NotificationInboxService`, `loadScript()`, `authInterceptor`, `apiResponseInterceptor` |
 | **Abstracts** | `BaseTable`, `BaseForm`, `BaseView`, `AbstractEditableView`, `BaseAsync`, `BaseRestService` |
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
-| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `Currency`, `Country`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
+| **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `PlanChangeResult`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `Currency`, `Country`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
 | **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `CurrencyService`, `sailMoney` pipe |
 
@@ -152,6 +152,8 @@ bootstrapApplication(App, {
 ```
 
 > **Auth-loop breaker.** `authInterceptor` carries a built-in circuit breaker: after 5 `401`s on token-bearing keel API calls within 10s it opens for 30s and refuses those requests **locally** (never sent), so a stale/rejected session can't drive the app to hammer the API and the edge/CDN. Only `401` counts — a `403` is a legitimate permission denial, not a session failure. A later success **or accepting a new token** (login) closes it, so a freshly authenticated session is never blocked. No wiring needed beyond registering `authInterceptor`.
+
+> **Time zone.** `authInterceptor` also sends `X-Time-Zone` (the browser's IANA zone, read once per page load) on every keel `/api/` and `/public/` request, signed in or not, so keel renders emails, notifications and exports in the user's zone (keel v1.2.118). Timestamps in responses are RFC 3339 UTC; render them with the `date` pipe, without a zone argument.
 
 > **Phone-number change (opt-in).** `ProfileEditorComponent` and `MyAccountComponent` gate phone change behind a `phoneChangeEnabled` input (default `false`, since it needs an SMS provider — keel returns 503 without `Notify`). Enable it once your backend has SMS wired: `<sail-my-account [phoneChangeEnabled]="true" />` or `<sail-profile-editor [phoneChangeEnabled]="true" />`.
 
@@ -470,7 +472,7 @@ export class PricingPage {
 | `createCheckout(req)` | `POST /api/billing/checkout` | `Observable<CheckoutResponse>` |
 | `getSubscription()` | `GET /api/billing/subscription` | `Observable<Subscription>` |
 | `cancelSubscription()` | `POST /api/billing/subscription/cancel` | `Observable<void>` |
-| `changePlan(planId)` | `POST /api/billing/subscription/change` | `Observable<void>` |
+| `changePlan(planId)` | `POST /api/billing/subscription/change` | `Observable<PlanChangeResult>` |
 | `setSeats(seats)` | `POST /api/billing/subscription/seats` | `Observable<void>` |
 | `listInvoices()` | `GET /api/billing/invoices` | `Observable<Invoice[]>` |
 | `listPaymentMethods()` | `GET /api/billing/payment-methods` | `Observable<PaymentMethod[]>` |
@@ -653,7 +655,7 @@ An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dial
 
 ### Plan change vs first-time checkout (v1.0.1)
 
-First-time checkout uses `<sail-checkout-button>` (provider-hosted). For an **existing** subscription, upgrade/downgrade is a distinct path — `BillingService.changePlan(planId)` routes to keel's `SubscriptionLifecycle.ChangePlan` via an endpoint the app exposes. Wire the picker's selection to whichever path applies:
+First-time checkout uses `<sail-checkout-button>` (provider-hosted). For an **existing** subscription, upgrade/downgrade is a distinct path — `BillingService.changePlan(planId)` routes to keel's `SubscriptionLifecycle.ChangePlan` via an endpoint the app exposes and answers `{ status: 'changed' | 'scheduled' }`: a scheduled change sets `Subscription.scheduledAt` and `scheduledPlanId`, and re-selecting the current plan cancels it. Wire the picker's selection to whichever path applies:
 
 ```typescript
 onPlanPicked(planId: string) {
@@ -671,6 +673,14 @@ onPlanPicked(planId: string) {
 <sail-dunning-banner [status]="sub()?.status" [providerManaged]="sub()?.providerManaged ?? true"></sail-dunning-banner>
 ```
 
+### Scheduled change banner (v1.1.41)
+
+`<sail-scheduled-change-banner>` shows while `Subscription.scheduledAt` is set: the ending plan, its end date and the plan that follows (captioned from `[plans]`), with a **Keep my plan** button that re-selects the current plan and emits `kept`:
+
+```html
+<sail-scheduled-change-banner [subscription]="sub()" [plans]="plans()" (kept)="reload()" />
+```
+
 ### Compose a full Billing screen
 
 A complete screen is the pieces above assembled over `BillingService` — no metadata CRUD (billing data is partner-scoped, read-mostly, money-formatted, with an external-redirect action, which `TableList`/`TableEdit` don't model):
@@ -678,6 +688,7 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 ```html
 <sail-dunning-banner [status]="sub()?.status"></sail-dunning-banner>
 <sail-trial-banner [trialEnd]="sub()?.trialEnd"></sail-trial-banner>
+<sail-scheduled-change-banner [subscription]="sub()" [plans]="plans()" (kept)="reload()" />
 <sail-status-chip [value]="sub()?.status"></sail-status-chip>
 <sail-plan-selector [plans]="plans()" [selected]="sub()?.planId" (selectionChange)="onPlanPicked($event)"></sail-plan-selector>
 <sail-price-selector [prices]="selectedPlan()?.prices ?? []" [selected]="offer()?.priceId" (selectionChange)="offer.set($event)"></sail-price-selector>

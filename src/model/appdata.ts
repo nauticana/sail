@@ -406,6 +406,14 @@ export interface Subscription {
 	seats?:           number;
 	// False when the provider holds no subscription or customer: hide provider actions (portal, cancel, plan change).
 	providerManaged:  boolean;
+	// The plan that starts at scheduledAt, when this one ends; absent when nothing follows.
+	scheduledPlanId?: string;
+	scheduledAt?:     string;
+}
+
+// keel's plan-change outcome: applied now, or at the period end.
+export interface PlanChangeResult {
+	status: 'changed' | 'scheduled';
 }
 
 // Mirrors keel `billing.Invoice`; `status` is keel's one-character invoice status code.

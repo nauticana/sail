@@ -1,0 +1,14 @@
+@if (subscription(); as sub) {
+  @if (sub.scheduledAt) {
+    <div class="scheduled-change-banner" role="status">
+      <span class="scheduled-change-message">
+        Your {{ sub.caption || sub.planId }} plan ends on {{ sub.scheduledAt | date: 'mediumDate' }}.
+        @if (next()) { {{ next() }} starts then. }
+      </span>
+      <button matButton type="button" [disabled]="loading()" (click)="keep()">Keep my plan</button>
+      @if (errorMessage()) {
+        <div class="auth-error" role="alert">{{ errorMessage() }}</div>
+      }
+    </div>
+  }
+}
