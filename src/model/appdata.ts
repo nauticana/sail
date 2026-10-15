@@ -416,6 +416,14 @@ export interface PlanChangeResult {
 	status: 'changed' | 'scheduled';
 }
 
+// A live-counted resource the partner holds more of than the target plan allows (keel `QuotaOverage`).
+export interface PlanOverage {
+	resource: string;
+	caption:  string;
+	count:    number;
+	limit:    number;
+}
+
 // Mirrors keel `billing.Invoice`; `status` is keel's one-character invoice status code.
 export interface Invoice {
 	id:         string;

@@ -32,6 +32,7 @@ export const RestURL = {
   subscriptionURL:   '/api/billing/subscription',
   cancelSubURL:      '/api/billing/subscription/cancel',
   changePlanURL:     '/api/billing/subscription/change',
+  checkChangeURL:    '/api/billing/subscription/change/check',
   seatsURL:          '/api/billing/subscription/seats',
   invoicesURL:       '/api/billing/invoices',
   paymentMethodsURL: '/api/billing/payment-methods',

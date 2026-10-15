@@ -8,6 +8,7 @@ import {
   Invoice,
   PaymentMethod,
   PlanChangeResult,
+  PlanOverage,
   PortalResponse,
   PublicPlan,
   SetupIntentResponse,
@@ -59,6 +60,12 @@ export class BillingService extends BaseRestService {
    */
   changePlan(planId: string): Observable<PlanChangeResult> {
     return this.http.post<PlanChangeResult>(this.url(RestURL.changePlanURL), { planId });
+  }
+
+  /** What to remove before changing to `planId`; empty when the change is allowed.
+   * `changePlan` refuses with 409 carrying the same overages. */
+  checkChange(planId: string): Observable<{ overages: PlanOverage[] }> {
+    return this.http.post<{ overages: PlanOverage[] }>(this.url(RestURL.checkChangeURL), { planId });
   }
 
   /** Set the seat quantity on the current active/trial subscription. */

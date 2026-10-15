@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.43",
+   "title": "Plan-change overages",
+   "tags": [
+    "additive"
+   ],
+   "summary": "Adopts keel v1.2.125: BillingService checks a plan change for resources the target plan does not allow.",
+   "body_markdown": "Requires keel v1.2.125.\n\n### Additive\n\n- `BillingService.checkChange(planId)` reads `POST /api/billing/subscription/change/check` and returns `{ overages: PlanOverage[] }` (`resource`, `caption`, `count`, `limit`), empty when the change is allowed. `changePlan` refuses an exceeded paid target with 409 carrying the same overages. Replace an app-local client and model of this endpoint with these."
+  },
+  {
    "version": "v1.1.42",
    "title": "Browser time zone on keel requests",
    "tags": [
