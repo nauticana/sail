@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.44",
+   "title": "Deep links survive a full page load",
+   "tags": [
+    "behavioral"
+   ],
+   "summary": "BaseAuthService lands the first route build on the address the page loaded with.",
+   "body_markdown": "No keel change.\n\n### Behavioral\n\n- `BaseAuthService` records the page's path and query when it is constructed with a stored session, before Angular's first navigation, and the first route build lands there unless it is the root or a `/login` route. A menu route loaded directly, such as an OAuth connect return with its ticket, no longer falls to the pre-login catch-all and then the dashboard. `setLanding()` still wins. Remove an app initializer that called `setLanding()` with the page's own address."
+  },
+  {
    "version": "v1.1.43",
    "title": "Plan-change overages",
    "tags": [

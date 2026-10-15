@@ -82,6 +82,8 @@ export abstract class BaseAuthService extends BaseRestService {
    *  so the login screen doesn't keep the previous user's route tree. */
   private preLoginRoutes: Routes | null = null;
   private landing: string | null = null;
+  // A signed-in page's own address, read before Angular's first navigation can send an unknown menu route to login.
+  private initialUrl = localStorage.getItem('jwt') ? window.location.pathname + window.location.search : null;
 
   // Lazy getters, not field initializers: fields would snapshot during super(),
   // before a subclass constructor can call configureRestUrls().
@@ -881,19 +883,17 @@ export abstract class BaseAuthService extends BaseRestService {
   }
 
   /**
-   * Where to land after routes are (re)built. A fresh login starts from the
-   * root or a `/login` route → go to the dashboard. A refresh / bookmark of an
-   * authenticated route → preserve it so deep links survive route restoration.
+   * Where to land after routes are (re)built: a `setLanding()` URL, else the
+   * address the page loaded with (first build) or is on, unless that is the
+   * root or a `/login` route, which go to the dashboard.
    */
   private postLoginTarget(): string {
-    if (this.landing) {
-      const url = this.landing;
-      this.landing = null;
-      return url;
-    }
-    const path = window.location.pathname;
-    const preserve = !!path && path !== '/' && !path.startsWith('/login');
-    return preserve ? path + window.location.search : '/dashboard';
+    const landing = this.landing;
+    const url = this.initialUrl ?? window.location.pathname + window.location.search;
+    this.landing = this.initialUrl = null;
+    if (landing) return landing;
+    const path = url.split('?')[0];
+    return path !== '/' && !path.startsWith('/login') ? url : '/dashboard';
   }
 
   async initRoutes() {
