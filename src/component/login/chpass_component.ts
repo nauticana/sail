@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, ViewEncapsulation, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { Router, RouterLink } from '@angular/router';
@@ -16,7 +18,7 @@ import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -25,6 +27,7 @@ import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password
   ],
 })
 export class ChpassComponent extends BaseAsync {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
@@ -73,7 +76,7 @@ export class ChpassComponent extends BaseAsync {
   }
 
   changePassword(): void {
-    if (this.chpassForm.invalid) return;
+    if (!submittable(this.chpassForm, this.host)) return;
 
     const { username, old_password, new_password, confirm_password } = this.chpassForm.value;
 

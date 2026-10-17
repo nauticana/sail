@@ -13,12 +13,14 @@
           <mat-option [value]="c.Id">{{ c.Caption }} ({{ c.Currency }})</mat-option>
         }
       </mat-select>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <p class="hint">Sets your payout currency</p>
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Account holder name</mat-label>
       <input matInput formControlName="accountHolderName">
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <p class="hint">Legal name on the bank account (must match government ID)</p>
 
@@ -29,17 +31,20 @@
           <mat-option [value]="t.code">{{ t.caption }}</mat-option>
         }
       </mat-select>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Tax ID</mat-label>
       <input matInput formControlName="taxId">
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <p class="hint">Shared with the tax authority for annual reporting</p>
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Billing address</mat-label>
       <input matInput formControlName="billingAddress">
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <p class="hint">Business or home address — used for tax correspondence</p>
 
@@ -59,8 +64,7 @@
           &lt; Back
         </button>
       }
-      <button matButton="filled" class="pill-btn primary-btn" type="submit"
-              [disabled]="form.invalid">
+      <button matButton="filled" class="pill-btn primary-btn" type="submit">
         {{ submitLabel() }}
       </button>
     </div>

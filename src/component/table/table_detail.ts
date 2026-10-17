@@ -69,7 +69,7 @@ export class TableDetail extends BaseForm {
      */
     protected override beforeExecuteAction(action: TableAction, record?: Record<string, unknown>): boolean {
         if (action.recordSpecific && record && record[this.config.opField] === OpCode.Insert) {
-            alert('Save the record first before running this action.');
+            this.reportError('Save the record first before running this action.');
             return false;
         }
         return true;

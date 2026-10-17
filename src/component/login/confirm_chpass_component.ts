@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, ViewEncapsulation, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -15,7 +17,7 @@ import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -23,6 +25,7 @@ import { passwordPolicyValidator, passwordPolicyHint } from '../../util/password
   ],
 })
 export class ConfirmChpassComponent extends BaseAsync implements OnInit {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private auth = inject(BaseAuthService);
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
@@ -55,7 +58,7 @@ export class ConfirmChpassComponent extends BaseAsync implements OnInit {
   }
 
   confirm(): void {
-    if (this.confirmForm.invalid) return;
+    if (!submittable(this.confirmForm, this.host)) return;
 
     const { username, code, new_password, confirm_password } = this.confirmForm.value;
 

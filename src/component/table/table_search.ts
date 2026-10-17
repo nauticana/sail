@@ -75,7 +75,7 @@ export class TableSearch extends BaseForm implements OnInit {
     onSearch() {
         const targetRoute = this.targetRoute();
         if (!targetRoute) {
-            alert('Navigation target not found for this table');
+            this.reportError('Navigation target not found for this table.');
             return;
         }
         this.router.navigate([targetRoute], {queryParams: this.buildSearchTerms(this.editableRecord())});
@@ -103,7 +103,7 @@ export class TableSearch extends BaseForm implements OnInit {
         if (!this.requireAuth(() => this.canCreate(), 'create')) return;
         const targetRoute = this.targetRoute();
         if (!targetRoute) {
-            alert('Navigation target not found for this table');
+            this.reportError('Navigation target not found for this table.');
             return;
         }
         this.router.navigate([targetRoute], {queryParams: {'_action': 'create'}});

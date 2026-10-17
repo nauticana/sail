@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, ViewEncapsulation, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { BaseAsync } from '../abstract/base_async';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAuthService } from '../../service/auth.service';
@@ -17,7 +19,7 @@ import { SsoLoginComponent } from '../sso/sso_login';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -27,6 +29,7 @@ import { SsoLoginComponent } from '../sso/sso_login';
   ],
 })
 export class LoginComponent extends BaseAsync {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   protected readonly auth = inject(BaseAuthService);
   protected fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
@@ -58,7 +61,7 @@ export class LoginComponent extends BaseAsync {
   });
 
   login(): void {
-    if (!this.loginForm.valid) return;
+    if (!submittable(this.loginForm, this.host)) return;
     const { username, password } = this.loginForm.value;
     this.run(
       this.auth.login(username!, password!),

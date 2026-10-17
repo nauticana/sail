@@ -1,6 +1,7 @@
 @if (error()) {
   <p class="connection-panel__error" role="alert">{{ error() }}</p>
 }
+<p class="connection-panel__notice" role="status">{{ notice() }}</p>
 
 @if (loading()) {
   <p>Loading connections…</p>
@@ -27,6 +28,9 @@
 
         @if (v.provider.description) {
           <p class="connection-card__desc">{{ v.provider.description }}</p>
+        }
+        @if (v.connection?.LastChecked) {
+          <p class="connection-card__checked">Last checked {{ v.connection?.LastChecked | date: 'medium' }}</p>
         }
 
         <div class="connection-card__actions">

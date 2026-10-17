@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -23,7 +25,7 @@ import { BackendService } from '../../service/rest_service';
   selector: 'sail-payout-bank-info-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule, MatButtonModule, MatCheckboxModule,
+    FieldError, ReactiveFormsModule, MatButtonModule, MatCheckboxModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
   ],
   templateUrl: './bank_info_form.html',
@@ -40,6 +42,7 @@ export class PayoutBankInfoFormComponent {
   readonly submitted = output<BankInfoFormValue>();
   readonly back = output<void>();
 
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly backend = inject(BackendService);
   private readonly labels = inject(LabelService);
 
@@ -62,7 +65,7 @@ export class PayoutBankInfoFormComponent {
 
   submit() {
     const currency = this.currency();
-    if (this.form.invalid || !currency) return;
+    if (!submittable(this.form, this.host) || !currency) return;
     const v = this.form.getRawValue();
     this.submitted.emit({
       countryCode:       v.countryCode!,

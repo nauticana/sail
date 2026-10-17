@@ -1,4 +1,4 @@
-import { Injectable, WritableSignal, inject, signal } from '@angular/core';
+import { Injectable, Injector, WritableSignal, inject, signal } from '@angular/core';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { filter, finalize, map, mergeMap, shareReplay, take, tap } from 'rxjs/operators';
 import { PasswordRules } from '../util/password_policy';
@@ -19,6 +19,7 @@ import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router'
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
 import { resetAuthCircuit } from './auth.interceptor';
+import { PromptService } from './prompt.service';
 
 /** Thrown by refreshSession() when the session changed while the rotation was in
  *  flight; the result was discarded and the current session is untouched. */
@@ -65,6 +66,7 @@ interface PermissionRow {
 export abstract class BaseAuthService extends BaseRestService {
   protected readonly router = inject(Router);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
+  private readonly injector = inject(Injector);
 
   // Reactive cache: computed()s that read metadata through `cache` (via
   // getTableDefinition etc.) recompute automatically when appdata loads/clears.
@@ -850,11 +852,16 @@ export abstract class BaseAuthService extends BaseRestService {
   // Confirms navigation away when the routed component reports unsaved changes.
   // Opt in by implementing hasUnsavedChanges(): boolean on the component.
   readonly canDeactivate: CanDeactivateFn<{ hasUnsavedChanges?: () => boolean }> = (component) => {
-    if (component && typeof component.hasUnsavedChanges === 'function' && component.hasUnsavedChanges()) {
-      return window.confirm('You have unsaved changes. Leave this page without saving?');
-    }
-    return true;
+    if (!component?.hasUnsavedChanges?.()) return true;
+    return this.injector.get(PromptService).confirm({
+      title: 'Leave without saving?', message: 'Your changes on this page are not saved.', action: 'Leave page', destructive: true,
+    });
   };
+
+  /** Route title: the page caption suffixed with `appTitle`. */
+  private pageTitle(caption?: string): string | undefined {
+    return [caption, this.guiConfig.appTitle].filter(Boolean).join(' | ') || undefined;
+  }
 
   /** Override in subclasses to add project-specific routes */
   protected buildExtraRoutes(data: ApplicationData): Routes {
@@ -919,7 +926,7 @@ export abstract class BaseAuthService extends BaseRestService {
             ];
 
             if (dashboardComponent) {
-                newRoutes.push({ path: 'dashboard', component: dashboardComponent });
+                newRoutes.push({ path: 'dashboard', component: dashboardComponent, title: this.pageTitle('Dashboard') });
             }
 
             for (const menu of menus) {
@@ -933,12 +940,14 @@ export abstract class BaseAuthService extends BaseRestService {
                     const api = apis?.[restUri];
                     const apiName = restUri; // bare RestUri; BackendService.crudUrl resolves the version
                     const tableName = api?.Table?.TableName ?? restUri;
+                    const title = this.pageTitle(page.Caption);
 
                     const overrideComponent = this.getRouteOverride(restUri);
                     if (overrideComponent) {
                         children.push({
                             path: page.ItemId,
                             component: overrideComponent,
+                            title,
                             canActivate: [this.canActivate],
                             data: { tableName, apiName },
                         });
@@ -950,6 +959,7 @@ export abstract class BaseAuthService extends BaseRestService {
                         children.push({
                             path: page.ItemId,
                             component: TableReport,
+                            title,
                             canActivate: [this.canActivate],
                             data: { tableName, apiName },
                         });
@@ -957,6 +967,7 @@ export abstract class BaseAuthService extends BaseRestService {
                         children.push({
                             path: page.ItemId,
                             component: TableSearch,
+                            title,
                             canActivate: [this.canActivate],
                             data: {
                                 tableName,
@@ -967,6 +978,7 @@ export abstract class BaseAuthService extends BaseRestService {
                         children.push({
                             path: page.ItemId + '/list',
                             component: TableList,
+                            title,
                             canActivate: [this.canActivate],
                             data: { tableName, apiName },
                         });
@@ -974,6 +986,7 @@ export abstract class BaseAuthService extends BaseRestService {
                         children.push({
                             path: page.ItemId,
                             component: TableList,
+                            title,
                             canActivate: [this.canActivate],
                             data: { tableName, apiName },
                         });

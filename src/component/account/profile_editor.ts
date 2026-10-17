@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, inject, input, signal, viewChild } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,9 +15,12 @@ import { UserProfile } from '../../model/auth';
   selector: 'sail-profile-editor',
   templateUrl: './profile_editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
+  imports: [FieldError, ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule],
 })
 export class ProfileEditorComponent implements OnInit {
+  private readonly profileSection = viewChild<ElementRef<HTMLElement>>('profileSection');
+  private readonly emailSection = viewChild<ElementRef<HTMLElement>>('emailSection');
+  private readonly phoneSection = viewChild<ElementRef<HTMLElement>>('phoneSection');
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
 
@@ -58,7 +63,7 @@ export class ProfileEditorComponent implements OnInit {
   }
 
   saveProfile(): void {
-    if (this.profileForm.invalid) return;
+    if (!submittable(this.profileForm, this.profileSection()?.nativeElement)) return;
     const v = this.profileForm.getRawValue();
     this.loading.set(true);
     this.profileMsg.set('');
@@ -82,7 +87,7 @@ export class ProfileEditorComponent implements OnInit {
   }
 
   sendEmailCode(): void {
-    if (this.newEmail.invalid) return;
+    if (!submittable(this.newEmail, this.emailSection()?.nativeElement)) return;
     this.loading.set(true);
     this.emailErr.set('');
     this.auth.requestEmailChange(this.newEmail.value!).subscribe({
@@ -92,7 +97,7 @@ export class ProfileEditorComponent implements OnInit {
   }
 
   confirmEmailChange(): void {
-    if (this.emailCode.invalid) return;
+    if (!submittable(this.emailCode, this.emailSection()?.nativeElement)) return;
     this.loading.set(true);
     this.emailErr.set('');
     this.auth.confirmEmailChange(this.newEmail.value!, Number(this.emailCode.value)).subscribe({
@@ -114,7 +119,7 @@ export class ProfileEditorComponent implements OnInit {
   }
 
   sendPhoneCode(): void {
-    if (this.newPhone.invalid) return;
+    if (!submittable(this.newPhone, this.phoneSection()?.nativeElement)) return;
     this.loading.set(true);
     this.phoneErr.set('');
     this.auth.requestPhoneChange(this.newPhone.value!).subscribe({
@@ -124,7 +129,7 @@ export class ProfileEditorComponent implements OnInit {
   }
 
   confirmPhoneChange(): void {
-    if (this.phoneCode.invalid) return;
+    if (!submittable(this.phoneCode, this.phoneSection()?.nativeElement)) return;
     this.loading.set(true);
     this.phoneErr.set('');
     this.auth.confirmPhoneChange(this.newPhone.value!, Number(this.phoneCode.value)).subscribe({

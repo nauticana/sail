@@ -1,25 +1,28 @@
-<section class="account-section">
+<section #profileSection class="account-section">
   <h3>Profile</h3>
   <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="auth-form">
     <mat-form-field appearance="outline">
       <mat-label>First name</mat-label>
       <input matInput formControlName="firstName" required>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>Last name</mat-label>
       <input matInput formControlName="lastName">
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
     <mat-form-field appearance="outline">
       <mat-label>Locale</mat-label>
       <input matInput formControlName="locale" placeholder="en">
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
-    <button matButton="elevated" class="primary" type="submit" [disabled]="!profileForm.valid || loading()">Save</button>
+    <button matButton="elevated" class="primary" type="submit" [disabled]="loading()">Save</button>
   </form>
   @if (profileMsg()) { <div class="auth-success" role="status">{{ profileMsg() }}</div> }
   @if (profileErr()) { <div class="auth-error" role="alert">{{ profileErr() }}</div> }
 </section>
 
-<section class="account-section">
+<section #emailSection class="account-section">
   <h3>Email</h3>
   @if (emailPhase() === 'idle') {
     <p>{{ email() || 'Not set' }}</p>
@@ -28,22 +31,24 @@
     <mat-form-field appearance="outline">
       <mat-label>New email</mat-label>
       <input matInput type="email" [formControl]="newEmail" required>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
-    <button matButton="elevated" class="primary" (click)="sendEmailCode()" [disabled]="newEmail.invalid || loading()">Send code</button>
+    <button matButton="elevated" class="primary" (click)="sendEmailCode()" [disabled]="loading()">Send code</button>
     <button matButton (click)="cancelEmailChange()">Cancel</button>
   } @else {
     @if (emailMsg()) { <p>{{ emailMsg() }}</p> }
     <mat-form-field appearance="outline">
       <mat-label>Confirmation code</mat-label>
       <input matInput [formControl]="emailCode" inputmode="numeric" required>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
-    <button matButton="elevated" class="primary" (click)="confirmEmailChange()" [disabled]="emailCode.invalid || loading()">Confirm</button>
+    <button matButton="elevated" class="primary" (click)="confirmEmailChange()" [disabled]="loading()">Confirm</button>
     <button matButton (click)="cancelEmailChange()">Cancel</button>
   }
   @if (emailErr()) { <div class="auth-error" role="alert">{{ emailErr() }}</div> }
 </section>
 
-<section class="account-section">
+<section #phoneSection class="account-section">
   <h3>Phone</h3>
   @if (!phoneChangeEnabled()) {
     <p>{{ phone() || 'Not set' }}</p>
@@ -54,16 +59,18 @@
     <mat-form-field appearance="outline">
       <mat-label>New phone</mat-label>
       <input matInput type="tel" [formControl]="newPhone" required>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
-    <button matButton="elevated" class="primary" (click)="sendPhoneCode()" [disabled]="newPhone.invalid || loading()">Send code</button>
+    <button matButton="elevated" class="primary" (click)="sendPhoneCode()" [disabled]="loading()">Send code</button>
     <button matButton (click)="cancelPhoneChange()">Cancel</button>
   } @else {
     @if (phoneMsg()) { <p>{{ phoneMsg() }}</p> }
     <mat-form-field appearance="outline">
       <mat-label>Confirmation code</mat-label>
       <input matInput [formControl]="phoneCode" inputmode="numeric" required>
+      <mat-error sailFieldError></mat-error>
     </mat-form-field>
-    <button matButton="elevated" class="primary" (click)="confirmPhoneChange()" [disabled]="phoneCode.invalid || loading()">Confirm</button>
+    <button matButton="elevated" class="primary" (click)="confirmPhoneChange()" [disabled]="loading()">Confirm</button>
     <button matButton (click)="cancelPhoneChange()">Cancel</button>
   }
   @if (phoneErr()) { <div class="auth-error" role="alert">{{ phoneErr() }}</div> }

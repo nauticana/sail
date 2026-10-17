@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, DestroyRef, signal, ViewEncapsulation, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, DestroyRef, signal, ViewEncapsulation, OnInit, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -30,7 +32,7 @@ interface GeocodingResponse {
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
     MatFormFieldModule,
@@ -40,6 +42,7 @@ interface GeocodingResponse {
   ],
 })
 export class RegisterComponent implements OnInit {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private auth = inject(BaseAuthService);
   private billing = inject(BillingService);
   private fb = inject(FormBuilder);
@@ -155,7 +158,7 @@ export class RegisterComponent implements OnInit {
   }
 
   register() {
-    if (!this.registerForm.valid) return;
+    if (!submittable(this.registerForm, this.host)) return;
     this.registerError.set('');
     const formValue = this.registerForm.getRawValue();
     const partnerReg: PartnerRegistration = {

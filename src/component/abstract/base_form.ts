@@ -6,6 +6,11 @@ export abstract class BaseForm extends BaseTable {
     readonly isNew = signal(false);
     readonly title = signal('');
 
+    /** Unsaved-changes contract read by `BaseAuthService.canDeactivate` and the list dialog host. */
+    hasUnsavedChanges(): boolean {
+        return false;
+    }
+
     override isReadOnly(fieldName: string): boolean {
         // keel column_display_attribute: 'R' is always display-only; 'I'
         // (insert-only) is editable while creating, locked once it exists.

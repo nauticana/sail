@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, inject, 
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { BaseAsync } from '../abstract/base_async';
+import { PromptService } from '../../service/prompt.service';
 import { BaseAuthService } from '../../service/auth.service';
 import { ActiveSession } from '../../model/appdata';
 
@@ -14,6 +15,7 @@ import { ActiveSession } from '../../model/appdata';
 })
 export class SessionsComponent extends BaseAsync implements OnInit {
   private readonly auth = inject(BaseAuthService);
+  private readonly prompt = inject(PromptService);
 
   readonly sessions = signal<ActiveSession[]>([]);
   private readonly methods = new Map(
@@ -32,14 +34,14 @@ export class SessionsComponent extends BaseAsync implements OnInit {
   }
 
   revoke(session: ActiveSession) {
-    if (!confirm(`Sign out the session on ${session.userAgent || 'an unknown device'}?`)) return;
-    this.run(
-      this.auth.revokeSession(session.id),
-      () => {
-        this.loadSessions();
-        this.successMessage.set('Session signed out.');
-      },
-      'Failed to sign out the session.',
-    );
+    this.prompt.ask({ title: `Sign out the session on ${session.userAgent || 'an unknown device'}?`, action: 'Sign out session', destructive: true }, () =>
+      this.run(
+        this.auth.revokeSession(session.id),
+        () => {
+          this.loadSessions();
+          this.successMessage.set('Session signed out.');
+        },
+        'Failed to sign out the session.',
+      ));
   }
 }

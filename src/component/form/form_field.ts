@@ -140,6 +140,16 @@ export class DynamicField extends BaseTable {
         return this.displayValue(this.field(), this.value());
     }
 
+    get checked(): boolean {
+        return this.value() === true || this.value() === '1';
+    }
+
+    /** Text of a read-only select, boolean, or empty date; a checkbox has no native readonly state. */
+    get readonlyText(): string {
+        if (this.inputType === 'checkbox') return this.checked ? 'Yes' : 'No';
+        return this.inputType === 'select' ? this.displayCaption : '';
+    }
+
     onInputChange(event: Event) {
         const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
         if (target) this.valueChange.emit(this.coerce(target.value));

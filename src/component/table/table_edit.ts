@@ -48,7 +48,7 @@ export class TableEdit extends BaseForm implements OnInit {
         (this.cacheService.getTableDefinition(this.tableName())?.Children ?? []).map((child) => child.PascalName));
 
     protected get isDialog(): boolean { return !!this.dialogRef; }
-    /** Snapshot taken when the user enters edit mode; used for dirty-tracking on save. */
+    /** Scalar values when editing began; children carry their own op codes. */
     private originalSnapshot: Record<string, unknown> | null = null;
 
     ngOnInit(): void {
@@ -61,6 +61,7 @@ export class TableEdit extends BaseForm implements OnInit {
         }
         if (this.isNew()) {
             this.setEditableRecord(Object.assign(this.emptyRecord(), this.record()));
+            this.originalSnapshot = { ...this.editableRecord() };
         } else {
             this.fetchFullRecord();
         }
@@ -119,18 +120,29 @@ export class TableEdit extends BaseForm implements OnInit {
         return super.isReadOnly(fieldName);
     }
 
+    override hasUnsavedChanges(): boolean {
+        if (this.isReadOnlyMode() || !this.originalSnapshot) return false;
+        const op = this.config.opField;
+        return this.isRecordDirty(this.editableRecord(), this.originalSnapshot)
+            || this.tabFields().some((key) => this.childRecords(key).some((row) =>
+                row[op] === OpCode.Insert || row[op] === OpCode.Update || row[op] === OpCode.Delete));
+    }
+
+    protected override reportError(message: string): void {
+        this.saveError.set(message);
+    }
+
     onEdit() {
         this.isReadOnlyMode.set(false);
         this.isNew.set(false);
-        // Snapshot scalar fields only; children arrays are dirty-tracked per row.
         this.originalSnapshot = { ...this.editableRecord() };
     }
 
     onNew() {
         this.isReadOnlyMode.set(false);
         this.isNew.set(true);
-        this.originalSnapshot = null;
         this.setEditableRecord(this.emptyRecord());
+        this.originalSnapshot = { ...this.editableRecord() };
     }
 
     onSave() {
@@ -170,7 +182,7 @@ export class TableEdit extends BaseForm implements OnInit {
     }
 
     onDelete() {
-        if (confirm('Are you sure you want to delete this record?')) {
+        this.prompt.ask({ title: `Delete this ${this.getCaption()} record?`, action: 'Delete record', destructive: true }, () => {
             const result = {...this.editableRecord()};
             result[this.config.opField] = OpCode.Delete;
             this.backendService.post(this.apiName(), result).subscribe({
@@ -183,10 +195,20 @@ export class TableEdit extends BaseForm implements OnInit {
                     this.saveError.set(errorDetail(err, 'Delete failed.'));
                 },
             });
-        }
+        });
     }
 
     onCancel() {
+        if (!this.hasUnsavedChanges()) {
+            this.discard();
+            return;
+        }
+        this.prompt.ask({ title: 'Discard your changes?', message: 'Your edits to this record are not saved.', action: 'Discard changes', destructive: true },
+            () => this.discard());
+    }
+
+    private discard() {
+        this.originalSnapshot = null;
         if (this.dialogRef) {
             this.dialogRef.close();
             return;

@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal, ViewEncapsulation, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { BaseAuthService } from '../../service/auth.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -14,7 +16,7 @@ import { toDataURL } from 'qrcode';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -22,6 +24,7 @@ import { toDataURL } from 'qrcode';
   ],
 })
 export class TwoFactorSetupComponent extends BaseAsync {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
 
@@ -62,7 +65,7 @@ export class TwoFactorSetupComponent extends BaseAsync {
   }
 
   startSetup() {
-    if (this.initForm.invalid) return;
+    if (!submittable(this.initForm, this.host)) return;
     const password = this.initForm.value.password!;
     this.run(
       this.auth.setup2FA({ password }),
@@ -97,7 +100,7 @@ export class TwoFactorSetupComponent extends BaseAsync {
   }
 
   confirmSetup() {
-    if (this.verifyForm.invalid) return;
+    if (!submittable(this.verifyForm, this.host)) return;
     const { code } = this.verifyForm.value;
     this.run(
       this.auth.verify2FA({ code: code! }),
@@ -114,7 +117,7 @@ export class TwoFactorSetupComponent extends BaseAsync {
   }
 
   disable2FA() {
-    if (this.disableForm.invalid) return;
+    if (!submittable(this.disableForm, this.host)) return;
     const { password, code } = this.disableForm.value;
     this.run(
       this.auth.disable2FA(password!, code!),

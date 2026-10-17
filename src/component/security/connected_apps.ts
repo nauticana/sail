@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { OAuthGrant } from '../../model/access';
 import { AccessService } from '../../service/access.service';
 import { BaseAsync } from '../abstract/base_async';
+import { PromptService } from '../../service/prompt.service';
 
 /**
  * OAuth clients holding a live grant from the signed-in user, with disconnect; a disconnected
@@ -18,6 +19,7 @@ import { BaseAsync } from '../abstract/base_async';
 })
 export class ConnectedAppsComponent extends BaseAsync implements OnInit {
   private readonly access = inject(AccessService);
+  private readonly prompt = inject(PromptService);
 
   readonly grants = signal<OAuthGrant[]>([]);
 
@@ -31,10 +33,10 @@ export class ConnectedAppsComponent extends BaseAsync implements OnInit {
 
   revoke(grant: OAuthGrant): void {
     const name = grant.clientName || grant.clientId;
-    if (!confirm(`Disconnect "${name}"? It will have to connect again.`)) return;
-    this.run(this.access.revokeGrant(grant.clientId), () => {
-      this.successMessage.set(`Disconnected ${name}.`);
-      this.load();
-    }, 'Failed to disconnect the app.');
+    this.prompt.ask({ title: `Disconnect "${name}"?`, message: 'It will have to connect again.', action: 'Disconnect app', destructive: true },
+      () => this.run(this.access.revokeGrant(grant.clientId), () => {
+        this.successMessage.set(`Disconnected ${name}.`);
+        this.load();
+      }, 'Failed to disconnect the app.'));
   }
 }

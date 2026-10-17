@@ -7,10 +7,10 @@
             <mat-icon>search</mat-icon>
         </button>
     </mat-form-field>
-} @else if (inputType === 'select' && isReadonly) {
+} @else if (isReadonly && (inputType === 'select' || inputType === 'checkbox' || (isDateLike && !value()))) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
-        <input matInput [value]="displayCaption" readonly>
+        <input matInput [value]="readonlyText" readonly>
     </mat-form-field>
 } @else if (inputType === 'select') {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
@@ -22,19 +22,14 @@
         </mat-select>
     </mat-form-field>
 } @else if (inputType === 'checkbox') {
-    <mat-checkbox [checked]="value() === true || value() === '1'" (change)="onCheckboxChange($event);" [disabled]="isReadonly">{{ colCaption(field()) }}</mat-checkbox>
-} @else if (isReadonly && isDateLike && !value()) {
-    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
-        <mat-label>{{ colCaption(field()) }}</mat-label>
-        <input matInput value="" readonly>
-    </mat-form-field>
+    <mat-checkbox [checked]="checked" (change)="onCheckboxChange($event);">{{ colCaption(field()) }}</mat-checkbox>
 } @else if (isTextArea) {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>
         <textarea matInput
          [value]="inputValue"
          (input)="onInputChange($event);"
-         [disabled]="isReadonly"
+         [readonly]="isReadonly"
          [required]="required"
          [attr.maxLength]="maxLength"
          [rows]="textAreaRows">
@@ -47,7 +42,7 @@
          [type]="inputType"
          [value]="inputValue"
          (input)="onInputChange($event);"
-         [disabled]="isReadonly"
+         [readonly]="isReadonly"
          [required]="required"
          [attr.maxLength]="maxLength"
          [attr.step]="step">

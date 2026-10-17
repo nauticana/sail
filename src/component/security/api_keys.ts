@@ -1,5 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, computed, inject, input, signal, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -10,6 +12,7 @@ import { ApiKey, MintedApiKey } from '../../model/access';
 import { AccessService } from '../../service/access.service';
 import { LabelOption, LabelService } from '../../service/label.service';
 import { BaseAsync } from '../abstract/base_async';
+import { PromptService } from '../../service/prompt.service';
 
 /**
  * The partner's API keys: mint one with scopes, allowed networks and an optional expiry (the
@@ -21,10 +24,12 @@ import { BaseAsync } from '../abstract/base_async';
   templateUrl: './api_keys.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [DatePipe, ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule],
+  imports: [FieldError, DatePipe, ReactiveFormsModule, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule],
 })
 export class ApiKeysComponent extends BaseAsync implements OnInit {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly access = inject(AccessService);
+  private readonly prompt = inject(PromptService);
   private readonly labels = inject(LabelService);
   private readonly fb = inject(FormBuilder).nonNullable;
 
@@ -68,7 +73,7 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   }
 
   mint(): void {
-    if (this.form.invalid) return;
+    if (!submittable(this.form, this.host)) return;
     const { keyName, scopes, allowedCidrs, expiresAt } = this.form.getRawValue();
     this.run(this.access.mintApiKey({
       key_name: keyName,
@@ -88,7 +93,7 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   }
 
   saveNetworks(key: ApiKey): void {
-    if (this.networks.invalid) return;
+    if (!submittable(this.networks, this.host)) return;
     this.run(this.access.restrictApiKey(key.Id, this.networks.value), () => {
       this.restricting.set(null);
       this.successMessage.set(`Networks of "${key.KeyName}" saved.`);
@@ -97,10 +102,11 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   }
 
   revoke(key: ApiKey): void {
-    if (!confirm(`Revoke key "${key.KeyName}" (${key.KeyPrefix}…)? Anything using it stops working.`)) return;
-    this.run(this.access.revokeApiKey(key.Id), () => {
+    this.prompt.ask({
+      title: `Revoke key "${key.KeyName}"?`, message: `Anything using ${key.KeyPrefix}… stops working.`, action: 'Revoke key', destructive: true,
+    }, () => this.run(this.access.revokeApiKey(key.Id), () => {
       this.successMessage.set(`Key "${key.KeyName}" revoked.`);
       this.load();
-    }, 'Failed to revoke the key.');
+    }, 'Failed to revoke the key.'));
   }
 }

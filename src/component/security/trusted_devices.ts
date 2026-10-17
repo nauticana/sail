@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, ViewEncapsulation, inject, signal, input, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BaseAsync } from '../abstract/base_async';
+import { PromptService } from '../../service/prompt.service';
 import { BaseAuthService } from '../../service/auth.service';
 import { TrustedDevice } from '../../model/appdata';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,7 +18,7 @@ import { RouterLink } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    MatButtonModule,
+    FieldError, MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
@@ -24,7 +27,9 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class TrustedDevicesComponent extends BaseAsync implements OnInit {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly auth = inject(BaseAuthService);
+  private readonly prompt = inject(PromptService);
   private readonly fb = inject(FormBuilder);
 
   readonly devices = signal<TrustedDevice[]>([]);
@@ -50,23 +55,23 @@ export class TrustedDevicesComponent extends BaseAsync implements OnInit {
   }
 
   revokeDevice(device: TrustedDevice) {
-    if (!confirm(`Revoke trust for "${device.name}"?`)) return;
-    this.run(
-      this.auth.revokeTrustedDevice(device.id),
-      () => {
-        this.successMessage.set(`Device "${device.name}" revoked.`);
-        this.loadDevices();
-      },
-      'Failed to revoke device.',
-    );
+    this.prompt.ask({ title: `Revoke trust for "${device.name}"?`, action: 'Revoke device', destructive: true }, () =>
+      this.run(
+        this.auth.revokeTrustedDevice(device.id),
+        () => {
+          this.successMessage.set(`Device "${device.name}" revoked.`);
+          this.loadDevices();
+        },
+        'Failed to revoke device.',
+      ));
   }
 
   /**
    * logout-everywhere requires a re-auth gate, so we reveal a password
-   * field instead of relying on confirm() alone.
+   * field instead of relying on a confirmation alone.
    */
   signOutEverywhere() {
-    if (this.logoutForm.invalid) return;
+    if (!submittable(this.logoutForm, this.host)) return;
     const password = this.logoutForm.value.password!;
     this.run(
       this.auth.logoutEverywhere({ password }),

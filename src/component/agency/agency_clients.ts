@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -16,7 +18,7 @@ import { AgencyStatusBannerComponent } from './agency_status_banner';
   selector: 'sail-agency-clients',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -41,6 +43,7 @@ export class AgencyClientsComponent implements OnInit {
   readonly cancelled = output<AgencyClient>();
   readonly billingModelChanged = output<{ client: AgencyClient; billingModel: 'R' | 'W' }>();
 
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly agency = inject(AgencyService);
   private readonly snack = inject(MatSnackBar);
   private readonly formBuilder = inject(FormBuilder);
@@ -103,7 +106,7 @@ export class AgencyClientsComponent implements OnInit {
   }
 
   addClient(): void {
-    if (this.addForm.invalid || !this.canManage()) return;
+    if (!this.canManage() || !submittable(this.addForm, this.host)) return;
     const value = this.addForm.getRawValue();
     this.agency.addClients([value]).subscribe({
       next: () => {

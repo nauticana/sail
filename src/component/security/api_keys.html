@@ -12,15 +12,18 @@
       <mat-form-field>
         <mat-label>Key name</mat-label>
         <input matInput formControlName="keyName" maxlength="100">
+        <mat-error sailFieldError></mat-error>
       </mat-form-field>
       <mat-form-field>
         <mat-label>Allowed networks (optional)</mat-label>
         <input matInput formControlName="allowedCidrs" maxlength="2000">
         <mat-hint>Comma-separated addresses or CIDR ranges. Empty allows any address.</mat-hint>
+        <mat-error sailFieldError></mat-error>
       </mat-form-field>
       <mat-form-field>
         <mat-label>Expires (optional)</mat-label>
         <input matInput type="datetime-local" formControlName="expiresAt">
+        <mat-error sailFieldError></mat-error>
       </mat-form-field>
       @if (offered().length) {
         <fieldset class="api-keys__scopes">
@@ -31,7 +34,7 @@
           }
         </fieldset>
       }
-      <button matButton="filled" type="submit" [disabled]="form.invalid || loading()">Create key</button>
+      <button matButton="filled" type="submit" [disabled]="loading()">Create key</button>
     </form>
   }
 
@@ -51,6 +54,7 @@
                 <mat-form-field>
                   <mat-label>Allowed networks</mat-label>
                   <input matInput [formControl]="networks" maxlength="2000" (keydown.enter)="saveNetworks(key)">
+                  <mat-error sailFieldError></mat-error>
                 </mat-form-field>
               } @else {
                 {{ key.AllowedCidrs || 'any address' }}
@@ -62,7 +66,7 @@
             <td>
               @if (restricting() === key.Id) {
                 <button matButton type="button" (click)="restricting.set(null)">Cancel</button>
-                <button matButton="filled" type="button" [disabled]="networks.invalid || loading()" (click)="saveNetworks(key)">Save</button>
+                <button matButton="filled" type="button" [disabled]="loading()" (click)="saveNetworks(key)">Save</button>
               } @else {
                 @if (key.IsActive && canRestrict) {
                   <button matButton type="button" [disabled]="loading()" (click)="editNetworks(key)">Restrict networks</button>

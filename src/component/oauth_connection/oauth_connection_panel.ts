@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
+import { DatePipe, NgOptimizedImage } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -22,7 +22,7 @@ import { OAuthConnectionStatus, OAuthConnectionView, PartnerCredential, OAuthPro
 @Component({
   selector: 'sail-oauth-connection-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatCardModule, MatIconModule, MatFormFieldModule, MatInputModule, NgOptimizedImage],
+  imports: [DatePipe, MatButtonModule, MatCardModule, MatIconModule, MatFormFieldModule, MatInputModule, NgOptimizedImage],
   templateUrl: './oauth_connection_panel.html',
 })
 export class OAuthConnectionPanelComponent implements OnInit {
@@ -37,6 +37,7 @@ export class OAuthConnectionPanelComponent implements OnInit {
   readonly connections = signal<PartnerCredential[]>([]);
   readonly loading = signal(true);
   readonly error = signal('');
+  readonly notice = signal(''); // last passing test
   readonly expanded = signal(''); // provider code whose input form is open
   readonly busy = signal(''); // provider code with an action in flight
   private readonly fieldValues = signal<Record<string, Record<string, string>>>({});
@@ -98,7 +99,8 @@ export class OAuthConnectionPanelComponent implements OnInit {
     return this.msg(e, 'Could not complete the connection.');
   }
 
-  private reload(entityId: number): void {
+  private reload(entityId: number, keepNotice = false): void {
+    if (!keepNotice) this.notice.set('');
     this.reloadSub?.unsubscribe(); // cancel any in-flight load so a slow old entity can't overwrite the new one
     this.loading.set(true);
     this.expanded.set('');
@@ -229,13 +231,15 @@ export class OAuthConnectionPanelComponent implements OnInit {
     if (!v.connection) return;
     this.busy.set(v.provider.code);
     this.error.set('');
+    this.notice.set('');
     this.svc.testConnection(v.provider.code, this.entityId()).subscribe({
       // keel returns HTTP 200 with {status:'error', message} for a failed test —
       // surface the message, then reload to reflect the status it just recorded.
       next: (res) => {
         this.busy.set('');
-        if (res.status !== 'ok') this.error.set(res.message || 'Connection test failed.');
-        this.reload(this.entityId());
+        if (res.status === 'ok') this.notice.set(`${v.provider.name} connection works.`);
+        else this.error.set(res.message || 'Connection test failed.');
+        this.reload(this.entityId(), true);
       },
       error: (e) => {
         this.busy.set('');

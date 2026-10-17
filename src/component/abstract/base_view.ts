@@ -1,6 +1,6 @@
-import { computed, Directive, inject, signal, Type, WritableSignal } from "@angular/core";
+import { computed, DestroyRef, Directive, inject, signal, Type, WritableSignal } from "@angular/core";
 import { BaseTable } from "./base_table";
-import { MatDialog } from "@angular/material/dialog";
+import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 
 /** Read-only listing surface; complete as-is (TableLookup). Editing views extend AbstractEditableView. */
 @Directive()
@@ -13,6 +13,10 @@ export abstract class BaseView extends BaseTable {
     readonly viewError = signal('');
 
     protected readonly hasLinkPermission = computed(() => this.canUpdate() || this.canRead());
+
+    protected override reportError(message: string): void {
+        this.viewError.set(message);
+    }
 
     /** Whether an "actions" column is appended for privileged users; lookup views return false. */
     protected includeActionsColumn(): boolean {
@@ -40,17 +44,25 @@ export abstract class BaseView extends BaseTable {
 export abstract class AbstractEditableView extends BaseView {
     protected readonly dialog = inject(MatDialog);
     readonly dialogComponent: WritableSignal<Type<unknown> | undefined> = signal(undefined);
+    private activeDialog?: MatDialogRef<unknown>;
+
+    constructor() {
+        super();
+        // The dialog outlives navigation (closeOnNavigation: false) until the route guard approves it.
+        inject(DestroyRef).onDestroy(() => this.activeDialog?.close());
+    }
+
+    /** Read by `BaseAuthService.canDeactivate`; delegates to an open dialog implementing the contract. */
+    hasUnsavedChanges(): boolean {
+        const form = this.activeDialog?.componentInstance as { hasUnsavedChanges?: () => boolean } | undefined;
+        return form?.hasUnsavedChanges?.() ?? false;
+    }
 
     protected abstract handleDelete(record: Record<string, unknown>): void;
 
     protected abstract handleUpdate(result: Record<string, unknown>, isNew: boolean, original: Record<string, unknown>): void;
 
-    /**
-     * Shared row-dialog opener. Builds the dialog data and wires the result
-     * straight into `handleUpdate()` (subclass-specific). Used by both
-     * `addRecord()` (new row + empty `original`) and `editRecord()` (existing
-     * row passed through verbatim).
-     */
+    /** Opens the row dialog and hands its result to `handleUpdate()`. */
     private openRecordDialog(record: Record<string, unknown>, isNew: boolean): void {
         const component = this.dialogComponent();
         if (!component) {
@@ -61,13 +73,16 @@ export abstract class AbstractEditableView extends BaseView {
         const apiName = this.apiName();
         if (apiName) dialogData['apiName'] = apiName;
 
-        this.dialog.open(component, {
+        const ref = this.activeDialog = this.dialog.open(component, {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',
             disableClose: true,
+            closeOnNavigation: false,
             data: dialogData,
-        }).afterClosed().subscribe((result) => {
+        });
+        ref.afterClosed().subscribe((result) => {
+            if (this.activeDialog === ref) this.activeDialog = undefined;
             if (result) this.handleUpdate(result, isNew, isNew ? {} : record);
         });
     }
@@ -84,13 +99,7 @@ export abstract class AbstractEditableView extends BaseView {
         this.openRecordDialog(record, true);
     }
 
-    /**
-     * Open the row dialog. Renamed conceptually from "edit": when the user
-     * has only `canRead()`, we still want to show them the record + child rows.
-     * The dialog itself (TableEdit) handles read-only mode — its Edit/New/Delete
-     * buttons are gated by the same permissions.
-     * Block only when neither read nor update is granted.
-     */
+    /** Opens the row dialog; read-only users see the record, the dialog gates its own actions. */
     editRecord(record: Record<string, unknown>) {
         if (!this.canUpdate() && !this.requireAuth(() => this.canRead(), 'view')) return;
         this.openRecordDialog(record, false);

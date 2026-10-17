@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.45",
+   "title": "Server-side list sort, unsaved-change guard, shared confirmations, plan-change offers",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Generic lists keep sort and page in the URL and sort on the server; edit dialogs guard unsaved changes; native alert() and confirm() are replaced by Material dialogs; invalid forms stay submittable and point to the error. Adopts keel v1.2.126: a plan change can name the offer it moves to.",
+   "body_markdown": "Requires keel v1.2.126 for `changePlan` offers; everything else needs no keel change.\n\n### Behavioral\n\n- `TableList` treats `_order`, `_limit` and `_offset` as list controls, reads and writes them in the URL, and sends `orderBy` to keel. Client-side per-page sorting and `sortedRecords` are removed; bind `records()`.\n- `TableList` shows a progress bar and `aria-busy` while loading, and distinguishes an empty table (`[emptyMessage]`, default \"No {caption} yet\") from a search with no matches (filters plus Clear search). The \"No records found.\" text is gone.\n- Native `alert()` and `confirm()` are replaced: `PromptService` confirms deletes, revocations, discards, `TableAction.confirmMessage` and the route guard; saving a record is no longer confirmed. `BaseAuthService.canDeactivate` may return `Observable<boolean>`. `BaseTable.requireAuth` and action failures go through `reportError()`, which table views show in their alert region.\n- `TableEdit` reports `hasUnsavedChanges()` and confirms Cancel and close when dirty; `TableList` keeps its dialog open across navigation (`closeOnNavigation: false`) and answers the guard for it.\n- Submit buttons no longer disable for an invalid form; the handler marks controls touched and focuses the first invalid field.\n- `DynamicField` uses `readonly` instead of `disabled` for read-only inputs and textareas, and shows a read-only boolean as \"Yes\" or \"No\".\n- `sail-navigation` adds a skip link and a focusable `<main id=\"sail-main\">`; generated routes get titles. Style `.sail-skip-link` and `.sail-main`.\n- `ConnectionPanel` reports a passing test in `.connection-panel__notice` and shows `LastChecked` on the tile.\n\n### Additive\n\n- `PromptService`, `ConfirmDialog`/`ConfirmOptions`, `FieldError` (`<mat-error sailFieldError>`), `submittable()`, `BaseForm.hasUnsavedChanges()`, `TableList` `emptyMessage` input.\n- `BillingService.changePlan(planId, offer?: PlanOffer)` sends the offer's `billingCycle`, `termType` and `termCount` (a `PlanPrice` fits), so a subscriber can switch billing cycle on the same plan or move to another plan on another cycle; omitted keeps the current terms. Replace an app-local support hand-off for cycle changes with it."
+  },
+  {
    "version": "v1.1.44",
    "title": "Deep links survive a full page load",
    "tags": [

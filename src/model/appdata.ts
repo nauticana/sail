@@ -411,6 +411,9 @@ export interface Subscription {
 	scheduledAt?:     string;
 }
 
+// The offer a plan change moves to; a `PlanPrice` fits. Omitted, keel keeps the current terms.
+export type PlanOffer = Pick<PlanPrice, 'billingCycle' | 'termType' | 'termCount'>;
+
 // keel's plan-change outcome: applied now, or at the period end.
 export interface PlanChangeResult {
 	status: 'changed' | 'scheduled';

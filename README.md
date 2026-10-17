@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.45 adopts keel v1.2.126 (a plan change takes the offer), sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -209,11 +209,14 @@ Key CSS classes used by components:
 .geocode-success, .geocode-error
 
 /* Tables */
-.edit-container, .actions-bar, .tab-content, .empty-state,
+.edit-container, .actions-bar, .tab-content, .empty-state, .empty-state__filters,
 .detail-actions, .search-actions, .select-btn, .form-container
 
-/* Navigation */
-.sidenav-container, .sidenav, .toolbar-spacer
+/* Navigation: hide .sail-skip-link until focused; .sail-main takes focus after navigation */
+.sidenav-container, .sidenav, .toolbar-spacer, .sail-skip-link, .sail-main
+
+/* Fields */
+.field-editable, .field-readonly
 
 /* State classes */
 .deleted-record, .updated-record, .new-record
@@ -263,6 +266,16 @@ this.backend.listPaginated<MyRow>('orders', { Status: 'open' }, {
 ```
 
 Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset`, and `orderBy` to keel's `_limit`, `_offset`, and `_order` query controls. Existing callers that put those string controls in the filter map remain compatible; explicit `PageRequest` values take precedence.
+
+## Generic screens: lists, edits, confirmations
+
+- **List URL state.** `TableList` reads `_order` (`Column` or `Column DESC`, a visible column), `_limit` (one of the page sizes) and `_offset` as controls, never as filters, ignores invalid values, and writes them back on sort and page changes; sorting is server-side across all pages and resets the offset. Every other query parameter is a filter.
+- **Loading and empty states.** While a request runs the list shows a `mat-progress-bar` and sets `aria-busy`; only the latest request may replace rows. With filters active the empty state reads "No {caption} match your search", lists the filters and offers Clear search (keeps sort and page size); otherwise it shows `[emptyMessage]` or "No {caption} yet".
+- **Unsaved changes.** `BaseForm.hasUnsavedChanges()` is the dirty-state contract; `TableEdit` reports changed scalars and child rows marked insert, update or delete. Cancel and the dialog close button confirm before discarding. `TableList` delegates the contract to its open dialog, which stays open across navigation until `BaseAuthService.canDeactivate` decides; a custom dialog without the method keeps its behavior.
+- **Confirmations and notices.** `PromptService.confirm({ title, message?, action, destructive? })` returns `Observable<boolean>` from a Material dialog; `ask(options, then)` runs `then` only on the action; `notify(message)` shows a snackbar. Deletes, revocations, discards, `TableAction.confirmMessage`, and the route guard use it; an ordinary save is not confirmed. Table views report failures in their `role="alert"` region through `reportError()`.
+- **Invalid submit.** Primary actions stay enabled while a form is invalid; `submittable(control, scope)` marks it touched and focuses the first invalid field in `scope`. `<mat-error sailFieldError></mat-error>` (`FieldError`) shows the field's first validation error.
+- **Read-only fields.** `DynamicField` renders read-only values with native `readonly`, so they stay focusable and copyable; a read-only boolean shows "Yes" or "No". The lookup button stays disabled.
+- **Page shell.** `sail-navigation` renders a "Skip to content" link and wraps the outlet in `<main id="sail-main" tabindex="-1">`, focused after a path change (not on first load, a query-only change, or while the handset menu is open). Generated routes take the menu caption as their title, suffixed with `appTitle`.
 
 ## Money
 
@@ -472,7 +485,7 @@ export class PricingPage {
 | `createCheckout(req)` | `POST /api/billing/checkout` | `Observable<CheckoutResponse>` |
 | `getSubscription()` | `GET /api/billing/subscription` | `Observable<Subscription>` |
 | `cancelSubscription()` | `POST /api/billing/subscription/cancel` | `Observable<void>` |
-| `changePlan(planId)` | `POST /api/billing/subscription/change` | `Observable<PlanChangeResult>` |
+| `changePlan(planId, offer?)` | `POST /api/billing/subscription/change` | `Observable<PlanChangeResult>` |
 | `checkChange(planId)` | `POST /api/billing/subscription/change/check` | `Observable<{ overages: PlanOverage[] }>` |
 | `setSeats(seats)` | `POST /api/billing/subscription/seats` | `Observable<void>` |
 | `listInvoices()` | `GET /api/billing/invoices` | `Observable<Invoice[]>` |
@@ -656,11 +669,20 @@ An action with `parameters` (keel v1.2.75 `table_action_parameter`) opens a dial
 
 ### Plan change vs first-time checkout (v1.0.1)
 
-First-time checkout uses `<sail-checkout-button>` (provider-hosted). For an **existing** subscription, upgrade/downgrade is a distinct path — `BillingService.changePlan(planId)` routes to keel's `SubscriptionLifecycle.ChangePlan` via an endpoint the app exposes and answers `{ status: 'changed' | 'scheduled' }`: a scheduled change sets `Subscription.scheduledAt` and `scheduledPlanId`, and re-selecting the current plan cancels it. A paid target the partner exceeds (more live-counted resources than it allows) is refused with 409; call `checkChange(planId)` first to list each `PlanOverage` to remove. Wire the picker's selection to whichever path applies:
+First-time checkout uses `<sail-checkout-button>` (provider-hosted). For an **existing** subscription, upgrade/downgrade is a distinct path — `BillingService.changePlan(planId, offer?)` routes to keel's `SubscriptionLifecycle.ChangePlan` via an endpoint the app exposes and answers `{ status: 'changed' | 'scheduled' }`: a scheduled change sets `Subscription.scheduledAt` and `scheduledPlanId`, and re-selecting the current plan cancels it. A paid target the partner exceeds (more live-counted resources than it allows) is refused with 409; call `checkChange(planId)` first to list each `PlanOverage` to remove. Wire the picker's selection to whichever path applies:
 
 ```typescript
 onPlanPicked(planId: string) {
   this.sub() ? this.billing.changePlan(planId).subscribe() : this.startCheckout(planId);
+}
+```
+
+`offer` (keel v1.2.126) is one of the target plan's `prices` — a `PlanPrice` fits — and moves the subscription to that billing cycle and term, on the same plan or another; omitted, keel keeps the current terms. For a paid subscriber whose plan sells more than one offer, show `<sail-price-selector>` and pass the chosen offer; `Subscription.billingCycle` marks the current one:
+
+```html
+@if ((currentPlan()?.prices?.length ?? 0) > 1) {
+  <sail-price-selector [prices]="currentPlan()!.prices!" [selected]="offer()?.priceId"
+      (selectionChange)="billing.changePlan(sub()!.planId, $event).subscribe()" />
 }
 ```
 
@@ -1273,7 +1295,9 @@ catalog and any routing via the outputs.
   provider redirects straight to consent. `[entityId]` scopes per-business connections and
   reloads on change (0 = tenant-wide). Emits `connected` / `disconnected`.
   Ships no CSS — style `.connections`, `.connection-card`, `.connection-card__{head,title,status,actions}`,
-  `.connection-form`, `.connection-panel__error`, and `.status--{connected,error,pending}`.
+  `.connection-form`, `.connection-panel__error`, `.connection-panel__notice` (a live region, always
+  rendered), `.connection-card__checked`, and `.status--{connected,error,pending}`. A passing Test
+  says so in the notice; the tile shows when the connection was last checked.
 - Each `OAuthProviderField` has a **`role`**: `credential` (sealed secret), `endpoint` (stored
   as `api_endpoint`), or `param` (OAuth authorize query param) — so field order is
   irrelevant. `icon` is a Material name or an image URL.

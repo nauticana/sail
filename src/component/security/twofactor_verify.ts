@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, ViewEncapsulation, ElementRef } from '@angular/core';
+import { submittable } from '../../util/forms';
+import { FieldError } from '../form/field_error';
 import { BaseAuthService } from '../../service/auth.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,7 +17,7 @@ import { BaseAsync } from '../abstract/base_async';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    ReactiveFormsModule,
+    FieldError, ReactiveFormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -24,6 +26,7 @@ import { BaseAsync } from '../abstract/base_async';
   ],
 })
 export class TwoFactorVerifyComponent extends BaseAsync {
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private readonly auth = inject(BaseAuthService);
   private readonly fb = inject(FormBuilder);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
@@ -43,7 +46,7 @@ export class TwoFactorVerifyComponent extends BaseAsync {
   }
 
   verify() {
-    if (this.verifyForm.invalid) return;
+    if (!submittable(this.verifyForm, this.host)) return;
     const { code, trustDevice } = this.verifyForm.value;
 
     if (this.useBackupCode()) {

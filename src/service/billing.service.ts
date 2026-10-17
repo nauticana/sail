@@ -8,6 +8,7 @@ import {
   Invoice,
   PaymentMethod,
   PlanChangeResult,
+  PlanOffer,
   PlanOverage,
   PortalResponse,
   PublicPlan,
@@ -53,13 +54,14 @@ export class BillingService extends BaseRestService {
   }
 
   /**
-   * Upgrade / downgrade the current subscription to `planId` — distinct from
-   * first-time checkout. keel applies it now (`changed`) or at the period end
-   * (`scheduled`); the current plan resumes renewal. 403 without
-   * PARTNER_PLAN_SUBSCRIPTION / CHANGE.
+   * Move the current subscription to `planId` on `offer` (one of the plan's `prices`;
+   * omitted keeps the current terms) — distinct from first-time checkout. keel applies it
+   * now (`changed`) or at the period end (`scheduled`); the same plan on the same terms
+   * resumes renewal. 403 without PARTNER_PLAN_SUBSCRIPTION / CHANGE.
    */
-  changePlan(planId: string): Observable<PlanChangeResult> {
-    return this.http.post<PlanChangeResult>(this.url(RestURL.changePlanURL), { planId });
+  changePlan(planId: string, offer?: PlanOffer): Observable<PlanChangeResult> {
+    const terms = offer && { billingCycle: offer.billingCycle, termType: offer.termType, termCount: offer.termCount };
+    return this.http.post<PlanChangeResult>(this.url(RestURL.changePlanURL), { planId, ...terms });
   }
 
   /** What to remove before changing to `planId`; empty when the change is allowed.

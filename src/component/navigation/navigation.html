@@ -1,3 +1,4 @@
+<a class="sail-skip-link" href="#sail-main" (click)="focusMain($event)">Skip to content</a>
 <mat-sidenav-container class="sidenav-container">
     <mat-sidenav #sidenav class="sidenav"
         [attr.role]="isHandset() ? 'dialog' : 'navigation'"
@@ -61,6 +62,8 @@
                 }
             }
         </mat-toolbar>
-        <router-outlet></router-outlet>
+        <main #main id="sail-main" class="sail-main" tabindex="-1">
+            <router-outlet></router-outlet>
+        </main>
     </mat-sidenav-content>
 </mat-sidenav-container>

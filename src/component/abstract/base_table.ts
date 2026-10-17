@@ -10,9 +10,10 @@ import { MatDialog } from "@angular/material/dialog";
 import { RevealDialog } from "../table/reveal_dialog";
 import { ActionParamsDialog } from "../table/action_params_dialog";
 import { IdentityProviderConfigureDialog } from "../sso/identity_provider_configure_dialog";
+import { PromptService } from "../../service/prompt.service";
 
 
-/** CRUD verb used by `requireAuth()` to compose the "Missing authorization" alert. */
+/** CRUD verb used by `requireAuth()` to compose the "Missing authorization" message. */
 export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view';
 
 /** ISO-like timestamp prefix — gate for comparing two strings as instants. */
@@ -27,8 +28,9 @@ const ACTION_DIALOGS: Record<string, Type<ActionParamsDialog>> = {
 export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
     protected readonly backendService = inject(BackendService);
-    // Action dialogs are rare — resolve MatDialog lazily so every BaseTable subclass doesn't eagerly depend on it.
+    // Dialogs are rare — resolve them lazily so every BaseTable subclass doesn't eagerly depend on them.
     readonly #injector = inject(Injector);
+    protected get prompt(): PromptService { return this.#injector.get(PromptService); }
     protected readonly config: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
     protected readonly dialogWidth: string = '400px';
     /** Subclasses supply the source — a plain signal or a linkedSignal over an input. */
@@ -72,17 +74,16 @@ export abstract class BaseTable {
     /** True when the record is marked for delete (op_code === 'D'). */
     isDeleted(record: Record<string, unknown>):  boolean { return record[this.config.opField] === OpCode.Delete; }
 
-    /**
-     * Authorization guard with shared "Missing authorization" copy. Pass the
-     * permission predicate (typically a `canX()` method on this class) and
-     * the verb that fills the alert. Returns true when allowed.
-     *
-     *   if (!this.requireAuth(() => this.canDelete(), 'delete')) return;
-     */
+    /** Authorization guard: `if (!this.requireAuth(() => this.canDelete(), 'delete')) return;` */
     protected requireAuth(check: () => boolean, verb: AuthVerb): boolean {
         if (check()) return true;
-        alert(`Missing authorization to ${verb} records`);
+        this.reportError(`Missing authorization to ${verb} records.`);
         return false;
+    }
+
+    /** Surfaces a failure; views with a `role="alert"` region override this to use it. */
+    protected reportError(message: string): void {
+        this.prompt.notify(message);
     }
 
     /**
@@ -128,24 +129,13 @@ export abstract class BaseTable {
     }
 
     /**
-     * Fire a TableAction. Template method:
-     *
-     *   1. Authorization check + alert  (shared)
-     *   2. Subclass-specific pre-flight guard via `beforeExecuteAction()` —
-     *      returns false to abort silently (the hook has already shown its
-     *      own alert).
-     *   3. A parameter dialog when the action declares `parameters`
-     *      (it shows `confirmMessage`), otherwise the confirm prompt
-     *   4. POST `{}` for table-level actions or `primaryKeyValues(record)`
-     *      for record-specific actions, merged with the parameter values
-     *   5. On success, dispatch `onActionSuccess()` so subclasses can refresh
-     *      their views; on error, log and alert.
-     *
-     * Subclasses typically only override the two hooks.
+     * Fire a TableAction: authorization, the `beforeExecuteAction()` hook, a parameter
+     * dialog (which shows `confirmMessage`) or the shared confirmation, then POST the
+     * row key merged with the parameters and dispatch `onActionSuccess()`.
      */
     executeAction(action: TableAction, record?: Record<string, unknown>): void {
         if (!this.canExecuteAction(action)) {
-            alert(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}`);
+            this.reportError(`Missing authorization for action ${action.authorityObject}/${action.authorityCheck}.`);
             return;
         }
         if (!this.beforeExecuteAction(action, record)) return;
@@ -161,8 +151,12 @@ export abstract class BaseTable {
                 });
             return;
         }
-        if (action.confirmMessage && !confirm(action.confirmMessage)) return;
-        this.postAction(action, key, record);
+        if (!action.confirmMessage) {
+            this.postAction(action, key, record);
+            return;
+        }
+        this.prompt.ask({ title: action.caption, message: action.confirmMessage, action: action.caption },
+            () => this.postAction(action, key, record));
     }
 
     private postAction(action: TableAction, body: Record<string, unknown>, record?: Record<string, unknown>): void {
@@ -182,14 +176,14 @@ export abstract class BaseTable {
             },
             error: (err) => {
                 console.error(`Action ${action.action} failed`, err);
-                alert(errorDetail(err, `Failed to ${action.caption}`));
+                this.reportError(errorDetail(err, `Failed to ${action.caption}`));
             },
         });
     }
 
     /**
      * Pre-flight hook for `executeAction()`. Return false to abort the action
-     * (the override should `alert()` or otherwise surface why). Default: allow.
+     * (the override should `reportError()` why). Default: allow.
      */
     protected beforeExecuteAction(_action: TableAction, _record?: Record<string, unknown>): boolean {
         return true;

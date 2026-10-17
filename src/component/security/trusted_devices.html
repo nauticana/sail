@@ -53,9 +53,10 @@
         <mat-form-field appearance="outline">
           <mat-label>Password</mat-label>
           <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+          <mat-error sailFieldError></mat-error>
         </mat-form-field>
         <div class="auth-actions">
-          <button matButton="elevated" class="warn" type="submit" [disabled]="!logoutForm.valid || loading()">
+          <button matButton="elevated" class="warn" type="submit" [disabled]="loading()">
             Sign out everywhere
           </button>
           <button matButton type="button" (click)="logoutOpen.set(false)">Cancel</button>

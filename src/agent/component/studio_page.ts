@@ -12,6 +12,8 @@ import { Observable, forkJoin, map } from 'rxjs';
 import { BaseAuthService } from '../../service/auth.service';
 import { CaptionPipe } from '../../service/caption_pipe';
 import { LabelOption, LabelService } from '../../service/label.service';
+import { PromptService } from '../../service/prompt.service';
+import { ConfirmOptions } from '../../component/dialog/confirm_dialog';
 import {
   AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentReadiness, AgentDraft, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
   AgentModelSelection, AgentRelease, AgentSetting, AgentSettings, AgentSummary, AgentTestResult, GuardrailRule,
@@ -31,6 +33,7 @@ const CORE_TABS = [
   { id: 'history', label: 'History' },
 ];
 const GUARDRAILS_TAB = { id: 'guardrails', label: 'Guardrails' };
+const DISCARD: ConfirmOptions = { title: 'Discard unsaved changes?', action: 'Discard changes', destructive: true };
 
 /**
  * Embeddable Agent Studio over Scout's core `agents` feature: a grouped agent rail and tabs
@@ -53,6 +56,7 @@ export class StudioPageComponent implements OnInit {
   private readonly auth = inject(BaseAuthService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly labels = inject(LabelService);
+  private readonly prompt = inject(PromptService);
 
   /** Rail group of an agent; its type by default. */
   readonly groupBy = input<(agent: AgentSummary) => string>((agent) => agent.agent_type);
@@ -145,7 +149,14 @@ export class StudioPageComponent implements OnInit {
 
   select(agentName: string, force = false): void {
     if (!force && agentName === this.selectedName()) return;
-    if (!force && this.dirty() && !window.confirm('Discard unsaved changes for this agent?')) return;
+    if (force || !this.dirty()) {
+      this.open(agentName);
+      return;
+    }
+    this.prompt.ask({ ...DISCARD, title: 'Discard unsaved changes for this agent?' }, () => this.open(agentName));
+  }
+
+  private open(agentName: string): void {
     this.selectedName.set(agentName);
     this.draft.set(null);
     this.settings.set(null);
@@ -206,7 +217,7 @@ export class StudioPageComponent implements OnInit {
   }
 
   discard(): void {
-    if (window.confirm('Discard unsaved changes?')) this.draft.set(JSON.parse(this.baseline()) as AgentDraft);
+    this.prompt.ask(DISCARD, () => this.draft.set(JSON.parse(this.baseline()) as AgentDraft));
   }
 
   save(): void {
@@ -230,21 +241,24 @@ export class StudioPageComponent implements OnInit {
 
   makeDefault(): void {
     const d = this.draft();
-    if (!d || !window.confirm(`Make "${d.display_name}" the default ${d.agent_type} agent?`)) return;
-    this.act(this.studio.setDefault({ agent_name: d.agent_name, expected_type_defaults_revision: d.expected_type_defaults_revision }), (rows) => {
-      this.summaries.set(rows);
-      this.loadAgent();
-    }, d.agent_name);
+    if (!d) return;
+    this.prompt.ask({ title: `Make "${d.display_name}" the default ${d.agent_type} agent?`, action: 'Make default' }, () =>
+      this.act(this.studio.setDefault({ agent_name: d.agent_name, expected_type_defaults_revision: d.expected_type_defaults_revision }), (rows) => {
+        this.summaries.set(rows);
+        this.loadAgent();
+      }, d.agent_name));
   }
 
   setArchived(archived: boolean): void {
     const d = this.draft();
-    if (!d || (archived && !window.confirm(`Archive "${d.display_name}"?`))) return;
+    if (!d) return;
     const request = { agent_name: d.agent_name, expected_agent_revision: d.expected_agent_revision };
-    this.act(archived ? this.studio.archive(request) : this.studio.unarchive(request), (summary) => {
+    const apply = () => this.act(archived ? this.studio.archive(request) : this.studio.unarchive(request), (summary) => {
       this.applyRevisions(summary.agent_revision);
       this.loadList();
     }, d.agent_name);
+    if (archived) this.prompt.ask({ title: `Archive "${d.display_name}"?`, action: 'Archive agent', destructive: true }, apply);
+    else apply();
   }
 
   /** Creates an agent of the selected agent's type, copied from its saved draft. */
@@ -258,11 +272,12 @@ export class StudioPageComponent implements OnInit {
 
   reset(target: PromptResetTarget): void {
     const d = this.draft();
-    if (!d || !window.confirm('Reset these prompt sections? Publish to make it live.')) return;
-    this.act(this.studio.reset({
-      agent_name: d.agent_name, ...target,
-      expected_agent_revision: d.expected_agent_revision, expected_type_defaults_revision: d.expected_type_defaults_revision,
-    }), (draft) => this.applyDraft(draft), d.agent_name);
+    if (!d) return;
+    this.prompt.ask({ title: 'Reset these prompt sections?', message: 'Publish to make it live.', action: 'Reset sections', destructive: true }, () =>
+      this.act(this.studio.reset({
+        agent_name: d.agent_name, ...target,
+        expected_agent_revision: d.expected_agent_revision, expected_type_defaults_revision: d.expected_type_defaults_revision,
+      }), (draft) => this.applyDraft(draft), d.agent_name));
   }
 
   saveSetting(binding: Pick<AgentSetting, 'scope_id' | 'resource_kind' | 'resource_id' | 'merge_mode' | 'sealed'>, valueText: string, remove = false): void {
@@ -314,12 +329,12 @@ export class StudioPageComponent implements OnInit {
   }
 
   restore(version: number): void {
-    if (!window.confirm(`Restore version ${version}? It is published again as a new version.`)) return;
-    this.act(this.studio.restore({ agent_name: this.selectedName(), version }), (release) => {
-      this.successMessage.set(`Version ${release.version} published from version ${version}.`);
-      this.loadList();
-      this.loadAgent();
-    }, this.selectedName());
+    this.prompt.ask({ title: `Restore version ${version}?`, message: 'It is published again as a new version.', action: 'Restore version' }, () =>
+      this.act(this.studio.restore({ agent_name: this.selectedName(), version }), (release) => {
+        this.successMessage.set(`Version ${release.version} published from version ${version}.`);
+        this.loadList();
+        this.loadAgent();
+      }, this.selectedName()));
   }
 
   loadHistory(): void {

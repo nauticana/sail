@@ -20,7 +20,11 @@
     <p class="table-list__error" role="alert">{{ viewError() }}</p>
 }
 
-<table>
+@if (loading()) {
+    <mat-progress-bar mode="indeterminate" [attr.aria-label]="'Loading ' + getCaption()"></mat-progress-bar>
+}
+
+<table [attr.aria-busy]="loading()">
     <thead>
         <tr>
             @for (column of displayedColumns(); track column) {
@@ -40,9 +44,9 @@
             }
         </tr>
     </thead>
-@if (sortedRecords().length > 0) {
+@if (records().length > 0) {
     <tbody>
-    @for (record of sortedRecords(); track trackByRecord($index, record)) {
+    @for (record of records(); track trackByRecord($index, record)) {
         <tr>
         @for (column of displayedColumns(); track column) {
             <td>
@@ -90,6 +94,18 @@
     </mat-paginator>
 }
 
-@if (records().length === 0 && displayedColumns().length > 0 && !viewError()) {
-    <p class="empty-state">No records found.</p>
+@if (!loading() && records().length === 0 && !viewError()) {
+    <div class="empty-state" role="status">
+        @if (activeFilters().length > 0) {
+            <p>No {{ getCaption() }} match your search.</p>
+            <dl class="empty-state__filters">
+                @for (filter of activeFilters(); track $index) {
+                    <dt>{{ filter.label }}</dt><dd>{{ filter.value }}</dd>
+                }
+            </dl>
+            <button matButton="outlined" type="button" (click)="clearSearch()">Clear search</button>
+        } @else {
+            <p>{{ emptyMessage() || 'No ' + getCaption() + ' yet.' }}</p>
+        }
+    </div>
 }
