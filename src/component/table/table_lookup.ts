@@ -51,14 +51,10 @@ export class TableLookup extends BaseView implements OnInit {
         const tableName = this.tableName();
         return this.cacheService.getAppData().pipe(
             take(1),
-            map((data) => {
-                for (const api in data.Apis ?? {}) {
-                    if (data.Apis[api].Table?.TableName === tableName) {
-                        this.apiName.set(api); // bare RestUri; BackendService.crudUrl resolves the version
-                        return api;
-                    }
-                }
-                return '';
+            map(() => {
+                const api = this.cacheService.apiNameFor(tableName) ?? '';
+                if (api) this.apiName.set(api);
+                return api;
             }),
         );
     }

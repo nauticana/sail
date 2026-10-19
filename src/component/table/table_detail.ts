@@ -7,6 +7,7 @@ import { TableForm } from "../form/form_table";
 import { MatIconModule } from "@angular/material/icon";
 import { TableAction } from "../../model/appdata";
 import { OpCode } from "../../model/common";
+import { ParentRow } from "../../service/money_column.service";
 
 @Component({
     selector: 'sail-table-detail',
@@ -83,11 +84,15 @@ export class TableDetail extends BaseForm {
         return (this.fkColumns().includes(fieldName) || super.isReadOnly(fieldName));
     }
 
+    override parentRow(): ParentRow {
+        return { tableName: this.parentTableName(), record: this.parentRecord() };
+    }
+
     openEditDialog(record: Record<string, unknown>, isNew: boolean, readOnlyColumns: string[]) {
         const dialogRef = this.dialog.open(TableForm, {
             width: this.dialogWidth,
             disableClose: true,
-            data: this.getDialogData(record, isNew, readOnlyColumns),
+            data: { ...this.getDialogData(record, isNew, readOnlyColumns), parent: this.parentRow() },
         });
         dialogRef.afterClosed().subscribe((result) => {
             if (result) {

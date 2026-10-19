@@ -106,6 +106,7 @@ export * from './service/caption_pipe';
 export * from './service/currency.service';
 export * from './service/access.service';
 export * from './service/money_pipe';
+export * from './service/money_column.service';
 export * from './service/base_rest.service';
 export * from './util/text';
 export * from './util/money';

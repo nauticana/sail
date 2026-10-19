@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSign
 import { DynamicField } from "./form_field";
 import { BaseAuthService } from "../../service/auth.service";
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
+import { ParentRow } from "../../service/money_column.service";
 
 @Component({
     selector: 'sail-record-form',
@@ -17,6 +18,8 @@ export class RecordForm {
     readonly tableName = input('');
     readonly fields = input<string[]>([]);
     readonly isReadOnly = input<(key: string) => boolean>(() => false);
+    /** The row this form is nested under; resolves a money column's currency path without a fetch. */
+    readonly parent = input<ParentRow>();
     /** Full updated record on every field edit. The input object is never mutated. */
     readonly recordChange = output<{[key: string]: unknown}>();
 

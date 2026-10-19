@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.45 adopts keel v1.2.126 (a plan change takes the offer), sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail and keel are versioned in lock-step. The current line is **sail v1.1.x ↔ keel v1.2.x**; sail v1.1.47 adopts keel v1.2.131 (money columns declare their currency), sail v1.1.45 adopts keel v1.2.126 (a plan change takes the offer), sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -31,7 +31,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
 | **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `PlanChangeResult`, `PlanOverage`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `Currency`, `Country`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
-| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `parseMinor()`, `CurrencyService`, `sailMoney` pipe |
+| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `parseMinor()`, `minorToDecimal()`, `CurrencyService`, `MoneyColumnService`, `sailMoney` pipe |
 
 ## Quick start
 
@@ -280,6 +280,8 @@ Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset
 ## Money
 
 keel stores money as integer minor units and serves the `currency` table (`code`, `caption`, `exponent`) as the only source of exponents. `formatMinor(minor, currency, exponent)` renders an amount; `Intl` supplies the symbol and grouping only. `parseMinor(text, exponent)` is the inverse for typed input: exact, `.` as the decimal point, `null` for malformed text, unsafe integers or more fraction digits than the exponent. Billing payloads (`PlanPrice`, `Subscription`, `Invoice`) carry `exponent` beside their `…Minor` fields, so they render without a catalog: `{{ invoice.totalMinor | sailMoney:invoice.currency:invoice.exponent }}`. Amounts without an exponent, such as the agency ledger, use `{{ minor | sailMoney:currency }}`: the pipe loads the catalog once through `CurrencyService` (generic REST `currency`, so the role needs `TABLE SELECT currency`), renders `''` until it arrives, and throws for a code the catalog lacks rather than guessing decimals.
+
+Metadata-driven screens need no pipe. A column keel marks with `TableColumn.CurrencyPath` (seeded in `column_display_attribute.currency_path`, keel v1.2.131) is money: `TableList`, `TableDetail`, `TableLookup`, `TableReport` and the read-only form show it at the exponent of the row's currency, and the edit field takes a decimal (`12.50`, `.` as the point) with the currency code as suffix, storing minor units. `MoneyColumnService` follows the path: a sibling column (`currency`) reads the row, a dotted path (`invoice.currency`) reads the parent row a child grid is nested under, or fetches each ancestor once through its generic REST api and re-renders when it arrives. A cell is empty until the currency and the catalog are known, so the role needs `TABLE SELECT` on the ancestor tables and on `currency`. `TableReport` matches its rows' SQL column names against `[tableName]`'s columns. `minorToDecimal(minor, exponent)` is `parseMinor`'s inverse.
 
 ## Backend-driven constant captions
 
@@ -1256,8 +1258,9 @@ Images preview inline, PDFs open in a new tab. `(failed)` hands over the raw err
 branch on `errorCode(err)` for keel's `document_*` codes. Status captions come from
 the `partner_document_status` domain through `LabelService`.
 
-`<sail-partner-documents>` shows the latest version per type and offers replacement
-uploads for rejected or expiring documents unless `[allowReupload]="false"`.
+`<sail-partner-documents>` shows the latest version per type, narrowed by
+`[documentTypes]`, and offers replacement uploads for rejected or expiring
+documents unless `[allowReupload]="false"`.
 `<sail-document-review-queue>` lists pending rows with an inline preview and
 approve/reject controls; `[userId]` and `[documentTypes]` narrow it, and `(reviewed)`
 emits `{ id, approved }` after each decision. Both rely on the
@@ -1415,14 +1418,15 @@ The generic edit form renders each column from keel's metadata. By default:
 
 To override per column without changing the schema, seed keel's
 `column_display_attribute` table (`table_name, column_name, display_mode,
-display_width, display_rows`). sail honours three optional `TableColumn`
-fields it produces:
+display_width, display_rows, currency_path`). sail honours four optional
+`TableColumn` fields it produces:
 
 | Field          | Effect |
 |----------------|--------|
 | `DisplayMode`  | `R` read-only (shown display-only; **hidden when empty**, so a new record's audit fields disappear and on edit only populated ones show). `H` hidden everywhere — the new-record builder omits it so the DB default/sequence/trigger fills it. `D` editable, prefilled with the column default on a new record. `I` insert-only — editable while creating, locked once it exists. `U` update-stamp — display-only like `R` in the UI, but keel auto-sets it on every UPDATE (`now()` for timestamps, `user_id` for integers), so `updated_at`/`updated_by` need no DB trigger. Empty/NULL = editable. |
 | `display_rows` | Textarea height. `1` forces a single-line input — keep a column `TEXT` (so bulk-loaded values don't overflow) yet render it on one line. |
 | `display_width`| Field max-width in px. |
+| `currency_path`| Marks a `BIGINT` minor-units column as money and says where its currency is; see [Money](#money). |
 
 `R`/`H`/`I` are also enforced server-side by keel (excluded from generic
 INSERT/UPDATE), so the modes are real, not just cosmetic. No rows seeded =

@@ -48,4 +48,18 @@ export class CurrencyService {
   format(minor: number, currency: string): string {
     return formatMinor(minor, currency, this.exponent(currency));
   }
+
+  /** The exponent once the catalog is loaded, starting the load if needed; undefined meanwhile. Throws when the load failed. */
+  exponentLazy(currency: string): number | undefined {
+    if (this.ready()) return this.exponent(currency);
+    if (this.failed()) throw new Error('sail: failed to load the currency catalog.');
+    this.load().subscribe({ error: () => undefined });
+    return undefined;
+  }
+
+  /** `format` once the catalog is loaded, '' meanwhile (see `exponentLazy`). */
+  formatLazy(minor: number, currency: string): string {
+    const exponent = this.exponentLazy(currency);
+    return exponent === undefined ? '' : formatMinor(minor, currency, exponent);
+  }
 }

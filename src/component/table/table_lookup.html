@@ -23,7 +23,7 @@
                     <tr>
                         <td><button matButton type="button" (click)="onSelect(record)">Select</button></td>
                         @for (column of displayedColumns(); track column) {
-                            <td>{{ displayValue(column, record[column]) }}</td>
+                            <td>{{ displayValue(column, record[column], record) }}</td>
                         }
                     </tr>
                 }

@@ -795,6 +795,11 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.cache.TableDefinitions[tableName];
   }
 
+  /** The generic REST api (bare RestUri) serving a table; undefined when none does. */
+  apiNameFor(tableName: string): string | undefined {
+    return Object.keys(this.cache?.Apis ?? {}).find((api) => this.cache?.Apis[api].Table?.TableName === tableName);
+  }
+
   getApiDictionary(dictionaryId: string): DictionaryPath | undefined {
     if (!this.cache || !this.cache.Apis) {
       return undefined;

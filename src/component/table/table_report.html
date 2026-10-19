@@ -48,7 +48,7 @@
             @for (record of records(); track $index) {
                 <tr>
                     @for (column of displayedColumns(); track column) {
-                        <td>{{ record[column] }}</td>
+                        <td>{{ cell(column, record) }}</td>
                     }
                 </tr>
             }

@@ -4,13 +4,14 @@ import { BaseForm } from "../abstract/base_form";
 import { RecordForm } from "./form_record";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { ParentRow } from "../../service/money_column.service";
 
 interface TableFormDialogData {
     record: {[key: string]: unknown};
     tableName: string;
     isNew?: boolean;
     readOnlyColumns?: string[];
-    attributeName?: string;
+    parent?: ParentRow;
 }
 
 @Component({
@@ -45,6 +46,10 @@ export class TableForm extends BaseForm {
     override isReadOnly(fieldName: string): boolean {
         if (this.readOnlyColumns.includes(fieldName)) return true;
         return super.isReadOnly(fieldName);
+    }
+
+    override parentRow(): ParentRow | undefined {
+        return this.data.parent;
     }
 
     onSave(): void {

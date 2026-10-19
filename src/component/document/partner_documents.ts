@@ -24,22 +24,18 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   readonly heading = input('Documents');
   readonly emptyMessage = input('No documents uploaded.');
   readonly expiringWithinDays = input(30);
+  /** Limits the list to these document_type codes; all types when absent. */
+  readonly documentTypes = input<readonly string[]>();
   /** false hides "Upload replacement", e.g. for a reviewer viewing someone else's documents. */
   readonly allowReupload = input(true);
 
   readonly documents = signal<PartnerDocument[]>([]);
   readonly reuploading = signal<PartnerDocument | null>(null);
-  readonly statusesReady = signal(false);
-  readonly latest = computed(() => latestByType(this.documents()));
+  readonly latest = computed(() => latestByType(this.documents(), this.documentTypes()));
 
   ngOnInit(): void {
-    this.run(forkJoin({
-      labels: this.labels.loadLabels('partner_document_status'),
-      documents: this.service.list(this.userId()),
-    }), ({ documents }) => {
-      this.statusesReady.set(true);
-      this.documents.set(documents);
-    }, 'Could not load documents.');
+    this.run(forkJoin([this.labels.loadLabels('partner_document_status'), this.service.list(this.userId())]),
+      ([, rows]) => this.documents.set(rows), 'Could not load documents.');
   }
 
   reload(): void {
@@ -47,7 +43,7 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   }
 
   status(status: string): string {
-    return this.statusesReady() ? this.labels.requireLabel('partner_document_status', status) : '';
+    return this.labels.requireLabel('partner_document_status', status);
   }
 
   canReupload(doc: PartnerDocument): boolean {
@@ -76,9 +72,10 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   }
 }
 
-function latestByType(rows: PartnerDocument[]): PartnerDocument[] {
+function latestByType(rows: PartnerDocument[], types?: readonly string[]): PartnerDocument[] {
   const latest = new Map<string, PartnerDocument>();
   for (const row of rows) {
+    if (types && !types.includes(row.DocumentType)) continue;
     const key = `${row.UserId ?? ''}:${row.DocumentType}`;
     const current = latest.get(key);
     if (!current || row.VersionNo > current.VersionNo) latest.set(key, row);

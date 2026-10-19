@@ -1,4 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, output, ViewEncapsulation } from "@angular/core";
+import { CurrencyService } from "../../service/currency.service";
+import { ParentRow } from "../../service/money_column.service";
+import { minorToDecimal, parseMinor } from "../../util/money";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxChange, MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog } from "@angular/material/dialog";
@@ -36,6 +39,9 @@ export class DynamicField extends BaseTable {
     readonly valueChange = output<unknown>();
     readonly recordUpdate = output<{[key: string]: unknown}>();
     readonly field = input('');
+    /** The row the field belongs to and the row it is nested under; a money column finds its currency through them. */
+    readonly record = input<Record<string, unknown>>({});
+    readonly parent = input<ParentRow>();
     readonly label = input('');
     readonly readonlyField = input(false, {alias: 'readonly'});
     readonly subscriptSizing = input<'fixed' | 'dynamic'>('dynamic');
@@ -44,9 +50,52 @@ export class DynamicField extends BaseTable {
     override readonly tableName = linkedSignal<string, string>({ source: () => this.tableNameInput(), computation: (v, p) => v || p?.value || '' });
 
     private readonly dialog = inject(MatDialog);
+    private readonly currencies = inject(CurrencyService);
 
     get col() {
         return this.getColumn(this.field());
+    }
+
+    override parentRow(): ParentRow | undefined {
+        return this.parent();
+    }
+
+    get isMoney(): boolean {
+        return !!this.col?.CurrencyPath;
+    }
+
+    get currency(): string | undefined {
+        return this.col && this.money.currency(this.tableName(), this.col, this.record(), this.parent());
+    }
+
+    /** Exponent of the row's currency; undefined until both the currency and the catalog are known. */
+    get exponent(): number | undefined {
+        const currency = this.currency;
+        return currency ? this.currencies.exponentLazy(currency) : undefined;
+    }
+
+    /** Decimal text of a money value; the user's own text survives the round trip through the parent. */
+    readonly moneyText = linkedSignal<unknown, string>({
+        source: () => this.value(),
+        computation: (minor, previous) => {
+            // A computed may not start the catalog load (a signal write); the template's `exponent` does.
+            const currency = this.currency;
+            const exponent = currency && this.currencies.ready() ? this.currencies.exponent(currency) : undefined;
+            if (typeof minor !== 'number' || exponent === undefined) return previous?.value ?? '';
+            return previous && parseMinor(previous.value, exponent) === minor ? previous.value : minorToDecimal(minor, exponent);
+        },
+    });
+
+    /** Text that does not parse at the exponent was emitted verbatim, so the parent holds a string. */
+    get moneyInvalid(): boolean {
+        return typeof this.value() === 'string' && this.value() !== '';
+    }
+
+    onMoneyInput(event: Event) {
+        const text = (event.target as HTMLInputElement).value.trim();
+        this.moneyText.set(text);
+        const exponent = this.exponent;
+        this.valueChange.emit(text === '' || exponent === undefined ? text : parseMinor(text, exponent) ?? text);
     }
 
     get inputType() {
@@ -137,7 +186,7 @@ export class DynamicField extends BaseTable {
     }
 
     get displayCaption(): string {
-        return this.displayValue(this.field(), this.value());
+        return this.displayValue(this.field(), this.value(), this.record());
     }
 
     get checked(): boolean {

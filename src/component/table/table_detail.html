@@ -33,7 +33,7 @@
                             @if (isReadOnly(col)) {
                                 {{ record[col] }}
                             } @else {
-                                <sail-dynamic-field [tableName]="tableName()" [value]="record[col]" [field]="col" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></sail-dynamic-field>
+                                <sail-dynamic-field [tableName]="tableName()" [value]="record[col]" [field]="col" [record]="record" [parent]="parentRow()" (valueChange)="record[col]=$event" subscriptSizing="dynamic"></sail-dynamic-field>
                             }
                         </td>
                     }
@@ -43,7 +43,7 @@
                     </td>
                 } @else {
                     @for (col of displayedColumns(); track col) {
-                        <td>{{ displayValue(col, record[col]) }}</td>
+                        <td>{{ displayValue(col, record[col], record) }}</td>
                     }
                     <td>
                         @if (canUpdate()) {

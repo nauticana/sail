@@ -10,6 +10,7 @@ import { ConstantValue } from "../../model/common";
 import { ReportParam } from "../../model/appdata";
 import { titleCase } from "../../util/text";
 import { errorDetail } from "../../util/errors";
+import { MoneyColumnService } from "../../service/money_column.service";
 
 @Component({
     selector: 'sail-table-report',
@@ -29,6 +30,7 @@ export class TableReport {
 
     private readonly auth = inject(BaseAuthService);
     private readonly backend = inject(BackendService);
+    private readonly money = inject(MoneyColumnService);
 
     readonly records = signal<Record<string, unknown>[]>([]);
     readonly displayedColumns = signal<string[]>([]);
@@ -160,6 +162,13 @@ export class TableReport {
                 this.errorMessage.set(errorDetail(err, 'Failed to load report data.'));
             },
         });
+    }
+
+    /** A money column of `tableName` (report rows carry SQL column names) renders at its currency's exponent. */
+    cell(column: string, record: Record<string, unknown>): unknown {
+        const value = record[column];
+        const col = this.auth.getTableDefinition(this.tableName())?.Columns.find((c) => c.ColumnName === column || c.PascalName === column);
+        return col?.CurrencyPath && typeof value === 'number' ? this.money.display(this.tableName(), col, value, record) : value;
     }
 
     /** Re-exported for templates; same as the shared util. */

@@ -35,6 +35,23 @@
          [rows]="textAreaRows">
         </textarea>
     </mat-form-field>
+} @else if (isMoney) {
+    <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
+        <mat-label>{{ colCaption(field()) }}</mat-label>
+        <input matInput type="text" inputmode="decimal"
+         [value]="isReadonly ? displayCaption : moneyText()"
+         (input)="onMoneyInput($event);"
+         [readonly]="isReadonly || exponent === undefined"
+         [required]="required">
+        @if (!isReadonly) {
+            @if (currency) { <span matTextSuffix>{{ currency }}</span> }
+            @if (exponent === undefined) {
+                <mat-hint>The currency is not known yet.</mat-hint>
+            } @else if (moneyInvalid) {
+                <mat-hint class="sail-field-hint--error" role="alert">Enter an amount with up to {{ exponent }} decimals.</mat-hint>
+            }
+        }
+    </mat-form-field>
 } @else {
     <mat-form-field [appearance]="appearance()" [subscriptSizing]="subscriptSizing()">
         <mat-label>{{ colCaption(field()) }}</mat-label>

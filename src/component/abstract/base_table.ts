@@ -11,6 +11,7 @@ import { RevealDialog } from "../table/reveal_dialog";
 import { ActionParamsDialog } from "../table/action_params_dialog";
 import { IdentityProviderConfigureDialog } from "../sso/identity_provider_configure_dialog";
 import { PromptService } from "../../service/prompt.service";
+import { MoneyColumnService, ParentRow } from "../../service/money_column.service";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" message. */
@@ -28,6 +29,7 @@ const ACTION_DIALOGS: Record<string, Type<ActionParamsDialog>> = {
 export abstract class BaseTable {
     protected readonly cacheService = inject(BaseAuthService);
     protected readonly backendService = inject(BackendService);
+    protected readonly money = inject(MoneyColumnService);
     // Dialogs are rare — resolve them lazily so every BaseTable subclass doesn't eagerly depend on them.
     readonly #injector = inject(Injector);
     protected get prompt(): PromptService { return this.#injector.get(PromptService); }
@@ -42,6 +44,11 @@ export abstract class BaseTable {
 
     isReadOnly(_fieldName: string): boolean {
         return false;
+    }
+
+    /** The row this view is nested under, so a currency path ending there needs no fetch. */
+    parentRow(): ParentRow | undefined {
+        return undefined;
     }
 
     /** Stable function-input for `[isReadOnly]`. Signal reads inside isReadOnly()
@@ -318,10 +325,14 @@ export abstract class BaseTable {
         return this.columnMap().get(fieldName);
     }
 
-    displayValue(fieldName: string, rawValue: unknown): string {
+    /** Caption of a lookup value, a money column at its currency's exponent (needs the row), else the raw text. */
+    displayValue(fieldName: string, rawValue: unknown, record?: Record<string, unknown>): string {
         if (rawValue === null || rawValue === undefined || rawValue === '') return '';
         const col = this.getColumn(fieldName);
         if (!col) return String(rawValue);
+        if (col.CurrencyPath && record && typeof rawValue === 'number') {
+            return this.money.display(this.tableName(), col, rawValue, record, this.parentRow());
+        }
         if (col.LookupDomain) {
             const options = this.cacheService.getDomainValues(col.LookupDomain);
             const match = options?.find(o => o.Value === String(rawValue));

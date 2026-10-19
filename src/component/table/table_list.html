@@ -53,11 +53,11 @@
             @if (isLinkColumn(column)) {
                 <a tabindex="0" role="button" (click)="editRecord(record)"
                    (keydown.enter)="editRecord(record)"
-                   (keydown.space)="$event.preventDefault(); editRecord(record)">{{ displayValue(column, record[column]) }}</a>
+                   (keydown.space)="$event.preventDefault(); editRecord(record)">{{ displayValue(column, record[column], record) }}</a>
             } @else if (isBoolean(column)) {
                 <mat-checkbox [checked]="record[column] === true || record[column] === 'T'" disabled [aria-label]="colCaption(column)"></mat-checkbox>
             } @else if (column !== 'actions') {
-                {{ displayValue(column, record[column]) }}
+                {{ displayValue(column, record[column], record) }}
             } @else {
                 @if (canUpdate() || canRead()) {
                     <button matIconButton type="button" (click)="editRecord(record)" title="Edit" aria-label="Edit"><mat-icon>edit</mat-icon></button>

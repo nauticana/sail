@@ -7,6 +7,8 @@
              (valueChange)="onFieldChange(key, $event)"
              (recordUpdate)="onRecordUpdate($event)"
              [field]="key"
+             [record]="working()"
+             [parent]="parent()"
              [readonly]="isReadOnly()(key)">
             </sail-dynamic-field>
         }

@@ -55,6 +55,8 @@ export interface TableColumn {
   DisplayMode?:  string;
   DisplayWidth?: number;
   DisplayRows?:  number;
+  /** Marks a minor-units money column: a sibling currency column, or parent tables up to it joined with dots. */
+  CurrencyPath?: string;
 }
 
 // One custom button registered against a table via the basis

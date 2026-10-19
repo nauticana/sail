@@ -14,6 +14,15 @@ export function formatMinor(minor: number, currency: string, exponent: number): 
   }).format(minor / 10 ** exponent);
 }
 
+/** Decimal text of minor units for an input ("12.50" at exponent 2), `.` as the point; the inverse of `parseMinor`. */
+export function minorToDecimal(minor: number, exponent: number): string {
+  if (!Number.isSafeInteger(minor)) throw new Error(`sail: money must be a safe integer (${minor}).`);
+  requireExponent(exponent);
+  const digits = String(Math.abs(minor)).padStart(exponent + 1, '0');
+  const whole = digits.slice(0, digits.length - exponent);
+  return (minor < 0 ? '-' : '') + whole + (exponent ? '.' + digits.slice(-exponent) : '');
+}
+
 /**
  * Parse a typed decimal amount ("12.5", "-0.75") into minor units with exact string
  * arithmetic. null for anything else, including more fraction digits than `exponent`.

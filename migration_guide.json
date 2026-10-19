@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.48",
+   "title": "Money columns from metadata, partner document type filter",
+   "tags": [
+    "additive"
+   ],
+   "summary": "Metadata-driven tables, forms, lookups and reports show and edit money columns keel marks with TableColumn.CurrencyPath at the catalog exponent; the partner documents list filters by type. Adopts keel v1.2.131.",
+   "body_markdown": "### Additive\n\n- `TableColumn.CurrencyPath` (keel v1.2.131 `column_display_attribute.currency_path`): `TableList`, `TableDetail`, `TableLookup`, `TableReport` and the read-only form render the column through `MoneyColumnService` at the row's currency exponent; the edit field takes a decimal with the currency code as suffix and stores minor units. Ancestor rows a dotted path needs are taken from the parent a child grid is nested under or fetched once through generic REST, so the role needs `TABLE SELECT` on those tables and on `currency`.\n- `BaseTable.displayValue(field, value, record?)`: pass the row to format a money column. `BaseTable.parentRow()` names the row a view is nested under; `TableDetail`, `TableForm` and `DynamicField` override it.\n- `<sail-dynamic-field [record] [parent]>` and `<sail-record-form [parent]>` carry the row and its parent to the money editor.\n- `CurrencyService.exponentLazy(currency)` and `formatLazy(minor, currency)` start the catalog load and answer `undefined` / `''` until it is ready (`sailMoney` now uses them). `minorToDecimal(minor, exponent)` is `parseMinor`'s inverse.\n- `BaseAuthService.apiNameFor(tableName)` finds the generic REST api serving a table.\n- `<sail-partner-documents [documentTypes]>` limits the list to the given `document_type` codes, like the review queue.\n"
+  },
+  {
    "version": "v1.1.46",
    "title": "Money input parsing, document review filters, configurable deletion cancel",
    "tags": [
