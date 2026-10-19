@@ -48,8 +48,10 @@
       }
     </form>
 
-    <div class="auth-actions">
-      <a routerLink="/dashboard">Cancel</a>
-    </div>
+    @if (cancelRoute(); as route) {
+      <div class="auth-actions">
+        <a [routerLink]="route">Cancel</a>
+      </div>
+    }
   </div>
 </div>

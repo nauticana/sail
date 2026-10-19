@@ -24,6 +24,8 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   readonly heading = input('Documents');
   readonly emptyMessage = input('No documents uploaded.');
   readonly expiringWithinDays = input(30);
+  /** false hides "Upload replacement", e.g. for a reviewer viewing someone else's documents. */
+  readonly allowReupload = input(true);
 
   readonly documents = signal<PartnerDocument[]>([]);
   readonly reuploading = signal<PartnerDocument | null>(null);
@@ -49,7 +51,7 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   }
 
   canReupload(doc: PartnerDocument): boolean {
-    return doc.Status === 'N' || isExpiring(doc.ExpiresOn, this.expiringWithinDays());
+    return this.allowReupload() && (doc.Status === 'N' || isExpiring(doc.ExpiresOn, this.expiringWithinDays()));
   }
 
   preview(doc: PartnerDocument): void {

@@ -44,6 +44,8 @@ export class AccountDeletionComponent extends BaseAsync {
 
   readonly confirmationText = input('DELETE');
   readonly reauthMethod = input<'password' | 'code'>('password');
+  /** Target of the Cancel link; null hides it. */
+  readonly cancelRoute = input<string | null>('/dashboard');
   readonly method = linkedSignal(() => this.reauthMethod());
   readonly codeSent = signal(false);
 

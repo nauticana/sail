@@ -35,13 +35,15 @@ interface DocumentHandlerResponse {
 export class PartnerDocumentService extends BaseRestService {
   private readonly backend = inject(BackendService);
 
-  list(userId?: number): Observable<PartnerDocument[]> {
-    const filter = userId === undefined ? undefined : { UserId: String(userId) };
-    return this.backend.list<PartnerDocument>('partner_document', filter);
+  list(userId?: number, status?: string): Observable<PartnerDocument[]> {
+    return this.backend.list<PartnerDocument>('partner_document', {
+      ...(userId === undefined ? {} : { UserId: String(userId) }),
+      ...(status === undefined ? {} : { Status: status }),
+    });
   }
 
-  pending(): Observable<PartnerDocument[]> {
-    return this.backend.list<PartnerDocument>('partner_document', { Status: 'P' });
+  pending(userId?: number): Observable<PartnerDocument[]> {
+    return this.list(userId, 'P');
   }
 
   /** Multipart upload with progress events; the final response carries the stored document. */

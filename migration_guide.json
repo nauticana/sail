@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.1.46",
+   "title": "Money input parsing, document review filters, configurable deletion cancel",
+   "tags": [
+    "additive"
+   ],
+   "summary": "Adds parseMinor for typed amounts, member and type filters plus a reviewed output on the document review queue, a read-only mode for partner documents, and a configurable Cancel link on account deletion. No keel change.",
+   "body_markdown": "### Additive\n\n- `parseMinor(text, exponent)` turns a typed decimal into minor units exactly; `null` for malformed text, unsafe integers or more fraction digits than the exponent.\n- `<sail-document-review-queue>`: `[userId]`, `[documentTypes]` and `(reviewed)` emitting `{ id, approved }`. `PartnerDocumentService.pending(userId?)` and `list(userId?, status?)`.\n- `<sail-partner-documents [allowReupload]=\"false\">` hides \"Upload replacement\".\n- `<sail-account-deletion [cancelRoute]>` sets the Cancel link (default `/dashboard`); `null` hides it.\n"
+  },
+  {
    "version": "v1.1.45",
    "title": "Server-side list sort, unsaved-change guard, shared confirmations, plan-change offers",
    "tags": [

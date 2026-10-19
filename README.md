@@ -31,7 +31,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Config** | `SAIL_GUI_CONFIG`, `SailGuiConfig`, `configureRestUrls()` |
 | **Models** | `ApplicationData`, `TableDefinition`, `SiudAction`, `ApplicationMenu`, `ConstantValue`, `UserAccount`, `RestReport`, `ReportParam`, `TrustedDevice`, `PublicPlan`, `PlanPrice`, `PaymentMethod`, `Subscription`, `PlanChangeResult`, `PlanOverage`, `Invoice`, `CheckoutRequest`/`CheckoutResponse`, `PortalResponse`, `UsageMeter`, `ChargeResult`, `UserPaymentMethod`, `TableAction`, `TableActionParameter`, `ReusableAccount`, `PayoutOnboardingSession`, `BankInfoFormValue`, `Currency`, `Country`, `OtpRequest`/`OtpResponse`, `SignupConsent`, `ConsentState`, `ConsentOption`, `SocialProvider`, `PushPlatform`, `InboxMessage`/`InboxPage`, `PartnerDocument`/`DocumentUploadRequest`, 2FA types, etc. |
 | **Decorators** | `@IsSailString()`, `@IsSailNumeric()` (class-validator based) |
-| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `CurrencyService`, `sailMoney` pipe |
+| **Utils** | `titleCase()`, `fromPriceLabel()`, `formatMinor()`, `parseMinor()`, `CurrencyService`, `sailMoney` pipe |
 
 ## Quick start
 
@@ -279,7 +279,7 @@ Default page size is 100, capped at 1000 server-side. Sail maps `limit`, `offset
 
 ## Money
 
-keel stores money as integer minor units and serves the `currency` table (`code`, `caption`, `exponent`) as the only source of exponents. `formatMinor(minor, currency, exponent)` renders an amount; `Intl` supplies the symbol and grouping only. Billing payloads (`PlanPrice`, `Subscription`, `Invoice`) carry `exponent` beside their `…Minor` fields, so they render without a catalog: `{{ invoice.totalMinor | sailMoney:invoice.currency:invoice.exponent }}`. Amounts without an exponent, such as the agency ledger, use `{{ minor | sailMoney:currency }}`: the pipe loads the catalog once through `CurrencyService` (generic REST `currency`, so the role needs `TABLE SELECT currency`), renders `''` until it arrives, and throws for a code the catalog lacks rather than guessing decimals.
+keel stores money as integer minor units and serves the `currency` table (`code`, `caption`, `exponent`) as the only source of exponents. `formatMinor(minor, currency, exponent)` renders an amount; `Intl` supplies the symbol and grouping only. `parseMinor(text, exponent)` is the inverse for typed input: exact, `.` as the decimal point, `null` for malformed text, unsafe integers or more fraction digits than the exponent. Billing payloads (`PlanPrice`, `Subscription`, `Invoice`) carry `exponent` beside their `…Minor` fields, so they render without a catalog: `{{ invoice.totalMinor | sailMoney:invoice.currency:invoice.exponent }}`. Amounts without an exponent, such as the agency ledger, use `{{ minor | sailMoney:currency }}`: the pipe loads the catalog once through `CurrencyService` (generic REST `currency`, so the role needs `TABLE SELECT currency`), renders `''` until it arrives, and throws for a code the catalog lacks rather than guessing decimals.
 
 ## Backend-driven constant captions
 
@@ -1239,7 +1239,7 @@ Ships no CSS — style
 ## Partner documents (v1.1.26)
 
 `PartnerDocumentService` covers generic `partner_document` reads plus keel's
-`handler.DocumentHandler` (keel **v1.2.79+**): `list(userId?)`, `pending()`,
+`handler.DocumentHandler` (keel **v1.2.79+**): `list(userId?, status?)`, `pending(userId?)`,
 `upload(file, request)` (progress events), `previewUrl(id)` and `review(id, approve,
 notes)`. The defaults assume the handler is mounted at
 `/api/v1/partner_document/{upload,preview,review}`; override the three
@@ -1257,8 +1257,10 @@ branch on `errorCode(err)` for keel's `document_*` codes. Status captions come f
 the `partner_document_status` domain through `LabelService`.
 
 `<sail-partner-documents>` shows the latest version per type and offers replacement
-uploads for rejected or expiring documents. `<sail-document-review-queue>` lists
-pending rows with an inline preview and approve/reject controls. Both rely on the
+uploads for rejected or expiring documents unless `[allowReupload]="false"`.
+`<sail-document-review-queue>` lists pending rows with an inline preview and
+approve/reject controls; `[userId]` and `[documentTypes]` narrow it, and `(reviewed)`
+emits `{ id, approved }` after each decision. Both rely on the
 app's generic `partner_document` read grants and the handler authorization hooks.
 
 ## Grouped review actions and diffs (v1.1.19)
@@ -1457,7 +1459,7 @@ auth.deleteAccount(reauth, 'Closing my account.').subscribe();
 <sail-account-deletion [confirmationText]="'DELETE'" reauthMethod="code"></sail-account-deletion>
 ```
 
-Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** re-authenticates. `reauthMethod` (`password` default, or `code`) picks the initial method; the user can switch, and the code path sends, resends and submits a `reauthCode`. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`).
+Typed-confirmation UX: the destructive button is disabled until the user types the exact `confirmationText` (default `DELETE`) **and** re-authenticates. `reauthMethod` (`password` default, or `code`) picks the initial method; the user can switch, and the code path sends, resends and submits a `reauthCode`. Optional reason textarea is forwarded to the backend. On success, local session is cleared and the router navigates to `config.accountDeletedRoute` (default `/login/local`). `cancelRoute` sets the Cancel link (default `/dashboard`; `null` hides it).
 
 ### Logout everywhere
 

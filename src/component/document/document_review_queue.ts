@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, SecurityContext, ViewEncapsulation, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, SecurityContext, ViewEncapsulation, computed, effect, inject, input, output, signal,
+} from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -14,21 +16,33 @@ import { PartnerDocumentService } from '../../service/partner_document.service';
   encapsulation: ViewEncapsulation.None,
   imports: [MatButtonModule, MatFormFieldModule, MatInputModule],
 })
-export class DocumentReviewQueueComponent extends BaseAsync implements OnInit {
+export class DocumentReviewQueueComponent extends BaseAsync {
   private readonly service = inject(PartnerDocumentService);
   private readonly sanitizer = inject(DomSanitizer);
 
-  readonly documents = signal<PartnerDocument[]>([]);
+  /** One member's documents; all pending documents when absent. */
+  readonly userId = input<number>();
+  /** Limits the queue to these document_type codes; all types when absent. */
+  readonly documentTypes = input<readonly string[]>();
+  readonly reviewed = output<{ id: number; approved: boolean }>();
+
+  private readonly pendingRows = signal<PartnerDocument[]>([]);
+  readonly documents = computed(() => {
+    const types = this.documentTypes();
+    return types ? this.pendingRows().filter((doc) => types.includes(doc.DocumentType)) : this.pendingRows();
+  });
   readonly preview = signal<{ id: number; url: SafeResourceUrl } | null>(null);
   readonly reviewing = signal<number | null>(null);
   readonly notes = signal<Record<number, string>>({});
 
-  ngOnInit(): void {
-    this.reload();
-  }
+  private readonly userIdEffect = effect(() => this.reload());
 
   reload(): void {
-    this.run(this.service.pending(), (rows) => this.documents.set(rows), 'Could not load pending documents.');
+    const userId = this.userId();
+    this.run(this.service.pending(userId), (rows) => {
+      // A slower response for a member no longer shown must not replace the current list.
+      if (userId === this.userId()) this.pendingRows.set(rows);
+    }, 'Could not load pending documents.');
   }
 
   showPreview(doc: PartnerDocument): void {
@@ -54,9 +68,10 @@ export class DocumentReviewQueueComponent extends BaseAsync implements OnInit {
     this.reviewing.set(doc.Id);
     this.service.review(doc.Id, approve, this.notes()[doc.Id] ?? '').subscribe({
       next: () => {
-        this.documents.update((rows) => rows.filter((row) => row.Id !== doc.Id));
+        this.pendingRows.update((rows) => rows.filter((row) => row.Id !== doc.Id));
         if (this.preview()?.id === doc.Id) this.preview.set(null);
         this.reviewing.set(null);
+        this.reviewed.emit({ id: doc.Id, approved: approve });
       },
       error: (err) => {
         this.reviewing.set(null);

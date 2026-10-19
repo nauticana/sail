@@ -6,14 +6,30 @@ import { PlanPrice } from '../model/appdata';
  */
 export function formatMinor(minor: number, currency: string, exponent: number): string {
   if (!Number.isSafeInteger(minor)) throw new Error(`sail: money must be a safe integer (${minor}).`);
-  if (!Number.isInteger(exponent) || exponent < 0 || exponent > 6) {
-    throw new Error(`sail: currency "${currency}" has no valid exponent (${exponent}).`);
-  }
+  requireExponent(exponent, currency);
   const code = currency.trim().toUpperCase();
   if (!code) throw new Error('sail: currency is required.');
   return new Intl.NumberFormat(undefined, {
     style: 'currency', currency: code, minimumFractionDigits: exponent, maximumFractionDigits: exponent,
   }).format(minor / 10 ** exponent);
+}
+
+/**
+ * Parse a typed decimal amount ("12.5", "-0.75") into minor units with exact string
+ * arithmetic. null for anything else, including more fraction digits than `exponent`.
+ */
+export function parseMinor(text: string, exponent: number): number | null {
+  requireExponent(exponent);
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(text.trim());
+  if (!match || !(match[2] || match[3]) || (match[3]?.length ?? 0) > exponent) return null;
+  const minor = Number((match[2] || '0') + (match[3] ?? '').padEnd(exponent, '0'));
+  return Number.isSafeInteger(minor) ? (match[1] === '-' ? -minor : minor) || 0 : null;
+}
+
+function requireExponent(exponent: number, currency?: string): void {
+  if (!Number.isInteger(exponent) || exponent < 0 || exponent > 6) {
+    throw new Error(`sail: ${currency ? `currency "${currency}"` : 'money'} has no valid exponent (${exponent}).`);
+  }
 }
 
 /** PERIOD_TYPE code vocabulary — the single source for cycle labels/durations. */
