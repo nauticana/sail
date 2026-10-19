@@ -47,6 +47,7 @@ export * from './component/login/confirm_chpass_component';
 export * from './component/login/consent_gate';
 export * from './component/login/sms_consent';
 export * from './component/login/otp_input';
+export * from './component/login/human_challenge';
 export * from './component/login/social_login';
 export * from './component/login/account_deletion';
 export * from './component/sso/sso_login';

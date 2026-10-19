@@ -2,6 +2,7 @@ import { InjectionToken, Type } from '@angular/core';
 import { Routes } from '@angular/router';
 import { ApplicationData } from './model/appdata';
 import { SsoErrorCode } from './util/sso';
+import { HumanVerifierProvider } from './model/auth';
 
 export interface RouteLink {
   label: string;
@@ -58,6 +59,10 @@ export interface SailGuiConfig {
   privacyPolicyUrl?: string;
   /** Public URL of your terms of service. Linked from the SMS-consent disclosure and the login footer. */
   termsUrl?: string;
+  /** Widget `<sail-human-challenge>` renders for keel's registration check
+   * (`human_verifier_mode`). The site key is public and is not served by keel:
+   * read both values from the host app's environment. Omitted → no widget. */
+  humanVerifier?: { provider: HumanVerifierProvider; siteKey: string };
   /** Brand name shown in the SMS/10DLC consent disclosure (e.g. "Daxoom"). */
   appName?: string;
   /** Content hash / version of the currently-deployed privacy policy. */

@@ -570,18 +570,21 @@ export abstract class BaseAuthService extends BaseRestService {
    * selects the SMS-vs-email dispatch channel and is posted as-is.
    *
    * The response is `{ otpToken }` — an opaque server-issued token (32 random
-   * bytes, base64-URL) bound to the user_id in keel's cache for ~5 minutes.
-   * Echo it back to verifyOtp / resendOtp. On unknown contacts the login
-   * fall-through still returns 200 with a token (no SMS dispatched), so the
-   * response shape is identical and an attacker cannot enumerate registered
-   * numbers by comparing 200 vs 404.
+   * bytes, base64-URL) bound in keel's cache for ~5 minutes. Echo it back to
+   * verifyOtp / resendOtp. On unknown contacts the login fall-through still
+   * returns 200 with a token (no SMS dispatched), so the response shape is
+   * identical and an attacker cannot enumerate registered numbers. A register
+   * send for an unknown contact creates no account: the account exists after
+   * verifyOtp answers `isNewUser: true`. Pass `challengeToken` from
+   * `<sail-human-challenge>` when keel runs a verifier.
    */
   sendOtp(req: OtpRequest): Observable<OtpResponse> {
     return this.http.post<OtpResponse>(this.otpSendUrl, req);
   }
 
-  resendOtp(otpToken: string, purpose?: OtpRequest['purpose']): Observable<{ status: string }> {
-    const req: OtpResendRequest = { otpToken, purpose };
+  /** Re-issues the code behind a token; the purpose is the one bound at send. */
+  resendOtp(otpToken: string): Observable<{ status: string }> {
+    const req: OtpResendRequest = { otpToken };
     return this.http.post<{ status: string }>(this.otpResendUrl, req);
   }
 

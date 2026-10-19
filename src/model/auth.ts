@@ -51,18 +51,21 @@ export interface SignupConsent {
 // consumer's go.mod when this matters.
 export type OtpContactType = 'phone' | 'email';
 export type OtpPurpose     = 'login' | 'register' | 'verify';
+// Browser challenge providers keel's HumanVerifier accepts (human_verifier_mode).
+export type HumanVerifierProvider = 'turnstile' | 'hcaptcha' | 'recaptcha';
 
 export interface OtpRequest {
   contact:        string;
   contactType?:   OtpContactType;  // 'phone' (default) | 'email'
   purpose?:       OtpPurpose;
   defaultRegion?: string;          // ISO country hint for phone normalization
-  // The OTHER contact the user supplied at signup, persisted on the
-  // new user_account row even though it isn't being OTP-verified at
-  // this step. When contactType='email', this is the user's phone;
-  // when contactType='phone', this is the user's email. Optional —
-  // omit for login flows (only registration creates the row).
+  // The OTHER contact the user supplied at signup (the phone when
+  // contactType='email'), stored unverified on the account the verify
+  // step creates. Omit for login flows.
   secondaryContact?: string;
+  // Token of the widget in `SailGuiConfig.humanVerifier`; keel requires it on
+  // a register send when a verifier is configured.
+  challengeToken?: string;
   policyType?:    string;
   policyVersion?: string;
   policyRegion?:  string;
@@ -96,11 +99,13 @@ export interface OtpVerifyResponse {
   refreshToken?: string;
   userId?:    number;
   partnerId?: number;
+  // True when this verify created the account: a register send for an
+  // unknown contact holds the signup until the code proves the contact.
+  isNewUser:  boolean;
 }
 
 export interface OtpResendRequest {
   otpToken: string;
-  purpose?: OtpPurpose;
 }
 
 // Current user's editable profile (GET profileURL). language is the locale.

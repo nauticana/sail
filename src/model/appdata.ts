@@ -243,7 +243,8 @@ export interface PartnerSetup<TExtra = unknown> {
 
 // Mirrors keel `user.PartnerRegistration`. Without partner fields only the
 // account is created and the partner follows through `createPartner`.
-export type PartnerRegistration<TExtra = unknown> = AccountRegistration & Partial<PartnerSetup<TExtra>>;
+// `challengeToken` comes from `<sail-human-challenge>` when keel runs a verifier.
+export type PartnerRegistration<TExtra = unknown> = AccountRegistration & Partial<PartnerSetup<TExtra>> & { challengeToken?: string };
 
 // Mirrors keel `user.PartnerCreated`. `paymentRequired` without a `paymentUrl`
 // means the application's billing page opens the checkout.

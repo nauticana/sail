@@ -18,7 +18,7 @@ A shared Angular component library for building CRUD-based admin frontends. Prov
 | **Login** | `LoginComponent`, `RegisterComponent`, `ChpassComponent`, `ConfirmRegisterComponent`, `ConfirmChpassComponent` |
 | **Security** | `TwoFactorSetupComponent`, `TwoFactorVerifyComponent`, `TrustedDevicesComponent`, `SessionsComponent`, `ApiKeysComponent`, `ConnectedAppsComponent`, `AccountDeletionComponent` |
 | **Account** | `MyAccountComponent` (self-service hub), `ProfileEditorComponent` (name/locale immediate; email/phone verify-before-apply) |
-| **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
+| **Auth** | `ConsentGateComponent`, `OtpInputComponent`, `HumanChallengeComponent`, `SocialLoginComponent`, `SsoLoginComponent`, `SsoReturnComponent` |
 | **Billing** | `PlanSelectorComponent`, `PriceSelectorComponent`, `CheckoutButtonComponent`, `PaymentMethodsComponent`, `PortalButtonComponent`, `UsageMeterComponent`, `StatusChipComponent`, `TrialBannerComponent`, `ScheduledChangeBannerComponent`, `SeatSelectorComponent`, `DunningBannerComponent` |
 | **Dashboard** | `DashboardShellComponent`, `DataCardComponent`, `StatTileComponent`, `LockedOverlayComponent`, `ActionCenterComponent`, `EntitySelectorComponent`, `VerificationFlowComponent` |
 | **Payout** | `PayoutProviderOnboardingComponent`, `PayoutBankInfoFormComponent` |
@@ -312,6 +312,7 @@ interface SailGuiConfig {
   appTitle?: string;                  // Shown on login pages
   appLogoUrl?: string;                // Public logo URL used by the navigation home link
   googleMapsApiKey?: string;          // For RegisterComponent geocoding
+  humanVerifier?: { provider, siteKey }; // Challenge widget for registration (see Human verification)
   dashboardComponent?: Type<any>;     // Component for /dashboard route
   publicRoutes?: Routes;              // Routes available before login
   publicRouteLinks?: RouteLink[];     // Links shown in toolbar when logged out
@@ -1038,8 +1039,20 @@ Override `verifyOtp()` in your own `AuthService extends BaseAuthService` when yo
 | Endpoint | Service method |
 |----------|---------------|
 | `POST /public/otp/send` | `sendOtp(req)` — returns `{ otpToken }` |
-| `POST /public/otp/resend` | `resendOtp(otpToken, purpose?)` |
-| `POST /public/otp/verify` | `verifyOtp({ otpToken, code })` — auto-completes login on success |
+| `POST /public/otp/resend` | `resendOtp(otpToken)` — the purpose is the one bound at send |
+| `POST /public/otp/verify` | `verifyOtp({ otpToken, code })` — auto-completes login on success; `isNewUser` is true when the verify created the account |
+
+A register send for an unknown contact creates no account (keel v1.2.132): the signup is held behind the `otpToken` and the account exists after `verifyOtp` answers `isNewUser: true`, so read user data after verify, not after send.
+
+### Human verification (v1.1.49)
+
+keel refuses a register send (`/public/otp/send` with `purpose: 'register'` and `/public/register`) without a valid `challengeToken` when its `human_verifier_mode` names a provider. keel holds only the provider's secret; the site key is public and is not served by any endpoint, so the host app reads both from its own environment:
+
+```typescript
+{ humanVerifier: { provider: 'turnstile', siteKey: environment.turnstileSiteKey } }  // 'turnstile' | 'hcaptcha' | 'recaptcha'
+```
+
+`<sail-human-challenge (token)>` loads the provider script through `loadScript()`, renders the widget into its unstyled container and emits the token; it emits `''` when the widget expires or fails, emits `(failed)` when the provider script cannot load, and renders nothing without a site key. `RegisterComponent` mounts it and keeps Create Account disabled until a token arrives. An OTP register form does the same: send the token as `OtpRequest.challengeToken`, and because a provider token is accepted once, call `reset()` on the component after any refused send (403 missing or failed check, 429 send caps, 503 verifier down) before the user retries.
 
 ## Social login
 

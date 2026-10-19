@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, DestroyRef, signal, ViewEncapsulation, OnInit, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, DestroyRef, signal, ViewEncapsulation, OnInit, ElementRef, viewChild } from '@angular/core';
 import { submittable } from '../../util/forms';
 import { FieldError } from '../form/field_error';
+import { HumanChallengeComponent } from './human_challenge';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ interface GeocodingResponse {
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [
-    FieldError, ReactiveFormsModule,
+    FieldError, HumanChallengeComponent, ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
     MatFormFieldModule,
@@ -55,6 +56,9 @@ export class RegisterComponent implements OnInit {
   protected readonly geocodeEnabled = !!this.guiConfig.googleMapsApiKey;
 
   readonly registerError = signal('');
+  readonly challengeToken = signal('');
+  protected readonly challengeRequired = !!this.guiConfig.humanVerifier?.siteKey;
+  private readonly challenge = viewChild(HumanChallengeComponent);
   readonly plansError = signal('');
   readonly plans = signal<PublicPlan[]>([]);
 
@@ -178,11 +182,15 @@ export class RegisterComponent implements OnInit {
       latitude: formValue.Latitude ?? undefined,
       longitude: formValue.Longitude ?? undefined,
       planId: formValue.PlanID!,
+      challengeToken: this.challengeToken() || undefined,
     };
     this.auth.register(partnerReg).subscribe({
       // Pass the email along so the confirm page pre-fills it.
       next: () => this.router.navigate(['/confirm/register'], { queryParams: { email: formValue.Email } }),
-      error: (err) => this.registerError.set(errorDetail(err, 'Registration failed. Please try again.')),
+      error: (err) => {
+        this.challenge()?.reset();
+        this.registerError.set(errorDetail(err, 'Registration failed. Please try again.'));
+      },
     });
   }
 }

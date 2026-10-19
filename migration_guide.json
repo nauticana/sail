@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.49",
+   "title": "Human verification and pending OTP signups",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "Adopts keel v1.2.132: a challenge widget for registration, challengeToken on register sends, isNewUser on OTP verify, and resendOtp without a purpose.",
+   "body_markdown": "### Breaking\n\n- `resendOtp(otpToken, purpose?)` → `resendOtp(otpToken)`; `OtpResendRequest` has no `purpose`. keel resends with the purpose bound at send.\n- `OtpVerifyResponse.isNewUser: boolean` is required. A register send for an unknown contact no longer creates the account; it exists after a successful verify, so anything that read user data after `sendOtp` moves to after `verifyOtp` and branches on `isNewUser`.\n\n### Additive\n\n- `SailGuiConfig.humanVerifier: { provider: 'turnstile' | 'hcaptcha' | 'recaptcha', siteKey }` from the host app's environment (keel does not serve the site key).\n- `<sail-human-challenge (token)>` (`HumanChallengeComponent`) renders the configured widget and emits the token, `''` on expiry and `(failed)` when the script cannot load; `reset()` after a refused submit. Renders nothing without a site key.\n- `OtpRequest.challengeToken` and `PartnerRegistration.challengeToken`, passed through by `sendOtp` and `register`. `RegisterComponent` mounts the widget and sends the token.\n"
+  },
+  {
    "version": "v1.1.48",
    "title": "Money columns from metadata, partner document type filter",
    "tags": [
