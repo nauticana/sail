@@ -52,7 +52,7 @@ export interface SignupConsent {
 export type OtpContactType = 'phone' | 'email';
 export type OtpPurpose     = 'login' | 'register' | 'verify';
 // Browser challenge providers keel's HumanVerifier accepts (human_verifier_mode).
-export type HumanVerifierProvider = 'turnstile' | 'hcaptcha' | 'recaptcha';
+export type HumanVerifierProvider = 'turnstile' | 'hcaptcha' | 'recaptcha' | 'recaptcha_v3';
 
 export interface OtpRequest {
   contact:        string;

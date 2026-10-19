@@ -61,8 +61,9 @@ export interface SailGuiConfig {
   termsUrl?: string;
   /** Widget `<sail-human-challenge>` renders for keel's registration check
    * (`human_verifier_mode`). The site key is public and is not served by keel:
-   * read both values from the host app's environment. Omitted → no widget. */
-  humanVerifier?: { provider: HumanVerifierProvider; siteKey: string };
+   * read both values from the host app's environment. `action` is the v3
+   * action keel's `human_verifier_action` expects (default `signup`). Omitted → no widget. */
+  humanVerifier?: { provider: HumanVerifierProvider; siteKey: string; action?: string };
   /** Brand name shown in the SMS/10DLC consent disclosure (e.g. "Daxoom"). */
   appName?: string;
   /** Content hash / version of the currently-deployed privacy policy. */

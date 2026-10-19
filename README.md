@@ -1044,15 +1044,17 @@ Override `verifyOtp()` in your own `AuthService extends BaseAuthService` when yo
 
 A register send for an unknown contact creates no account (keel v1.2.132): the signup is held behind the `otpToken` and the account exists after `verifyOtp` answers `isNewUser: true`, so read user data after verify, not after send.
 
-### Human verification (v1.1.49)
+### Human verification (v1.1.50)
 
 keel refuses a register send (`/public/otp/send` with `purpose: 'register'` and `/public/register`) without a valid `challengeToken` when its `human_verifier_mode` names a provider. keel holds only the provider's secret; the site key is public and is not served by any endpoint, so the host app reads both from its own environment:
 
 ```typescript
-{ humanVerifier: { provider: 'turnstile', siteKey: environment.turnstileSiteKey } }  // 'turnstile' | 'hcaptcha' | 'recaptcha'
+{ humanVerifier: { provider: 'turnstile', siteKey: environment.turnstileSiteKey } }  // 'turnstile' | 'hcaptcha' | 'recaptcha' | 'recaptcha_v3'
 ```
 
-`<sail-human-challenge (token)>` loads the provider script through `loadScript()`, renders the widget into its unstyled container and emits the token; it emits `''` when the widget expires or fails, emits `(failed)` when the provider script cannot load, and renders nothing without a site key. `RegisterComponent` mounts it and keeps Create Account disabled until a token arrives. An OTP register form does the same: send the token as `OtpRequest.challengeToken`, and because a provider token is accepted once, call `reset()` on the component after any refused send (403 missing or failed check, 429 send caps, 503 verifier down) before the user retries.
+`<sail-human-challenge (token)>` loads the provider script through `loadScript()`, renders the widget into its unstyled container and emits the token; it emits `''` when the widget expires or fails, emits `(failed)` when the provider script cannot load, and renders nothing without a site key. `fetchToken()` resolves the token to send, retrying a failed load and rejecting when the provider still cannot load; `awaitsToken()` is true while a widget still has to be passed and false after a failed load so the user can submit. `RegisterComponent` mounts it, keeps Create Account disabled while `awaitsToken()` and no token has arrived, and fetches the token at submit. An OTP register form does the same: send the token as `OtpRequest.challengeToken`, and because a provider token is accepted once, call `reset()` on the component after any refused send (403 missing or failed check, 429 send caps, 503 verifier down) before the user retries.
+
+`recaptcha_v3` renders no widget: `fetchToken()` executes a fresh token for `humanVerifier.action` (default `signup`, the value keel's `human_verifier_action` expects), which lives two minutes and is accepted once, so call it at submit. Google shows its badge; a host that hides it must show Google's reCAPTCHA notice instead.
 
 ## Social login
 

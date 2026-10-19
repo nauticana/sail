@@ -57,8 +57,8 @@ export class RegisterComponent implements OnInit {
 
   readonly registerError = signal('');
   readonly challengeToken = signal('');
-  protected readonly challengeRequired = !!this.guiConfig.humanVerifier?.siteKey;
-  private readonly challenge = viewChild(HumanChallengeComponent);
+  protected readonly challengeError = 'Human verification could not load. Please try again.';
+  protected readonly challenge = viewChild(HumanChallengeComponent);
   readonly plansError = signal('');
   readonly plans = signal<PublicPlan[]>([]);
 
@@ -161,9 +161,16 @@ export class RegisterComponent implements OnInit {
     );
   }
 
-  register() {
+  async register() {
     if (!submittable(this.registerForm, this.host)) return;
     this.registerError.set('');
+    let challengeToken: string | undefined;
+    try {
+      challengeToken = (await this.challenge()?.fetchToken()) || undefined;
+    } catch {
+      this.registerError.set(this.challengeError);
+      return;
+    }
     const formValue = this.registerForm.getRawValue();
     const partnerReg: PartnerRegistration = {
       firstName: formValue.FirstName!,
@@ -182,7 +189,7 @@ export class RegisterComponent implements OnInit {
       latitude: formValue.Latitude ?? undefined,
       longitude: formValue.Longitude ?? undefined,
       planId: formValue.PlanID!,
-      challengeToken: this.challengeToken() || undefined,
+      challengeToken,
     };
     this.auth.register(partnerReg).subscribe({
       // Pass the email along so the confirm page pre-fills it.

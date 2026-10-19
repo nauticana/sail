@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.1.50",
+   "title": "reCAPTCHA v3 and Turnstile rendering",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "Adds the recaptcha_v3 provider (keel v1.2.133) to <sail-human-challenge> and fixes Turnstile, which never rendered.",
+   "body_markdown": "### Behavioral\n\n- `turnstile` renders: the component no longer calls `turnstile.ready()`, which Turnstile refuses after an async script load, so v1.1.49 always emitted `(failed)`.\n\n### Additive\n\n- `HumanVerifierProvider` gains `recaptcha_v3`; `SailGuiConfig.humanVerifier.action` (default `signup`) names the action keel's `human_verifier_action` expects.\n- `HumanChallengeComponent.fetchToken(): Promise<string>` resolves the token to send (the widget's current token, or a fresh v3 token) and retries a failed load and rejects when the provider still cannot load; `awaitsToken()` is true while a widget still has to be passed and false after a failed load. `RegisterComponent` fetches the token at submit; an OTP register form should do the same instead of reading only the `(token)` output.\n"
+  },
+  {
    "version": "v1.1.49",
    "title": "Human verification and pending OTP signups",
    "tags": [

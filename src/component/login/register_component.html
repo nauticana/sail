@@ -148,14 +148,14 @@
         }
       }
 
-      <sail-human-challenge (token)="challengeToken.set($event)" (failed)="registerError.set('Human verification could not load. Please try again.')"></sail-human-challenge>
+      <sail-human-challenge (token)="challengeToken.set($event)" (failed)="registerError.set(challengeError)"></sail-human-challenge>
 
       @if (registerError()) {
         <div class="geocode-status geocode-error" role="alert">{{ registerError() }}</div>
       }
 
       <button matButton="elevated" class="primary" type="submit"
-        [disabled]="(geocodeEnabled && geocodeStatus() !== 'success') || (challengeRequired && !challengeToken())">
+        [disabled]="(geocodeEnabled && geocodeStatus() !== 'success') || (challenge()?.awaitsToken() && !challengeToken())">
         Create Account
       </button>
     </form>
