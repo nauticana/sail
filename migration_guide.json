@@ -9,7 +9,7 @@
  },
  "migrations": [
   {
-   "version": "v1.1.50",
+   "version": "v1.1.51",
    "title": "reCAPTCHA v3 and Turnstile rendering",
    "tags": [
     "additive",
