@@ -1,3 +1,5 @@
+import { Int64 } from '../../util/integer';
+
 /** A allowed, D denied, P pending (`audit_decision_outcome`). */
 export type DecisionOutcome = 'A' | 'D' | 'P';
 
@@ -16,7 +18,7 @@ export interface AuthorityRef {
 
 /** One governed decision of the tenant (Scout `api.DecisionRecord`); evidence is a digest only. */
 export interface DecisionRecord {
-  id: number;
+  id: Int64;
   category: string;
   action: string;
   resource: string;
@@ -42,7 +44,7 @@ export interface DecisionRecord {
 /** Newest first; `next_before` is absent on the last page. */
 export interface DecisionPage {
   records: DecisionRecord[];
-  next_before?: number;
+  next_before?: Int64;
 }
 
 export interface DecisionCategoryGroup {

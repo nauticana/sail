@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { BaseAsync } from '../abstract/base_async';
 import { PartnerDocument } from '../../model/document';
 import { PartnerDocumentService } from '../../service/partner_document.service';
+import { Int64 } from '../../util/integer';
 
 @Component({
   selector: 'sail-document-review-queue',
@@ -21,19 +22,19 @@ export class DocumentReviewQueueComponent extends BaseAsync {
   private readonly sanitizer = inject(DomSanitizer);
 
   /** One member's documents; all pending documents when absent. */
-  readonly userId = input<number>();
+  readonly userId = input<Int64>();
   /** Limits the queue to these document_type codes; all types when absent. */
   readonly documentTypes = input<readonly string[]>();
-  readonly reviewed = output<{ id: number; approved: boolean }>();
+  readonly reviewed = output<{ id: Int64; approved: boolean }>();
 
   private readonly pendingRows = signal<PartnerDocument[]>([]);
   readonly documents = computed(() => {
     const types = this.documentTypes();
     return types ? this.pendingRows().filter((doc) => types.includes(doc.DocumentType)) : this.pendingRows();
   });
-  readonly preview = signal<{ id: number; url: SafeResourceUrl } | null>(null);
-  readonly reviewing = signal<number | null>(null);
-  readonly notes = signal<Record<number, string>>({});
+  readonly preview = signal<{ id: Int64; url: SafeResourceUrl } | null>(null);
+  readonly reviewing = signal<Int64 | null>(null);
+  readonly notes = signal<Record<Int64, string>>({});
 
   private readonly userIdEffect = effect(() => this.reload());
 
@@ -59,7 +60,7 @@ export class DocumentReviewQueueComponent extends BaseAsync {
     });
   }
 
-  setNotes(id: number, event: Event): void {
+  setNotes(id: Int64, event: Event): void {
     const value = (event.target as HTMLTextAreaElement).value;
     this.notes.update((notes) => ({ ...notes, [id]: value }));
   }

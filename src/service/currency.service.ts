@@ -3,6 +3,7 @@ import { Observable, map, of, shareReplay, tap } from 'rxjs';
 import { Currency } from '../model/geo';
 import { formatMinor } from '../util/money';
 import { BackendService } from './rest_service';
+import { Int64 } from '../util/integer';
 
 /**
  * keel's `currency` catalog, the only source of minor-unit exponents. Loaded once through
@@ -45,7 +46,7 @@ export class CurrencyService {
     return row.Exponent;
   }
 
-  format(minor: number, currency: string): string {
+  format(minor: Int64 | number, currency: string): string {
     return formatMinor(minor, currency, this.exponent(currency));
   }
 
@@ -58,7 +59,7 @@ export class CurrencyService {
   }
 
   /** `format` once the catalog is loaded, '' meanwhile (see `exponentLazy`). */
-  formatLazy(minor: number, currency: string): string {
+  formatLazy(minor: Int64 | number, currency: string): string {
     const exponent = this.exponentLazy(currency);
     return exponent === undefined ? '' : formatMinor(minor, currency, exponent);
   }

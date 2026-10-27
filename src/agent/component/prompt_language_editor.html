@@ -10,7 +10,7 @@
       </mat-select>
     </mat-form-field>
     <mat-checkbox [formControl]="everyLanguage">Every language</mat-checkbox>
-    <button matButton type="button" [disabled]="disabled()" (click)="requestReset(0)">Reset all sections</button>
+    <button matButton type="button" [disabled]="disabled()" (click)="requestReset('0')">Reset all sections</button>
   </fieldset>
 
   @for (section of language().prompt_sections; track section.prompt_header_id) {

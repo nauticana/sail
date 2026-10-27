@@ -3,6 +3,7 @@ import { TableColumn } from '../model/appdata';
 import { BaseAuthService } from './auth.service';
 import { CurrencyService } from './currency.service';
 import { BackendService } from './rest_service';
+import { Int64 } from '../util/integer';
 
 /** The row a child grid or form is nested under. */
 export interface ParentRow {
@@ -32,7 +33,7 @@ export class MoneyColumnService {
   }
 
   /** Formatted amount; '' while the currency or the catalog is still loading, or when the path cannot be resolved. */
-  display(tableName: string, column: TableColumn, minor: number, record: Record<string, unknown>, parent?: ParentRow): string {
+  display(tableName: string, column: TableColumn, minor: Int64 | number, record: Record<string, unknown>, parent?: ParentRow): string {
     const currency = this.currency(tableName, column, record, parent);
     return currency ? this.currencies.formatLazy(minor, currency) : '';
   }
@@ -45,10 +46,10 @@ export class MoneyColumnService {
     for (const name of path.slice(0, -1)) {
       const fk = table?.Parents.find((p) => p.ParentTable === name);
       const parentDef = this.auth.getTableDefinition(name);
-      if (!fk || !parentDef || !row) return undefined;
+      if (!fk || !parentDef || !row || fk.ParentColumns?.length !== fk.Columns.length) return undefined;
       const current: Record<string, unknown> = row;
       const filter: Record<string, string> = {};
-      parentDef.Keys.forEach((key, i) => { filter[key.PascalName] = String(field(current, fk.Columns[i]) ?? ''); });
+      fk.ParentColumns.forEach((key, i) => { filter[key.PascalName] = String(field(current, fk.Columns[i]) ?? ''); });
       row = parent?.tableName === name ? parent.record : this.parentRow(name, filter);
       table = parentDef;
     }

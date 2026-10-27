@@ -13,6 +13,7 @@ import { AgencyService } from '../../service/agency.service';
 import { errorDetail } from '../../util/errors';
 import { StatusChipComponent } from '../billing/status_chip';
 import { AgencyStatusBannerComponent } from './agency_status_banner';
+import { Int64, toSafeInteger } from '../../util/integer';
 
 @Component({
   selector: 'sail-agency-clients',
@@ -54,7 +55,7 @@ export class AgencyClientsComponent implements OnInit {
   readonly profile = signal<AgencyProfile | null>(null);
   readonly clients = signal<AgencyClient[]>([]);
   readonly activeClients = signal(0);
-  readonly inviteLinks = signal<Record<number, string>>({});
+  readonly inviteLinks = signal<Record<Int64, string>>({});
   readonly canManage = computed(() => {
     const profile = this.profile();
     return profile !== null && Boolean(profile.approvedAt) && !profile.suspended;
@@ -169,7 +170,7 @@ export class AgencyClientsComponent implements OnInit {
         const previousIDs = new Set(this.clients().map((client) => client.id));
         const clients = items ?? [];
         this.clients.set(clients);
-        this.activeClients.set(activeClients ?? 0);
+        this.activeClients.set(toSafeInteger(activeClients ?? 0));
         this.loading.set(false);
         if (afterLoad) {
           const added = clients.find((client) => !previousIDs.has(client.id));

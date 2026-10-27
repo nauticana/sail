@@ -5,6 +5,7 @@ import { BaseAsync } from '../../component/abstract/base_async';
 import { CaptionPipe } from '../../service/caption_pipe';
 import { DecisionOutcome, DecisionRecord, principalName } from '../model/decision';
 import { AgentStudioService } from '../service/agent_studio.service';
+import { Int64 } from '../../util/integer';
 
 /**
  * What assistants did in the tenant: Scout's decision records (`decisions` feature, `AGENT_AUDIT`
@@ -25,16 +26,16 @@ export class AssistantActivityComponent extends BaseAsync implements OnInit {
   readonly name = principalName;
 
   readonly records = signal<DecisionRecord[]>([]);
-  readonly nextBefore = signal(0);
+  readonly nextBefore = signal<Int64>('');
 
   ngOnInit(): void {
     this.load();
   }
 
-  load(before = 0): void {
+  load(before: Int64 = ''): void {
     this.run(this.studio.decisions(before, 0, this.category(), this.outcome()), (page) => {
       this.records.update((rows) => before ? [...rows, ...page.records] : page.records);
-      this.nextBefore.set(page.next_before ?? 0);
+      this.nextBefore.set(page.next_before ?? '');
     }, 'Failed to load assistant activity.');
   }
 }

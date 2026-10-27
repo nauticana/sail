@@ -1,9 +1,12 @@
 import { AbstractControlOptions } from '@angular/forms';
 import { ApplicationMenu, AuthorizationRolePermission } from './common';
+import { Int64 } from '../util/integer';
 
 export const DataType = {
   STRING:    'string',
   INTEGER:   'integer',
+  /** int8: values are `Int64` strings. */
+  BIGINT:    'bigint',
   FLOAT:     'float',
   BOOLEAN:   'boolean',
   TIMESTAMP: 'timestamp',
@@ -100,6 +103,8 @@ export interface ForeignKey {
   ConstraintName: string;
   LookupStyle:    string;
   Columns:        TableColumn[];
+  /** The parent columns `Columns` reference, by index: a unique key, not necessarily the primary key. */
+  ParentColumns:  TableColumn[];
 }
 
 export interface TableDefinition {
@@ -156,8 +161,8 @@ export interface RestReport {
 export interface TokenPair {
   token:        string;
   refreshToken: string;
-  userId?:      number;
-  partnerId?:   number;
+  userId?:      Int64;
+  partnerId?:   Int64;
 }
 
 export interface LoginResponse2FA {
@@ -168,8 +173,8 @@ export interface LoginResponse2FA {
   loginToken?: string;
   /** 'email': a new-device step-up code was emailed; absent: the authenticator app. */
   twoFactorMethod?: 'email';
-  userId?: number;
-  partnerId?: number;
+  userId?: Int64;
+  partnerId?: Int64;
   // Populated for users with the single-device session policy enabled.
   // UI surfaces an info banner / can enforce "signed out elsewhere" notices.
   singleDeviceSession?: boolean;
@@ -196,14 +201,14 @@ export interface TwoFactorVerifyResponse {
 }
 
 export interface TrustedDevice {
-  id:         number;
+  id:         Int64;
   name:       string;
   last_used_at: string;
   created_at:   string;
 }
 
 export interface ActiveSession {
-  id:           number;
+  id:           Int64;
   userAgent:    string;
   clientIp:     string;
   signInMethod: string;
@@ -249,7 +254,7 @@ export type PartnerRegistration<TExtra = unknown> = AccountRegistration & Partia
 // Mirrors keel `user.PartnerCreated`. `paymentRequired` without a `paymentUrl`
 // means the application's billing page opens the checkout.
 export interface PartnerCreated {
-	partnerId:       number;
+	partnerId:       Int64;
 	planId:          string;
 	paymentRequired: boolean;
 	paymentUrl?:     string;
@@ -261,7 +266,7 @@ export interface PlanPrice {
 	billingCycle: string;   // PERIOD_TYPE code (D/W/M/A) — how often charged
 	termCount:    number;   // commitment length, in termType units
 	termType:     string;   // PERIOD_TYPE code — commitment/pricing unit
-	amountMinor:  number;   // price per termType unit, in minor units
+	amountMinor:  Int64;    // price per termType unit, in minor units
 	currency:     string;   // ISO 4217
 	exponent:     number;   // minor-unit decimals from keel's currency table
 	// Provider price id (Stripe Price). Empty for free/unpriced offers; pass to
@@ -315,6 +320,10 @@ export interface CheckoutRequest {
 	priceId?:    string;
 	quantity?:   number;
 	email?:      string;
+	// ISO 4217. A setup session with neither this nor paymentMethodTypes offers cards.
+	currency?:   string;
+	// Provider method types, such as 'card' or 'sepa_debit'; keel answers 400 for an unknown one.
+	paymentMethodTypes?: readonly string[];
 	// Hostname must match keel's `AllowedRedirectHosts`. Default port matching
 	// is hostname-only; include the port (e.g. `host:8443`) only if the
 	// operator deliberately wants port-strict matching.
@@ -348,8 +357,8 @@ export interface PortalResponse {
 export interface UsageMeter {
 	resource: string;
 	caption:  string;
-	used:     number;
-	limit:    number;
+	used:     Int64;
+	limit:    Int64;
 }
 
 // Normalized outcome of an off-session charge — the camelCase JSON shape an app
@@ -379,8 +388,8 @@ export interface ChargeResult {
 export interface PaginatedList<T> {
 	items:  T[];
 	limit:  number;
-	offset: number;
-	total:  number;
+	offset: Int64;
+	total:  Int64;
 }
 
 /** Typed controls for keel REST list pagination and ordering. */
@@ -397,7 +406,7 @@ export interface Subscription {
 	status:           string;  // 'A' active, 'P' pending-payment, 'C' cancelled, 'T' trialing, 'X' past-due — caption via subscription_status
 	begda:            string;
 	endda?:           string;
-	installmentMinor: number;
+	installmentMinor: Int64;
 	currency:         string;
 	exponent:         number;
 	autoRenew:        boolean;
@@ -426,8 +435,8 @@ export interface PlanChangeResult {
 export interface PlanOverage {
 	resource: string;
 	caption:  string;
-	count:    number;
-	limit:    number;
+	count:    Int64;
+	limit:    Int64;
 }
 
 // Mirrors keel `billing.Invoice`; `status` is keel's one-character invoice status code.
@@ -435,7 +444,7 @@ export interface Invoice {
 	id:         string;
 	number:     string;
 	status:     string;
-	totalMinor: number;
+	totalMinor: Int64;
 	currency:   string;
 	exponent:   number;
 	issuedAt:   string;
@@ -451,7 +460,7 @@ export interface Invoice {
 // PayoutService.listReusable() returns these so multi-partner users can
 // pick an existing account instead of redoing KYC.
 export interface ReusableAccount {
-	partnerId:         number;
+	partnerId:         Int64;
 	partnerCaption:    string;
 	provider:          string;  // 'AW' Airwallex, 'SC' Stripe Connect, 'WI' Wise
 	providerAccountId: string;
@@ -498,8 +507,8 @@ export interface BankInfoFormValue {
 // has a custom endpoint because it needs atomic multi-row UPDATE.
 
 export interface UserPaymentMethod {
-	Id:           number;
-	UserId?:      number;
+	Id:           Int64;
+	UserId?:      Int64;
 	MethodType:   string;   // matches basis constant_header 'payment_method_type' — card / bank / wallet / apple_pay / google_pay
 	Provider:     string;   // 'stripe', ...
 	LastFour?:    string;

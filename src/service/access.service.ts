@@ -4,6 +4,7 @@ import { ApiKey, MintedApiKey, NewApiKey, OAuthGrant } from '../model/access';
 import { TableAction } from '../model/appdata';
 import { BackendService } from './rest_service';
 import { RestURL } from './rest_url';
+import { Int64 } from '../util/integer';
 
 /** The signed-in user's API keys (keel `api_key` table and actions) and OAuth grants. */
 @Injectable({ providedIn: 'root' })
@@ -16,12 +17,12 @@ export class AccessService extends BackendService {
     return this.apiKeyAction<MintedApiKey>('generate', key);
   }
 
-  restrictApiKey(id: number, allowedCidrs: string): Observable<void> {
+  restrictApiKey(id: Int64, allowedCidrs: string): Observable<void> {
     return this.apiKeyAction<void>('restrict', { id, allowed_cidrs: allowedCidrs });
   }
 
-  revokeApiKey(id: number): Observable<{ message: string }> {
-    return this.delete('api_key', { Id: String(id) });
+  revokeApiKey(id: Int64): Observable<{ message: string }> {
+    return this.delete('api_key', { Id: id });
   }
 
   grants(): Observable<OAuthGrant[]> {

@@ -1,6 +1,8 @@
+import { Int64 } from '../util/integer';
+
 /** A row of keel's `api_key` table as generic REST returns it; the hash never leaves keel. */
 export interface ApiKey {
-  Id:            number;
+  Id:            Int64;
   KeyName:       string;
   KeyPrefix:     string;
   Scopes:        string;   // CSV
@@ -8,7 +10,7 @@ export interface ApiKey {
   CreatedAt:     string;
   ExpiresAt?:    string;
   LastUsedAt?:   string;
-  UserId?:       number;
+  UserId?:       Int64;
   AllowedCidrs?: string;   // CSV of networks; absent allows any address
 }
 

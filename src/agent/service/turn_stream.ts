@@ -1,6 +1,7 @@
 import { computed, signal } from '@angular/core';
 import { TURN_ERROR_CANCELED, TurnReplyFrame, TurnStreamStatus } from '../model/reply_frame';
 import { TurnEvent } from '../model/turn_event';
+import { Int64, isInt64 } from '../../util/integer';
 
 const terminalStatuses: ReadonlySet<TurnStreamStatus> = new Set(['completed', 'canceled', 'failed']);
 
@@ -12,12 +13,12 @@ const terminalStatuses: ReadonlySet<TurnStreamStatus> = new Set(['completed', 'c
 export class TurnStream {
   private readonly frames = signal<TurnReplyFrame[]>([]);
   private readonly state = signal<TurnStreamStatus>('idle');
-  private readonly lastSequence = signal(-1);
-  private suspendedAt: number | null = null;
+  private readonly lastSequence = signal(-1n);
+  private suspendedAt: bigint | null = null;
 
   readonly status = this.state.asReadonly();
   /** Next zero-based sequence wanted by Scout's inclusive replay cursor. */
-  readonly cursor = computed(() => this.lastSequence() + 1);
+  readonly cursor = computed<Int64>(() => String(this.lastSequence() + 1n));
   readonly events = computed<TurnEvent[]>(() => this.frames().flatMap((frame) => frame.events));
   readonly finalFrame = computed(() => this.frames().find((frame) => frame.final && !isSuspension(frame)));
   readonly isTerminal = computed(() => terminalStatuses.has(this.state()));
@@ -25,16 +26,18 @@ export class TurnStream {
   constructor(readonly requestId: string) {}
 
   /**
-   * Returns false for a frame of another turn, one already rendered, or one after the final.
+   * Returns false for a frame of another turn, one already rendered, one after the final, or one
+   * whose sequence is not an `Int64`.
    * A suspension frame does not advance the cursor: the resumed turn reuses its sequence.
    */
   accept(frame: TurnReplyFrame): boolean {
-    if (frame.request_id !== this.requestId || this.isTerminal()) return false;
-    if (frame.sequence <= this.lastSequence()) return false;
+    if (frame.request_id !== this.requestId || this.isTerminal() || !isInt64(frame.sequence)) return false;
+    const sequence = BigInt(frame.sequence);
+    if (sequence <= this.lastSequence()) return false;
     const suspension = isSuspension(frame);
-    if (suspension && this.suspendedAt === frame.sequence) return false;
-    this.suspendedAt = suspension ? frame.sequence : null;
-    if (!suspension) this.lastSequence.set(frame.sequence);
+    if (suspension && this.suspendedAt === sequence) return false;
+    this.suspendedAt = suspension ? sequence : null;
+    if (!suspension) this.lastSequence.set(sequence);
     this.append(frame);
     return true;
   }

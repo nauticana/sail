@@ -11,6 +11,7 @@ import { ReportParam } from "../../model/appdata";
 import { titleCase } from "../../util/text";
 import { errorDetail } from "../../util/errors";
 import { MoneyColumnService } from "../../service/money_column.service";
+import { isInt64 } from "../../util/integer";
 
 @Component({
     selector: 'sail-table-report',
@@ -168,7 +169,7 @@ export class TableReport {
     cell(column: string, record: Record<string, unknown>): unknown {
         const value = record[column];
         const col = this.auth.getTableDefinition(this.tableName())?.Columns.find((c) => c.ColumnName === column || c.PascalName === column);
-        return col?.CurrencyPath && typeof value === 'number' ? this.money.display(this.tableName(), col, value, record) : value;
+        return col?.CurrencyPath && (typeof value === 'number' || isInt64(value)) ? this.money.display(this.tableName(), col, value, record) : value;
     }
 
     /** Re-exported for templates; same as the shared util. */

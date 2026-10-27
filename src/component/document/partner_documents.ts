@@ -7,6 +7,7 @@ import { BaseAsync } from '../abstract/base_async';
 import { PartnerDocument } from '../../model/document';
 import { LabelService } from '../../service/label.service';
 import { PartnerDocumentService } from '../../service/partner_document.service';
+import { Int64 } from '../../util/integer';
 import { DocumentUploadComponent } from './document_upload';
 
 @Component({
@@ -20,7 +21,7 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   private readonly service = inject(PartnerDocumentService);
   private readonly labels = inject(LabelService);
 
-  readonly userId = input<number | undefined>(undefined);
+  readonly userId = input<Int64 | undefined>(undefined);
   readonly heading = input('Documents');
   readonly emptyMessage = input('No documents uploaded.');
   readonly expiringWithinDays = input(30);

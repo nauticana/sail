@@ -1,7 +1,8 @@
+import { Int64 } from '../util/integer';
+
 /** In-app notification returned by keel's `InboxHandler`. */
 export interface InboxMessage {
-  /** Server-side `BIGINT`, serialized as a string to preserve precision. */
-  id: string;
+  id: Int64;
   /** App-defined category (keel `notification_type`); '' when the sender set none. */
   type: string;
   title: string;
@@ -16,5 +17,5 @@ export interface InboxMessage {
 /** One page of the caller's inbox, newest first, plus the whole-inbox unread total. */
 export interface InboxPage {
   messages: InboxMessage[];
-  unreadCount: number;
+  unreadCount: Int64;
 }

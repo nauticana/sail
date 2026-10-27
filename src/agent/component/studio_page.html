@@ -14,7 +14,7 @@
                 <span class="studio__agent-meta">
                   @if (agent.is_default) { <span>Default</span> }
                   @if (agent.archived) { <span>Archived</span> }
-                  @if (agent.published_version > 0) { <span>v{{ agent.published_version }}</span> } @else { <span>Never published</span> }
+                  @if (agent.published_version !== '0') { <span>v{{ agent.published_version }}</span> } @else { <span>Never published</span> }
                 </span>
               </button>
             </li>
@@ -212,7 +212,7 @@
                   {{ release.change_summary || 'No change summary' }}
                   · {{ release.published_at | date: 'medium' }} · {{ release.languages.join(', ') }}
                   @if (release.activation; as a) { · scheduled {{ a.effective_at | date: 'medium' }} ({{ a.state | sailCaption:'release_activation_state' }}) }
-                  @if (previousVersion(release.version) > 0) {
+                  @if (previousVersion(release.version) !== null) {
                     <button matButton type="button" [disabled]="busy()" (click)="compare(release.version)">Diff</button>
                   }
                   @if (!release.active && can('RESTORE')) {

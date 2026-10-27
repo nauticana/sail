@@ -22,6 +22,7 @@ import {
 import { AgentStudioService } from '../service/agent_studio.service';
 import { ReleaseSectionDiff, diffReleaseSections } from '../util/release_diff';
 import { studioErrorMessage } from '../util/studio_errors';
+import { Int64, compareInt64 } from '../../util/integer';
 import { PromptLanguageEditorComponent, PromptResetTarget } from './prompt_language_editor';
 import { StudioTabDirective } from './studio_tab';
 
@@ -75,7 +76,7 @@ export class StudioPageComponent implements OnInit {
   readonly guardrails = signal<AgentGuardrails | null>(null);
   readonly safetyEvents = signal<SafetyEvent[]>([]);
   readonly safetyExhausted = signal(true);
-  readonly diff = signal<{ version: number; previous: number; rows: ReleaseSectionDiff[] } | null>(null);
+  readonly diff = signal<{ version: Int64; previous: Int64; rows: ReleaseSectionDiff[] } | null>(null);
   readonly testResult = signal<AgentTestResult | null>(null);
   readonly tab = signal('overview');
   readonly language = signal('');
@@ -192,7 +193,7 @@ export class StudioPageComponent implements OnInit {
   }
 
   /** Carries new revisions into the draft and its baseline without touching unsaved edits. */
-  private applyRevisions(agentRevision: number, typeRevision?: number, patch: Partial<AgentDraft> = {}): void {
+  private applyRevisions(agentRevision: Int64, typeRevision?: Int64, patch: Partial<AgentDraft> = {}): void {
     const revisions: Partial<AgentDraft> = { ...patch, expected_agent_revision: agentRevision };
     if (typeRevision !== undefined) revisions.expected_type_defaults_revision = typeRevision;
     const d = this.draft();
@@ -328,7 +329,7 @@ export class StudioPageComponent implements OnInit {
     }, d.agent_name);
   }
 
-  restore(version: number): void {
+  restore(version: Int64): void {
     this.prompt.ask({ title: `Restore version ${version}?`, message: 'It is published again as a new version.', action: 'Restore version' }, () =>
       this.act(this.studio.restore({ agent_name: this.selectedName(), version }), (release) => {
         this.successMessage.set(`Version ${release.version} published from version ${version}.`);
@@ -355,7 +356,7 @@ export class StudioPageComponent implements OnInit {
 
   loadSafetyEvents(): void {
     const name = this.selectedName();
-    const before = this.safetyEvents().at(-1)?.id ?? 0;
+    const before = this.safetyEvents().at(-1)?.id ?? '';
     this.call(this.studio.safetyEvents(name, before), (events) => {
       this.safetyEvents.update((rows) => [...rows, ...events]);
       this.safetyExhausted.set(events.length < 50);
@@ -384,13 +385,16 @@ export class StudioPageComponent implements OnInit {
     }, g.agent_name);
   }
 
-  previousVersion(version: number): number {
-    return this.releases().reduce((best, r) => r.version < version && r.version > best ? r.version : best, 0);
+  /** The newest release before `version`; null for the first. */
+  previousVersion(version: Int64): Int64 | null {
+    return this.releases().reduce<Int64 | null>((best, r) =>
+      compareInt64(r.version, version) < 0 && (best === null || compareInt64(r.version, best) > 0) ? r.version : best, null);
   }
 
-  compare(version: number): void {
+  compare(version: Int64): void {
     const name = this.selectedName();
     const previous = this.previousVersion(version);
+    if (previous === null) return;
     this.act(forkJoin([this.studio.releaseSections(name, previous), this.studio.releaseSections(name, version)]),
       ([prior, current]) => this.diff.set({ version, previous, rows: diffReleaseSections(prior, current) }), name);
   }

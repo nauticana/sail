@@ -7,6 +7,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { PartnerDocumentService } from '../../service/partner_document.service';
 import { PartnerDocument } from '../../model/document';
 import { errorDetail } from '../../util/errors';
+import { Int64 } from '../../util/integer';
 
 /**
  * Picks, previews and uploads one keel partner document. App-specific
@@ -29,7 +30,7 @@ export class DocumentUploadComponent {
   readonly documentNumber = input('');
   /** YYYY-MM-DD. */
   readonly expiresOn = input('');
-  readonly userId = input<number | undefined>(undefined);
+  readonly userId = input<Int64 | undefined>(undefined);
   readonly accept = input('image/*,application/pdf');
   /** Client-side size cap; 0 leaves the limit to keel's document type. */
   readonly maxBytes = input(0);

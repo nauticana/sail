@@ -1,8 +1,9 @@
+import { Int64 } from '../../util/integer';
 import { AgentReleaseSection } from '../model/agent_studio';
 
 export interface ReleaseSectionDiff {
   language_code: string;
-  prompt_header_id: number;
+  prompt_header_id: Int64;
   caption: string;
   status: 'added' | 'changed' | 'removed';
   old_text: string;

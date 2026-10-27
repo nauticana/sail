@@ -15,6 +15,7 @@ import { TurnReplyFrame } from '../model/reply_frame';
 import { isKnownTurnEvent } from '../model/turn_event';
 import { SseParser, ServerSentEvent } from '../util/sse';
 import { TurnStream } from './turn_stream';
+import { Int64, isInt64 } from '../../util/integer';
 
 const REPLAY_EXPIRED = 410;
 
@@ -143,8 +144,8 @@ export class ConversationService extends BaseRestService {
     if (frame && stream.accept(frame)) subscriber.next(frame);
   }
 
-  private open(requestId: string, cursor: number, signal: AbortSignal, token: string | null): Promise<Response> {
-    const query = new URLSearchParams({ request_id: requestId, cursor: String(cursor) });
+  private open(requestId: string, cursor: Int64, signal: AbortSignal, token: string | null): Promise<Response> {
+    const query = new URLSearchParams({ request_id: requestId, cursor });
     return fetch(`${this.conversationUrl('turn/stream')}?${query}`, {
       signal,
       headers: {
@@ -175,7 +176,7 @@ function parseJson<T>(raw: string): T | undefined {
 function toFrame(value: unknown): TurnReplyFrame | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const frame = value as Partial<TurnReplyFrame>;
-  if (typeof frame.request_id !== 'string' || typeof frame.sequence !== 'number' || !Array.isArray(frame.events)) {
+  if (typeof frame.request_id !== 'string' || !isInt64(frame.sequence) || !Array.isArray(frame.events)) {
     return undefined;
   }
   return {

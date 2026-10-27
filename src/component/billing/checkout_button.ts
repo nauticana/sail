@@ -40,6 +40,10 @@ export class CheckoutButtonComponent extends BaseAsync {
   readonly cancelUrl = input.required<string>();
   /** Optional metadata bag forwarded to the provider session. */
   readonly metadata = input<{ [key: string]: string } | undefined>(undefined);
+  /** ISO 4217 currency of the session, such as a setup session's currency. */
+  readonly currency = input<string | undefined>(undefined);
+  /** Provider payment method types; a setup session without these or `currency` offers cards. */
+  readonly paymentMethodTypes = input<readonly string[] | undefined>(undefined);
   /** Button label. */
   readonly label = input('Continue to payment');
 
@@ -59,6 +63,8 @@ export class CheckoutButtonComponent extends BaseAsync {
         successUrl: this.successUrl(),
         cancelUrl:  this.cancelUrl(),
         metadata:   this.metadata(),
+        currency:   this.currency(),
+        paymentMethodTypes: this.paymentMethodTypes(),
       }),
       (resp) => { window.location.href = resp.checkoutUrl; },
       'Could not start checkout. Please try again.',

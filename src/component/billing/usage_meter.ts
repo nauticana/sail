@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, input } from '@angular/core';
 import { UsageMeter } from '../../model/appdata';
+import { toSafeInteger } from '../../util/integer';
 
 /** Per-row view model derived from a UsageMeter for accessible rendering. */
 interface UsageRow {
@@ -31,15 +32,17 @@ export class UsageMeterComponent {
 
   readonly rows = computed<UsageRow[]>(() =>
     this.meters().map((m) => {
-      const hasBar = m.limit > 0;
+      const used = toSafeInteger(m.used);
+      const limit = toSafeInteger(m.limit);
+      const hasBar = limit > 0;
       return {
         resource:  m.resource,
         caption:   m.caption || m.resource,
         hasBar,
-        percent:   hasBar ? Math.min(100, Math.max(0, Math.round((m.used / m.limit) * 100))) : 0,
-        ariaMax:   m.limit,
-        ariaNow:   hasBar ? Math.min(Math.max(0, m.used), m.limit) : m.used,
-        valueText: `${m.used} / ${m.limit < 0 ? 'Unlimited' : m.limit}`,
+        percent:   hasBar ? Math.min(100, Math.max(0, Math.round((used / limit) * 100))) : 0,
+        ariaMax:   limit,
+        ariaNow:   hasBar ? Math.min(Math.max(0, used), limit) : used,
+        valueText: `${used} / ${limit < 0 ? 'Unlimited' : limit}`,
       };
     }),
   );

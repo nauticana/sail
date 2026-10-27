@@ -1,11 +1,13 @@
+import { Int64 } from '../util/integer';
+
 /** One `partner_document` row in Sail's generic REST field shape. */
 export interface PartnerDocument {
-  Id:             number;
+  Id:             Int64;
   ContrepId:      string;
   DocKey:         string;
-  PartnerId:      number;
+  PartnerId:      Int64;
   /** null means the partner itself. */
-  UserId:         number | null;
+  UserId:         Int64 | null;
   DocumentType:   string;
   Title:          string;
   FileName:       string;
@@ -13,11 +15,11 @@ export interface PartnerDocument {
   DocumentNumber: string | null;
   ExpiresOn:      string | null;
   OriginIp:       string | null;
-  UploadedBy:     number | null;
+  UploadedBy:     Int64 | null;
   UploadedAt:     string;
   /** `partner_document_status`: P pending, Y approved, N rejected, X superseded, R retired. */
   Status:         string;
-  ReviewerId:     number | null;
+  ReviewerId:     Int64 | null;
   ReviewedAt:     string | null;
   ReviewerNotes:  string | null;
   SupersededAt:   string | null;
@@ -32,5 +34,5 @@ export interface DocumentUploadRequest {
   /** YYYY-MM-DD. */
   expiresOn?:      string;
   /** The member the document is about; omitted = the partner. */
-  userId?:         number;
+  userId?:         Int64;
 }

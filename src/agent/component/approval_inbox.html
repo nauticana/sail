@@ -52,6 +52,9 @@
         @if (request.revises_step_id) {
           <dt>Revises</dt><dd>step {{ request.revises_step_id }}</dd>
         }
+        @if (request.authenticated_only) {
+          <dt>Decision links</dt><dd>Not offered; decide it while signed in</dd>
+        }
         <dt>Requested</dt><dd>{{ request.created_at | date: 'medium' }}</dd>
       </dl>
 

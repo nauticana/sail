@@ -7,6 +7,7 @@ import { AgencyPayoutDestination, AgencyPayoutProfile } from '../../model/agency
 import { AgencyService } from '../../service/agency.service';
 import { errorDetail } from '../../util/errors';
 import { PayoutProviderOnboardingComponent } from '../payout/provider_onboarding';
+import { Int64 } from '../../util/integer';
 
 /**
  * Self-service selection of the fully onboarded destination that receives
@@ -37,7 +38,7 @@ export class AgencyPayoutProfileComponent implements OnInit {
   readonly errorMessage = signal('');
   readonly profile = signal<AgencyPayoutProfile | null>(null);
   readonly destinations = signal<AgencyPayoutDestination[]>([]);
-  readonly selectedDestinationID = signal<number | null>(null);
+  readonly selectedDestinationID = signal<Int64 | null>(null);
 
   ngOnInit(): void {
     this.reload();
@@ -66,7 +67,7 @@ export class AgencyPayoutProfileComponent implements OnInit {
   }
 
   choose(event: MatSelectChange): void {
-    this.selectedDestinationID.set(Number(event.value));
+    this.selectedDestinationID.set(event.value);
   }
 
   save(): void {

@@ -20,6 +20,7 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../config';
 import { BaseRestService } from './base_rest.service';
 import { resetAuthCircuit } from './auth.interceptor';
 import { PromptService } from './prompt.service';
+import { Int64 } from '../util/integer';
 
 /** Thrown by refreshSession() when the session changed while the rotation was in
  *  flight; the result was discarded and the current session is untouched. */
@@ -435,7 +436,7 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.get<TrustedDevice[]>(this.trustedDeviceListUrl);
   }
 
-  revokeTrustedDevice(deviceId: number) {
+  revokeTrustedDevice(deviceId: Int64) {
     return this.http.post<{ message: string }>(this.trustedDeviceRevokeUrl, { deviceId });
   }
 
@@ -443,7 +444,7 @@ export abstract class BaseAuthService extends BaseRestService {
     return this.http.get<ActiveSession[]>(this.sessionListUrl);
   }
 
-  revokeSession(id: number) {
+  revokeSession(id: Int64) {
     return this.http.post<void>(this.sessionRevokeUrl, { id });
   }
 

@@ -1,12 +1,14 @@
+import { Int64 } from '../util/integer';
+
 // Partner→external-provider connections (keel oauth/connect). The app supplies a
 // OAuthProviderDescriptor[] catalog; sail's ConnectionPanel renders/manages them.
 
 /** Mirrors keel partner_credential (the browser never sees the sealed cred_ref). */
 export interface PartnerCredential {
-  Id?: number;
-  PartnerId?: number;
+  Id?: Int64;
+  PartnerId?: Int64;
   /** 0 = tenant-wide; >0 = a specific business/entity. */
-  EntityId?: number;
+  EntityId?: Int64;
   Provider: string;
   /** 'O' = OAuth, 'A' = API key. */
   ConnectionType: 'O' | 'A';

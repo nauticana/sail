@@ -74,7 +74,7 @@
                 <span class="turn-ref__source">{{ ref.source }}</span>
                 <span class="turn-ref__uri">{{ ref.uri || ref.object?.URI }}</span>
                 @if (ref.object?.Digest) {
-                  <span class="turn-ref__digest">{{ ref.object?.Digest }}</span>
+                  <span class="turn-ref__digest">{{ ref.object.Digest }}</span>
                 }
               </li>
             }

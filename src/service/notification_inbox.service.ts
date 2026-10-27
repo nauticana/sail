@@ -5,6 +5,7 @@ import { BaseRestService } from './base_rest.service';
 import { RealtimeService } from './realtime.service';
 import { RestURL } from './rest_url';
 import { InboxMessage, InboxPage } from '../model/notification';
+import { toSafeInteger } from '../util/integer';
 
 export const INBOX_MAX_PAGE_SIZE = 100;
 export const INBOX_DEFAULT_PAGE_SIZE = 20;
@@ -98,7 +99,7 @@ export class NotificationInboxService extends BaseRestService {
     let params = new HttpParams().set('limit', pageSizeOf(limit));
     if (before) params = params.set('before', before);
     return this.http.get<InboxPage>(this.url(RestURL.notificationsURL), { params }).pipe(
-      tap((page) => this.unread.set(page.unreadCount)),
+      tap((page) => this.unread.set(toSafeInteger(page.unreadCount))),
     );
   }
 

@@ -30,7 +30,7 @@
           <p class="connection-card__desc">{{ v.provider.description }}</p>
         }
         @if (v.connection?.LastChecked) {
-          <p class="connection-card__checked">Last checked {{ v.connection?.LastChecked | date: 'medium' }}</p>
+          <p class="connection-card__checked">Last checked {{ v.connection.LastChecked | date: 'medium' }}</p>
         }
 
         <div class="connection-card__actions">

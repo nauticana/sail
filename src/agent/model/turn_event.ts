@@ -1,4 +1,6 @@
-/** Typed turn events (`v` 1). Exactly the member a `kind` names is set. */
+import { Int64 } from '../../util/integer';
+
+/** Typed turn events (`v` "1"). Exactly the member a `kind` names is set. */
 
 export const TURN_EVENT_KINDS = [
   'text_delta',
@@ -64,13 +66,13 @@ export interface EvidenceRef {
 
 export interface TurnProgressEvent {
   stage: string;
-  iteration?: number;
+  iteration?: Int64;
   message?: string;
 }
 
 export interface TurnExtensionEvent {
   type: string;
-  v: number;
+  v: Int64;
   payload?: unknown;
 }
 
@@ -79,11 +81,11 @@ export interface Citation {
   domain?: string;
   title?: string;
   snippet?: string;
-  position: number;
+  position: Int64;
 }
 
 export interface TurnEvent {
-  v: number;
+  v: Int64;
   kind: TurnEventKind;
   text?: string;
   tool?: TurnToolEvent;

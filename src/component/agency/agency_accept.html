@@ -17,9 +17,19 @@
       <p role="status">A business must be set up before management can be delegated.</p>
       <button matButton="filled" type="button" (click)="requestBusinessSetup()">{{ businessSetupLabel() }}</button>
     } @else if (authenticated()) {
-      <button matButton="filled" type="button" [disabled]="accepting() || invitation.expired" (click)="accept()">
-        Accept management
-      </button>
+      @if (canAccept() === null) {
+        <mat-spinner diameter="24" aria-label="Checking your permissions"></mat-spinner>
+      } @else if (canAccept()) {
+        <button matButton="filled" type="button" [disabled]="accepting() || invitation.expired" (click)="accept()">
+          Accept management
+        </button>
+      } @else {
+        <p role="status">
+          Only an administrator of <strong>{{ invitation.clientName }}</strong> can accept this invitation.
+          If you have not set up your business yet, set it up first.
+        </p>
+        <button matButton type="button" (click)="requestBusinessSetup()">{{ businessSetupLabel() }}</button>
+      }
     } @else {
       <button matButton="filled" type="button" (click)="loginRequested.emit()">{{ loginLabel() }}</button>
       <button matButton type="button" (click)="registrationRequested.emit()">{{ registerLabel() }}</button>

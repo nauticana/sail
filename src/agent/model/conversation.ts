@@ -1,3 +1,4 @@
+import { Int64 } from '../../util/integer';
 import { InjectionToken } from '@angular/core';
 
 /** One asynchronous turn, as Scout's conversation bridge takes it. */
@@ -29,7 +30,7 @@ export interface ConversationTurnAccepted {
   request_id: string;
 }
 
-/** Data of an SSE `error` event: a failure raised after the stream's 200 was committed. */
+/** Data of an SSE `error` event: a failure raised after the stream's 200 was committed; `status` is a number. */
 export interface ConversationStreamError {
   status: number;
   detail: string;
@@ -64,9 +65,9 @@ export interface ConversationTurn {
   result?: unknown;
   created_at: string;
   completed_at?: string;
-  cost_minor?: number;
+  cost_minor?: Int64;
   currency?: string;
-  exponent?: number;
+  exponent?: Int64;
 }
 
 /** Newest first; `next_before` is absent on the last page. */

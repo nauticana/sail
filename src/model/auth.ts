@@ -1,3 +1,4 @@
+import { Int64 } from '../util/integer';
 // Auth / consent / OTP / social / push / re-auth types — mirror keel's port types
 // (see keel/README.md and keel/handler/*).
 
@@ -97,8 +98,8 @@ export interface OtpVerifyRequest {
 export interface OtpVerifyResponse {
   token:      string;
   refreshToken?: string;
-  userId?:    number;
-  partnerId?: number;
+  userId?:    Int64;
+  partnerId?: Int64;
   // True when this verify created the account: a register send for an
   // unknown contact holds the signup until the code proves the contact.
   isNewUser:  boolean;
@@ -152,8 +153,8 @@ export interface SocialLoginRequest {
 export interface LoginResponseSocial {
   token:                   string;
   refreshToken?:           string;
-  userId?:                 number;
-  partnerId?:              number;
+  userId?:                 Int64;
+  partnerId?:              Int64;
   isNewUser:               boolean;
   singleDeviceSession?:    boolean;
   previousDeviceRevoked?:  boolean;

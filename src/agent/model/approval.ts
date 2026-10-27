@@ -1,6 +1,7 @@
+import { Int64 } from '../../util/integer';
 import { PrincipalRef } from './decision';
 
-/** Scout approval desk and MCP confirmation inbox wire types (v1.2.16). Codes render through backend captions. */
+/** Scout approval desk and MCP confirmation inbox wire types (v1.2.20). Codes render through backend captions. */
 
 /** A approved, X rejected, E edited (tool-call proposals only, with revised arguments). */
 export type ApprovalVerdict = 'A' | 'X' | 'E';
@@ -13,7 +14,7 @@ export interface ApproverReference {
 /** One decision a reviewer owes; evidence stays behind its own authorization. */
 export interface ApprovalRequest {
   request_id: string;
-  execution_step_id: number;
+  execution_step_id: Int64;
   conversation_id: string;
   scope_id?: string;
   rule_id: string;
@@ -26,16 +27,18 @@ export interface ApprovalRequest {
   status: string;
   deadline_at?: string;
   created_at: string;
-  revises_step_id?: number;
+  revises_step_id?: Int64;
   rule_source: string;
   route_id?: string;
-  route_step: number;
+  route_step: Int64;
   approver_reference?: ApproverReference;
+  /** The route refuses decision links; decide it here, in the authenticated view. */
+  authenticated_only?: boolean;
 }
 
 export interface ApprovalResolveRequest {
   request_id: string;
-  execution_step_id: number;
+  execution_step_id: Int64;
   verdict: ApprovalVerdict;
   proposed_digest: string;
   reason?: string;
@@ -53,8 +56,8 @@ export type ReconcileOutcome = Extract<ConfirmationStatus, 'D' | 'F'>;
 export const CONFIRMATION_NOTE_MAX = 500;
 
 export interface ConfirmationKey {
-  tenant_id: number;
-  id: number;
+  tenant_id: Int64;
+  id: Int64;
 }
 
 /** One MCP tool call awaiting or past a person's confirmation; never its payload. */

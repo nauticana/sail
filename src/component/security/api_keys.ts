@@ -13,6 +13,7 @@ import { AccessService } from '../../service/access.service';
 import { LabelOption, LabelService } from '../../service/label.service';
 import { BaseAsync } from '../abstract/base_async';
 import { PromptService } from '../../service/prompt.service';
+import { Int64 } from '../../util/integer';
 
 /**
  * The partner's API keys: mint one with scopes, allowed networks and an optional expiry (the
@@ -46,7 +47,7 @@ export class ApiKeysComponent extends BaseAsync implements OnInit {
   readonly keys = signal<ApiKey[]>([]);
   readonly minted = signal<MintedApiKey | null>(null);
   /** Id of the key whose networks are being edited. */
-  readonly restricting = signal<number | null>(null);
+  readonly restricting = signal<Int64 | null>(null);
   readonly form = this.fb.group({
     keyName:      ['', [Validators.required, Validators.maxLength(100)]],
     allowedCidrs: ['', Validators.maxLength(2000)],

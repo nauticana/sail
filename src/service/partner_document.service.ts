@@ -5,13 +5,14 @@ import { BaseRestService } from './base_rest.service';
 import { BackendService } from './rest_service';
 import { RestURL } from './rest_url';
 import { DocumentUploadRequest, PartnerDocument } from '../model/document';
+import { Int64 } from '../util/integer';
 
 interface DocumentHandlerResponse {
-  ID: number;
+  ID: Int64;
   ContRepID: string;
   DocKey: string;
-  PartnerID: number;
-  UserID: number;
+  PartnerID: Int64;
+  UserID: Int64;
   DocumentType: string;
   Title: string;
   FileName: string;
@@ -19,10 +20,10 @@ interface DocumentHandlerResponse {
   DocumentNumber: string;
   ExpiresOn: string;
   OriginIP: string;
-  UploadedBy: number;
+  UploadedBy: Int64;
   UploadedAt: string;
   Status: string;
-  ReviewerID: number;
+  ReviewerID: Int64;
   ReviewedAt: string;
   ReviewerNotes: string;
   SupersededAt: string;
@@ -35,14 +36,14 @@ interface DocumentHandlerResponse {
 export class PartnerDocumentService extends BaseRestService {
   private readonly backend = inject(BackendService);
 
-  list(userId?: number, status?: string): Observable<PartnerDocument[]> {
+  list(userId?: Int64, status?: string): Observable<PartnerDocument[]> {
     return this.backend.list<PartnerDocument>('partner_document', {
-      ...(userId === undefined ? {} : { UserId: String(userId) }),
+      ...(userId === undefined ? {} : { UserId: userId }),
       ...(status === undefined ? {} : { Status: status }),
     });
   }
 
-  pending(userId?: number): Observable<PartnerDocument[]> {
+  pending(userId?: Int64): Observable<PartnerDocument[]> {
     return this.list(userId, 'P');
   }
 
@@ -54,7 +55,7 @@ export class PartnerDocumentService extends BaseRestService {
     if (request.title) form.append('title', request.title);
     if (request.documentNumber) form.append('document_number', request.documentNumber);
     if (request.expiresOn) form.append('expires_on', request.expiresOn);
-    if (request.userId) form.append('user_id', String(request.userId));
+    if (request.userId) form.append('user_id', request.userId);
     return this.http.post<DocumentHandlerResponse>(this.url(RestURL.partnerDocumentUploadURL), form, {
       reportProgress: true,
       observe: 'events',
@@ -62,15 +63,14 @@ export class PartnerDocumentService extends BaseRestService {
   }
 
   /** Short-lived signed read URL. */
-  previewUrl(id: number): Observable<string> {
+  previewUrl(id: Int64): Observable<string> {
     const params = new HttpParams().set('id', id);
     return this.http.get<{ url: string }>(this.url(RestURL.partnerDocumentPreviewURL), { params })
       .pipe(map((resp) => resp.url));
   }
 
-  review(id: number, approve: boolean, notes = ''): Observable<void> {
-    // keel decodes the id with `json:"id,string"`.
-    return this.http.post<void>(this.url(RestURL.partnerDocumentReviewURL), { id: String(id), approve, notes });
+  review(id: Int64, approve: boolean, notes = ''): Observable<void> {
+    return this.http.post<void>(this.url(RestURL.partnerDocumentReviewURL), { id, approve, notes });
   }
 }
 
@@ -88,7 +88,7 @@ function normalizeDocument(doc: DocumentHandlerResponse): PartnerDocument {
     ContrepId: doc.ContRepID,
     DocKey: doc.DocKey,
     PartnerId: doc.PartnerID,
-    UserId: doc.UserID || null,
+    UserId: idOrNull(doc.UserID),
     DocumentType: doc.DocumentType,
     Title: doc.Title,
     FileName: doc.FileName,
@@ -96,16 +96,20 @@ function normalizeDocument(doc: DocumentHandlerResponse): PartnerDocument {
     DocumentNumber: doc.DocumentNumber || null,
     ExpiresOn: timeOrNull(doc.ExpiresOn),
     OriginIp: doc.OriginIP || null,
-    UploadedBy: doc.UploadedBy || null,
+    UploadedBy: idOrNull(doc.UploadedBy),
     UploadedAt: doc.UploadedAt,
     Status: doc.Status,
-    ReviewerId: doc.ReviewerID || null,
+    ReviewerId: idOrNull(doc.ReviewerID),
     ReviewedAt: timeOrNull(doc.ReviewedAt),
     ReviewerNotes: doc.ReviewerNotes || null,
     SupersededAt: timeOrNull(doc.SupersededAt),
     RetiredAt: timeOrNull(doc.RetiredAt),
     PurgedAt: timeOrNull(doc.PurgedAt),
   };
+}
+
+function idOrNull(value: Int64): Int64 | null {
+  return value && value !== '0' ? value : null;
 }
 
 function timeOrNull(value: string): string | null {

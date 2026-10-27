@@ -111,6 +111,7 @@ export * from './service/money_column.service';
 export * from './service/base_rest.service';
 export * from './util/text';
 export * from './util/money';
+export * from './util/integer';
 export * from './util/errors';
 export * from './util/forms';
 export * from './util/password_policy';

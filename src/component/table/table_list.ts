@@ -10,6 +10,7 @@ import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
 import { MatPaginatorModule, PageEvent } from "@angular/material/paginator";
 import { MatProgressBarModule } from "@angular/material/progress-bar";
+import { toSafeInteger } from '../../util/integer';
 
 const DEFAULT_PAGE_SIZE = 25;
 // keel list controls; every other query parameter is a column filter.
@@ -109,7 +110,7 @@ export class TableList extends AbstractEditableView implements OnInit {
             tap((page) => {
                 if (id !== this.request) return;
                 this.records.set(page.items ?? []);
-                this.total.set(page.total ?? page.items?.length ?? 0);
+                this.total.set(toSafeInteger(page.total ?? page.items?.length ?? 0));
                 this.updateDisplayedColumns(page.items ?? []);
                 this.viewError.set('');
             }),

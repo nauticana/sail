@@ -4,6 +4,7 @@ import { RestURL } from './rest_url';
 import { BackendService } from './rest_service';
 import { BaseRestService } from './base_rest.service';
 import { UserPaymentMethod } from '../model/appdata';
+import { Int64 } from '../util/integer';
 
 /**
  * UserPaymentMethodService — consumer-side saved-payment-methods API.
@@ -27,12 +28,12 @@ export class UserPaymentMethodService extends BaseRestService {
   }
 
   /** Detach a saved payment method at the provider and delete it. */
-  remove(id: number): Observable<{ message: string }> {
+  remove(id: Int64): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(this.url(RestURL.paymentMethodRemoveURL), { id });
   }
 
   /** Mark one row as default; clears every other row in the same call. */
-  setDefault(id: number): Observable<{ message: string }> {
+  setDefault(id: Int64): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(this.url(RestURL.paymentMethodSetDefaultURL), { id });
   }
 }

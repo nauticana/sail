@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, linkedSignal, output
 import { CurrencyService } from "../../service/currency.service";
 import { ParentRow } from "../../service/money_column.service";
 import { minorToDecimal, parseMinor } from "../../util/money";
+import { isInt64 } from "../../util/integer";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckboxChange, MatCheckboxModule } from "@angular/material/checkbox";
 import { MatDialog } from "@angular/material/dialog";
@@ -81,14 +82,15 @@ export class DynamicField extends BaseTable {
             // A computed may not start the catalog load (a signal write); the template's `exponent` does.
             const currency = this.currency;
             const exponent = currency && this.currencies.ready() ? this.currencies.exponent(currency) : undefined;
-            if (typeof minor !== 'number' || exponent === undefined) return previous?.value ?? '';
-            return previous && parseMinor(previous.value, exponent) === minor ? previous.value : minorToDecimal(minor, exponent);
+            if (!(typeof minor === 'number' || isInt64(minor)) || exponent === undefined) return previous?.value ?? '';
+            return previous && parseMinor(previous.value, exponent) === String(minor) ? previous.value : minorToDecimal(minor, exponent);
         },
     });
 
-    /** Text that does not parse at the exponent was emitted verbatim, so the parent holds a string. */
+    /** Text that does not parse at the exponent was emitted verbatim; a parsed amount is an `Int64`. */
     get moneyInvalid(): boolean {
-        return typeof this.value() === 'string' && this.value() !== '';
+        const value = this.value();
+        return typeof value === 'string' && value !== '' && !isInt64(value);
     }
 
     onMoneyInput(event: Event) {
@@ -204,8 +206,9 @@ export class DynamicField extends BaseTable {
         if (target) this.valueChange.emit(this.coerce(target.value));
     }
 
-    /** Numeric columns emit numbers, not the input's raw string. */
+    /** Numeric columns emit numbers, not the input's raw string; a bigint keeps its exact digits. */
     private coerce(raw: string): unknown {
+        if (this.col?.DataType === 'bigint') return raw.trim();
         if (raw !== '' && this.isNumber(this.field())) {
             const n = Number(raw);
             if (!isNaN(n)) return n;
@@ -225,10 +228,11 @@ export class DynamicField extends BaseTable {
         if (!this.col || !this.col.LookupTable) return;
         const fk = this.getForeignKeyConfig(this.col.LookupTable);
         // No FK config → nothing to map; emitting would wipe the current value.
-        if (!fk?.fk || fk.fk.Columns.length !== fk.parent.Keys.length) return;
+        if (!fk?.fk) return;
+        const parentColumns = fk.fk.ParentColumns;
         const updates: {[key: string]: unknown} = {};
         fk.fk.Columns.forEach((column, index) => {
-            updates[column.PascalName] = parentRecord[fk.parent.Keys[index].PascalName];
+            updates[column.PascalName] = parentRecord[parentColumns[index].PascalName];
         });
         this.recordUpdate.emit(updates);
         this.valueChange.emit(updates[this.field()]);

@@ -6,12 +6,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { AgentLanguageDraft, AgentPromptSection, AgentResetScope } from '../model/agent_studio';
 import { PromptSectionEditorComponent } from './prompt_section_editor';
+import { Int64 } from '../../util/integer';
 
 /** What to reset; the page adds the agent name and both expected revisions. */
 export interface PromptResetTarget {
   scope: AgentResetScope;
   /** 0 = every section. */
-  prompt_header_id: number;
+  prompt_header_id: Int64;
   /** '' = every language. */
   language_code: string;
 }
@@ -38,7 +39,7 @@ export class PromptLanguageEditorComponent {
 
   protected readonly resetScope = new FormControl<AgentResetScope>('agent_override', { nonNullable: true });
   protected readonly everyLanguage = new FormControl(false, { nonNullable: true });
-  private readonly invalidSections = signal<ReadonlySet<number>>(new Set());
+  private readonly invalidSections = signal<ReadonlySet<Int64>>(new Set());
 
   constructor() {
     effect(() => {
@@ -59,7 +60,7 @@ export class PromptLanguageEditorComponent {
     });
   }
 
-  protected setSectionValid(promptHeaderId: number, valid: boolean): void {
+  protected setSectionValid(promptHeaderId: Int64, valid: boolean): void {
     const invalid = new Set(this.invalidSections());
     if (valid) invalid.delete(promptHeaderId);
     else invalid.add(promptHeaderId);
@@ -67,7 +68,7 @@ export class PromptLanguageEditorComponent {
     this.validChange.emit(invalid.size === 0);
   }
 
-  protected requestReset(promptHeaderId: number): void {
+  protected requestReset(promptHeaderId: Int64): void {
     this.resetRequested.emit({
       scope: this.resetScope.value,
       prompt_header_id: promptHeaderId,

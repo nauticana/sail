@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { OAuthConnectionService } from '../../service/oauth_connection.service';
 import { httpStatus } from '../../util/errors';
 import { OAuthConnectionStatus, OAuthConnectionView, PartnerCredential, OAuthProviderDescriptor, OAuthProviderFieldRole } from '../../model/oauth_connection';
+import { Int64 } from '../../util/integer';
 
 /**
  * ConnectionPanel — drop-in UI for keel oauth/connect. Renders a card per
@@ -27,7 +28,7 @@ import { OAuthConnectionStatus, OAuthConnectionView, PartnerCredential, OAuthPro
 })
 export class OAuthConnectionPanelComponent implements OnInit {
   readonly providers = input<OAuthProviderDescriptor[]>([]);
-  readonly entityId = input(0);
+  readonly entityId = input<Int64>('0');
 
   readonly connected = output<string>();
   readonly disconnected = output<string>();
@@ -99,7 +100,7 @@ export class OAuthConnectionPanelComponent implements OnInit {
     return this.msg(e, 'Could not complete the connection.');
   }
 
-  private reload(entityId: number, keepNotice = false): void {
+  private reload(entityId: Int64, keepNotice = false): void {
     if (!keepNotice) this.notice.set('');
     this.reloadSub?.unsubscribe(); // cancel any in-flight load so a slow old entity can't overwrite the new one
     this.loading.set(true);
@@ -188,7 +189,7 @@ export class OAuthConnectionPanelComponent implements OnInit {
 
     if (v.provider.authType === 'oauth') {
       // Only 'param' fields belong in the authorize URL — never a credential/endpoint.
-      const extra: Record<string, string> = { entity_id: String(this.entityId()) };
+      const extra: Record<string, string> = { entity_id: this.entityId() };
       for (const f of fields) if (f.role === 'param') extra[f.key] = vals[f.key] ?? '';
       this.svc.startOAuth(v.provider.code, extra).subscribe({
         next: (url) => this.redirect(url),

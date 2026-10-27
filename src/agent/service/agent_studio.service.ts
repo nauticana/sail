@@ -27,6 +27,7 @@ import {
   StudioModel,
 } from '../model/agent_studio';
 import { DecisionOutcome, DecisionPage } from '../model/decision';
+import { Int64 } from '../../util/integer';
 
 const studioBasePath = '/api/agent-studio/';
 
@@ -108,9 +109,9 @@ export class AgentStudioService extends BaseRestService {
     return this.http.get<AgentAuditEvent[]>(this.studioUrl('audit'), { params: { agent_name: agentName } });
   }
 
-  releaseSections(agentName: string, version: number): Observable<AgentReleaseSection[]> {
+  releaseSections(agentName: string, version: Int64): Observable<AgentReleaseSection[]> {
     return this.http.get<AgentReleaseSection[]>(this.studioUrl('release-sections'), {
-      params: { agent_name: agentName, version: String(version) },
+      params: { agent_name: agentName, version },
     });
   }
 
@@ -119,9 +120,9 @@ export class AgentStudioService extends BaseRestService {
   }
 
   /** Scout's optional `decisions` feature: the tenant's decision records, newest first. */
-  decisions(before = 0, limit = 0, category = '', outcome?: DecisionOutcome): Observable<DecisionPage> {
+  decisions(before: Int64 = '', limit = 0, category = '', outcome?: DecisionOutcome): Observable<DecisionPage> {
     const params: Record<string, string> = {};
-    if (before) params['before'] = String(before);
+    if (before) params['before'] = before;
     if (limit) params['limit'] = String(limit);
     if (category) params['category'] = category;
     if (outcome) params['outcome'] = outcome;
@@ -138,9 +139,10 @@ export class AgentStudioService extends BaseRestService {
   }
 
   /** Newest first; pass the last id as `before` for the next page. */
-  safetyEvents(agentName: string, before = 0, limit = 50): Observable<SafetyEvent[]> {
-    return this.http.get<SafetyEvent[]>(this.studioUrl('safety-events'),
-      { params: { agent_name: agentName, before: String(before), limit: String(limit) } });
+  safetyEvents(agentName: string, before: Int64 = '', limit = 50): Observable<SafetyEvent[]> {
+    const params: Record<string, string> = { agent_name: agentName, limit: String(limit) };
+    if (before) params['before'] = before;
+    return this.http.get<SafetyEvent[]>(this.studioUrl('safety-events'), { params });
   }
 
   private studioUrl(route: string): string {

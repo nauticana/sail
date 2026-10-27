@@ -10,12 +10,12 @@ import { TableAction, TableActionParameter } from "../../model/appdata";
 import { ConstantValue } from "../../model/common";
 import { BaseAuthService } from "../../service/auth.service";
 
-type ParamKind = 'checkbox' | 'number' | 'date' | 'datetime-local' | 'file' | 'password' | 'text';
+type ParamKind = 'checkbox' | 'number' | 'bigint' | 'date' | 'datetime-local' | 'file' | 'password' | 'text';
 
 interface ParamField {
     param:    TableActionParameter;
-    kind:     ParamKind | 'select';
-    /** From dataType; a lookup dropdown still posts a number when the column is numeric. */
+    kind:     Exclude<ParamKind, 'bigint'> | 'select';
+    /** From dataType; a lookup dropdown still posts a number when the column is numeric, a bigint as its digits. */
     wireKind: ParamKind;
     options?: ConstantValue[];
 }
@@ -47,11 +47,12 @@ export class ActionParamsDialog {
     readonly fields: ParamField[] = this.arrange(this.action.parameters ?? []).map((param) => {
         const options = this.optionsFor(param);
         const wireKind = kindOf(param.dataType);
-        return { param, kind: options ? 'select' : wireKind, wireKind, options };
+        return { param, kind: options ? 'select' : wireKind === 'bigint' ? 'text' : wireKind, wireKind, options };
     });
 
     readonly form = new FormGroup(Object.fromEntries(this.fields.map((f) => {
         const validators: ValidatorFn[] = f.param.required && f.kind !== 'checkbox' ? [Validators.required] : [];
+        if (f.wireKind === 'bigint' && f.kind === 'text') validators.push(Validators.pattern(/^-?\d+$/));
         const initial: unknown = f.kind === 'checkbox' ? false : '';
         return [f.param.name, new FormControl(initial, validators)];
     })));
@@ -102,6 +103,8 @@ function kindOf(dataType: string): ParamKind {
     switch ((dataType || '').toLowerCase()) {
         case 'boolean':
             return 'checkbox';
+        case 'bigint':
+            return 'bigint';
         case 'int':
         case 'integer':
         case 'number':
@@ -126,6 +129,7 @@ function kindOf(dataType: string): ParamKind {
 
 function toWire(kind: ParamKind, raw: unknown): unknown {
     if (kind === 'number') return Number(raw);
+    if (kind === 'bigint') return String(raw).trim();
     // datetime-local holds local wall-clock time; keel expects a UTC instant.
     if (kind === 'datetime-local') {
         const d = new Date(String(raw));

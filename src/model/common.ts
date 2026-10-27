@@ -1,4 +1,5 @@
 import { IsSailString, IsSailNumeric } from './decorator';
+import { Int64 } from '../util/integer';
 
 /**
  * SIUD operation codes that travel on every row through keel's generic CRUD.
@@ -132,8 +133,8 @@ export class ConstantValue extends SiudAction {
 
 
 export class UserAccount extends SiudAction {
-  @IsSailNumeric(9, 0)
-  Id?:                           number;
+  @IsSailString(20)
+  Id?:                           Int64;
 
   @IsSailString(80)
   FirstName?:                    string;

@@ -12,6 +12,7 @@ import { ActionParamsDialog } from "../table/action_params_dialog";
 import { IdentityProviderConfigureDialog } from "../sso/identity_provider_configure_dialog";
 import { PromptService } from "../../service/prompt.service";
 import { MoneyColumnService, ParentRow } from "../../service/money_column.service";
+import { isInt64 } from "../../util/integer";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" message. */
@@ -236,6 +237,7 @@ export abstract class BaseTable {
         const dv = field.DefaultValue;
         if (field.DataType === 'boolean') return dv === 'true';
         if (dv == null || dv === '' || dv.includes('(')) return undefined;
+        if (field.DataType === 'bigint') return /^-?\d+$/.test(dv) ? dv : undefined;
         if (field.DataType === 'integer' || field.DataType === 'float') {
             const n = Number(dv);
             return isNaN(n) ? undefined : n;
@@ -330,7 +332,7 @@ export abstract class BaseTable {
         if (rawValue === null || rawValue === undefined || rawValue === '') return '';
         const col = this.getColumn(fieldName);
         if (!col) return String(rawValue);
-        if (col.CurrencyPath && record && typeof rawValue === 'number') {
+        if (col.CurrencyPath && record && (typeof rawValue === 'number' || isInt64(rawValue))) {
             return this.money.display(this.tableName(), col, rawValue, record, this.parentRow());
         }
         if (col.LookupDomain) {
@@ -368,7 +370,7 @@ export abstract class BaseTable {
     isNumber(fieldName: string): boolean {
         const col = this.getColumn(fieldName)
         if (col) {
-            return col.DataType === 'integer' || col.DataType === 'float';
+            return col.DataType === 'integer' || col.DataType === 'bigint' || col.DataType === 'float';
         }
         return false;
     }
@@ -533,20 +535,21 @@ export abstract class BaseTable {
         if (!tableDef || !tableDef.Keys || !tableDef.Parents || !parent) return null;
         const fk = tableDef.Parents.find((parent) => parent.ParentTable === parentTable);
         if (!fk) return null;
+        if (fk.ParentColumns?.length !== fk.Columns.length) {
+            console.error(`sail: FK ${fk.ConstraintName} pairs ${fk.Columns.length} columns with ${fk.ParentColumns?.length ?? 0} parent columns; keel v1.2.136 sends ParentColumns`);
+            return null;
+        }
         return {'fk': fk, 'parent': parent};
     }
 
-    /** Seed FK columns from the parent's keys; returns the seeded (read-only) column names. */
+    /** Seed FK columns from the parent columns they reference; returns the seeded (read-only) column names. */
     initializeForeignKeys(record: Record<string, unknown>, parentTable: string, parentRecord: Record<string, unknown>): string[] {
         const readOnlyColumns: string[] = [];
         const fkData = this.getForeignKeyConfig(parentTable);
         if (fkData && fkData.fk && fkData.parent) {
-            if (fkData.fk.Columns.length !== fkData.parent.Keys.length) {
-                console.error(`sail: FK ${fkData.fk.ConstraintName} has ${fkData.fk.Columns.length} columns but parent ${parentTable} has ${fkData.parent.Keys.length} keys; skipping FK seed`);
-                return readOnlyColumns;
-            }
+            const parentColumns = fkData.fk.ParentColumns;
             fkData.fk.Columns.forEach((column, index) => {
-                record[column.PascalName] = parentRecord[fkData.parent.Keys[index].PascalName];
+                record[column.PascalName] = parentRecord[parentColumns[index].PascalName];
                 readOnlyColumns.push(column.PascalName);
             });
         }

@@ -1,6 +1,7 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { formatMinor } from '../util/money';
 import { CurrencyService } from './currency.service';
+import { Int64 } from '../util/integer';
 
 /**
  * `{{ minor | sailMoney:currency }}` formats integer minor units at the catalog exponent, '' until
@@ -11,7 +12,7 @@ import { CurrencyService } from './currency.service';
 export class MoneyPipe implements PipeTransform {
   private readonly currencies = inject(CurrencyService);
 
-  transform(minor: number, currency: string, exponent?: number): string {
+  transform(minor: Int64 | number, currency: string, exponent?: Int64 | number): string {
     return exponent === undefined ? this.currencies.formatLazy(minor, currency) : formatMinor(minor, currency, exponent);
   }
 }

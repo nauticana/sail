@@ -1,4 +1,9 @@
-/** Agent Studio wire types (Scout v1.2.16). Field names are the backend's JSON names. */
+import { Int64 } from '../../util/integer';
+
+/**
+ * Agent Studio wire types (Scout v1.2.20). Field names are the backend's JSON names; Go `int` and
+ * `int64` fields are `Int64` strings, floats such as the credit rates stay numbers.
+ */
 
 /** R replace, A append, I intersect (non-prompt settings only). */
 export type AgentMergeMode = 'R' | 'A' | 'I';
@@ -14,9 +19,9 @@ export interface AgentSummary {
   archived: boolean;
   readiness: AgentReadiness;
   readiness_reason: string;
-  type_defaults_revision: number;
-  agent_revision: number;
-  published_version: number;
+  type_defaults_revision: Int64;
+  agent_revision: Int64;
+  published_version: Int64;
   published_at?: string;
   last_run_at?: string;
 }
@@ -47,11 +52,11 @@ export interface AgentPromptLayer {
   instruction: string;
   output: string;
   /** Who last edited the layer; absent on the baseline. */
-  bound_by?: number;
+  bound_by?: Int64;
 }
 
 export interface AgentPromptSection {
-  prompt_header_id: number;
+  prompt_header_id: Int64;
   caption: string;
   description: string;
   /** Widest scope first; the order is the server's and is never re-sorted. */
@@ -66,7 +71,7 @@ export interface AgentLanguageDraft {
 }
 
 export interface AgentDrift {
-  active_version: number;
+  active_version: Int64;
   changed_languages: string[];
   causes: string[];
 }
@@ -82,8 +87,8 @@ export interface AgentDraft {
   agent_scope_id?: string;
   type_scope_id?: string;
   drift?: AgentDrift;
-  expected_type_defaults_revision: number;
-  expected_agent_revision: number;
+  expected_type_defaults_revision: Int64;
+  expected_agent_revision: Int64;
 }
 
 export interface AgentTestRequest {
@@ -99,11 +104,11 @@ export interface AgentTestResult {
   model: string;
   digest: string;
   output: string;
-  latency_ms: number;
-  input_tokens: number;
-  output_tokens: number;
+  latency_ms: Int64;
+  input_tokens: Int64;
+  output_tokens: Int64;
   /** Cost in minor units. */
-  credits: number;
+  credits: Int64;
   sections: string[];
 }
 
@@ -111,54 +116,54 @@ export interface AgentPublishRequest {
   agent_name: string;
   change_summary: string;
   /** 1–99 deploys the release as a canary. */
-  canary_percentage?: number;
+  canary_percentage?: Int64;
   /** RFC 3339; a future time schedules the release. */
   effective_at?: string;
-  expected_agent_revision: number;
-  expected_type_defaults_revision: number;
+  expected_agent_revision: Int64;
+  expected_type_defaults_revision: Int64;
 }
 
 export interface AgentRestoreRequest {
   agent_name: string;
-  version: number;
+  version: Int64;
 }
 
-/** `prompt_header_id` 0 and `language_code` '' leave that dimension unnarrowed. */
+/** `prompt_header_id` '0' and `language_code` '' leave that dimension unnarrowed. */
 export interface AgentResetRequest {
   agent_name: string;
   scope: AgentResetScope;
-  prompt_header_id: number;
+  prompt_header_id: Int64;
   language_code: string;
-  expected_agent_revision: number;
-  expected_type_defaults_revision: number;
+  expected_agent_revision: Int64;
+  expected_type_defaults_revision: Int64;
 }
 
 export interface AgentSetDefaultRequest {
   agent_name: string;
-  expected_type_defaults_revision: number;
+  expected_type_defaults_revision: Int64;
 }
 
 export interface AgentSetEnabledRequest {
   agent_name: string;
   enabled: boolean;
   reason?: string;
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 export interface AgentEnabledState {
   enabled: boolean;
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 export interface AgentRelease {
   agent_name: string;
   agent_type: string;
-  version: number;
+  version: Int64;
   enabled: boolean;
   models: AgentModelSelection;
   definition_digest: string;
   change_summary: string;
-  published_by: number;
+  published_by: Int64;
   published_at: string;
   active: boolean;
   languages: string[];
@@ -167,16 +172,16 @@ export interface AgentRelease {
 
 /** A scheduled publish; state P pending, A activated, R refused, X cancelled. */
 export interface ReleaseActivation {
-  id: number;
+  id: Int64;
   agent_name: string;
-  version: number;
+  version: Int64;
   definition_digest: string;
-  canary_percentage?: number;
+  canary_percentage?: Int64;
   effective_at: string;
   state: 'P' | 'A' | 'R' | 'X';
   scheduled_by: string;
   scheduled_at: string;
-  attempts: number;
+  attempts: Int64;
   next_attempt_at?: string;
   reason?: string;
   detail?: string;
@@ -190,7 +195,7 @@ export interface AgentAuditEvent {
   actor_kind?: string;
   actor_id?: string;
   /** Set only when a person acted. */
-  user_id?: number;
+  user_id?: Int64;
   event_time: string;
 }
 
@@ -204,12 +209,12 @@ export interface AgentPromptSource {
 
 export interface AgentReleaseSection {
   language_code: string;
-  prompt_header_id: number;
+  prompt_header_id: Int64;
   caption: string;
   description: string;
   instruction: string;
   output: string;
-  sequence: number;
+  sequence: Int64;
   source: AgentPromptSource;
 }
 
@@ -227,7 +232,7 @@ export interface StudioModel {
 /** One optional Studio API the backend mounted. Unknown ids are ignored; grants still decide. */
 export interface StudioFeature {
   id: string;
-  version: number;
+  version: Int64;
   actions: string[];
   /** Authorization object of the actions; empty is AGENT_STUDIO. */
   object?: string;
@@ -239,7 +244,7 @@ export interface AgentCreateRequest {
   display_name: string;
   copy_from?: string;
   template_id?: string;
-  template_version?: number;
+  template_version?: Int64;
   references?: Record<string, Record<string, string>>;
   idempotency_key: string;
 }
@@ -247,12 +252,12 @@ export interface AgentCreateRequest {
 export interface AgentRenameRequest {
   agent_name: string;
   display_name: string;
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 export interface AgentArchiveRequest {
   agent_name: string;
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 export interface AgentSettingSource {
@@ -292,8 +297,8 @@ export interface AgentSettings {
   bindings: AgentSetting[];
   effective: AgentEffectiveSetting[];
   problem?: string;
-  expected_agent_revision: number;
-  expected_type_defaults_revision: number;
+  expected_agent_revision: Int64;
+  expected_type_defaults_revision: Int64;
 }
 
 /** Binds, or with `remove` ends, one resource at the agent or type scope. */
@@ -306,8 +311,8 @@ export interface AgentSettingChange {
   sealed: boolean;
   value?: unknown;
   remove: boolean;
-  expected_agent_revision: number;
-  expected_type_defaults_revision: number;
+  expected_agent_revision: Int64;
+  expected_type_defaults_revision: Int64;
 }
 
 /** Scout's fixed `AgentReadiness` values, which no constant domain carries. */
@@ -351,19 +356,19 @@ export interface AgentGuardrails {
   rules: GuardrailRule[];
   /** Why the agent's rules no longer fit the inherited ones. */
   problem?: string;
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 /** Replaces the agent's own rules as a whole; an empty list removes them. */
 export interface AgentGuardrailChange {
   agent_name: string;
   rules: GuardrailRule[];
-  expected_agent_revision: number;
+  expected_agent_revision: Int64;
 }
 
 /** One stored guardrail hit: rule ids and attribution, never the inspected content. */
 export interface SafetyEvent {
-  id: number;
+  id: Int64;
   version?: string;
   policy_version?: string;
   stage: string;
@@ -374,6 +379,6 @@ export interface SafetyEvent {
   actor_kind?: string;
   actor_id?: string;
   request_id?: string;
-  duration_ms: number;
+  duration_ms: Int64;
   occurred_at: string;
 }

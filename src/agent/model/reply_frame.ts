@@ -1,3 +1,4 @@
+import { Int64 } from '../../util/integer';
 import { TurnEvent } from './turn_event';
 
 export const TURN_ERROR_CANCELED = 'canceled';
@@ -9,7 +10,7 @@ export const TURN_ERROR_CANCELED = 'canceled';
 export interface TurnReplyFrame {
   request_id: string;
   conversation_id: string;
-  sequence: number;
+  sequence: Int64;
   events: TurnEvent[];
   final: boolean;
   error_code?: string;

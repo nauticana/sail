@@ -1,5 +1,7 @@
+import { Int64 } from '../util/integer';
+
 export interface AgencyProfile {
-  agencyPartnerId: number;
+  agencyPartnerId: Int64;
   wholesaleAllowed: boolean;
   defaultCommissionRateBp?: number;
   approvedAt?: string;
@@ -13,13 +15,13 @@ export interface AgencyClientInput {
 }
 
 export interface AgencyClient {
-  id: number;
+  id: Int64;
   name: string;
   email?: string;
   website?: string;
   status: string;
-  clientPartnerId?: number;
-  acceptedBy?: number;
+  clientPartnerId?: Int64;
+  acceptedBy?: Int64;
   invitedAt?: string;
   acceptedAt?: string;
   expired?: boolean;
@@ -28,7 +30,7 @@ export interface AgencyClient {
 }
 
 export interface AgencyInvite {
-  invitationId: number;
+  invitationId: Int64;
   agencyName: string;
   clientName: string;
   status: string;
@@ -36,10 +38,10 @@ export interface AgencyInvite {
 }
 
 export interface AgencyDelegation {
-  id: number;
-  clientPartnerId: number;
+  id: Int64;
+  clientPartnerId: Int64;
   clientName: string;
-  agencyPartnerId: number;
+  agencyPartnerId: Int64;
   agencyName: string;
   billingModel?: string;
   grantedAt: string;
@@ -54,17 +56,17 @@ export interface AgencyRoleGrant {
 
 export interface AgencyEarningsBalance {
   currency: string;
-  heldMinor: number;
-  dueMinor: number;
-  paidMinor: number;
+  heldMinor: Int64;
+  dueMinor: Int64;
+  paidMinor: Int64;
 }
 
 export interface AgencyEarningEntry {
-  id: number;
+  id: Int64;
   clientName: string;
   periodStart: string;
   periodEnd: string;
-  amountMinor: number;
+  amountMinor: Int64;
   currency: string;
   entryType: string;
   status: string;
@@ -72,8 +74,8 @@ export interface AgencyEarningEntry {
 }
 
 export interface AgencyPayout {
-  id: number;
-  amountMinor: number;
+  id: Int64;
+  amountMinor: Int64;
   currency: string;
   status: string;
   cutoffAt: string;
@@ -81,8 +83,8 @@ export interface AgencyPayout {
 }
 
 export interface AgencyPayoutProfile {
-  agencyPartnerId: number;
-  userBankInfoId: number;
+  agencyPartnerId: Int64;
+  userBankInfoId: Int64;
   countryCode: string;
   currency: string;
   provider: string;
@@ -91,7 +93,7 @@ export interface AgencyPayoutProfile {
 }
 
 export interface AgencyPayoutDestination {
-  userBankInfoId: number;
+  userBankInfoId: Int64;
   countryCode: string;
   currency: string;
   provider: string;
