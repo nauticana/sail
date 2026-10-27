@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.2.1",
+   "title": "Angular 22.2 peer dependencies",
+   "tags": [
+    "breaking"
+   ],
+   "summary": "The Angular peer dependencies require ^22.2.0, the version sail is built and checked with; v1.2.0 still declared ^21.0.0.",
+   "body_markdown": "### Breaking\n\n- `@angular/core`, `common`, `forms`, `router`, `platform-browser`, `cdk` and `material` peers are `^22.2.0`. v1.2.0 declared `^21.0.0` although it requires Angular 22; skip v1.2.0 and move to v1.2.1 together with Angular 22.2."
+  },
+  {
    "version": "v1.2.0",
    "title": "Angular 22, 64-bit integers as strings, special characters, unique-key relations, agency authority, Scout v1.3.0",
    "tags": [

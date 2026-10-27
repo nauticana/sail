@@ -2230,7 +2230,7 @@ When you extend sail in your own app, apply the same patterns sail itself follow
 
 ### Tooling
 
-- **Angular `^22.0.0`** for the matching set: core, common, compiler, forms, router, cdk, material.
+- **Angular `^22.2.0`** for the matching set: core, common, compiler, forms, router, cdk, material.
 - **TypeScript `~6.0.3`**: Angular 22.2 accepts `>=6.0 <6.1`; TypeScript 7, the native compiler, is not supported yet.
 - **Node `^22.22.3`, `^24.15.0` or `>=26`**, the Angular 22 compiler's engines range.
 - **`npm update`** periodically to pull patch releases within the caret range.
