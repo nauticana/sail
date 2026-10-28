@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.2",
+   "title": "isPresentId, Eager field errors, upload progress without XHR",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "isPresentId tests an Int64 id for presence; FieldError uses ChangeDetectionStrategy.Eager in place of the deprecated Default; the document upload bar is indeterminate until a progress event arrives; keel v1.3.1 changes no API sail uses.",
+   "body_markdown": "### Additive\n\n- `isPresentId(value)`: true for an `Int64` above zero. keel sends an unset id as `'0'` or omits it, and `'0'` is truthy, so use it in place of `if (id)`.\n\n### Behavioral\n\n- `FieldError` declares `ChangeDetectionStrategy.Eager` (Angular 22's name for `Default`); its rendering is unchanged.\n- `<sail-document-upload>` shows an indeterminate bar until an upload progress event arrives. Angular's default fetch backend sends none; add `withXhr()` to `provideHttpClient` for percent progress.\n- `PartnerDocumentService.upload` omits `user_id` when `userId` is `'0'`."
+  },
+  {
    "version": "v1.2.1",
    "title": "Angular 22.2 peer dependencies",
    "tags": [

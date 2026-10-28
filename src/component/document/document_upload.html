@@ -22,8 +22,8 @@
   }
   <input #picker type="file" hidden [accept]="accept()" (change)="pick($event)" [attr.aria-label]="label()">
 
-  @if (progress() !== null) {
-    <mat-progress-bar mode="determinate" [value]="progress()" aria-label="Upload progress" />
+  @if (uploading()) {
+    <mat-progress-bar [mode]="progress() ? 'determinate' : 'indeterminate'" [value]="progress()" aria-label="Upload progress" />
   }
   @if (errorMessage()) {
     <p class="document-upload__error" role="alert">{{ errorMessage() }}</p>

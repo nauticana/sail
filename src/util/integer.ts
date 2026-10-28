@@ -13,6 +13,11 @@ export function isInt64(value: unknown): value is Int64 {
   return n >= -(2n ** 63n) && n < 2n ** 63n;
 }
 
+/** True for an `Int64` above zero: keel sends an unset id as `'0'` or omits it. */
+export function isPresentId(value: Int64 | null | undefined): value is Int64 {
+  return isInt64(value) && value !== '0' && !value.startsWith('-');
+}
+
 /** Orders two `Int64` values exactly (negative, zero or positive), as a sort comparator. */
 export function compareInt64(a: Int64, b: Int64): number {
   const x = BigInt(a), y = BigInt(b);

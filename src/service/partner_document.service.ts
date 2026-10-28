@@ -5,7 +5,7 @@ import { BaseRestService } from './base_rest.service';
 import { BackendService } from './rest_service';
 import { RestURL } from './rest_url';
 import { DocumentUploadRequest, PartnerDocument } from '../model/document';
-import { Int64 } from '../util/integer';
+import { Int64, isPresentId } from '../util/integer';
 
 interface DocumentHandlerResponse {
   ID: Int64;
@@ -55,7 +55,7 @@ export class PartnerDocumentService extends BaseRestService {
     if (request.title) form.append('title', request.title);
     if (request.documentNumber) form.append('document_number', request.documentNumber);
     if (request.expiresOn) form.append('expires_on', request.expiresOn);
-    if (request.userId) form.append('user_id', request.userId);
+    if (isPresentId(request.userId)) form.append('user_id', request.userId);
     return this.http.post<DocumentHandlerResponse>(this.url(RestURL.partnerDocumentUploadURL), form, {
       reportProgress: true,
       observe: 'events',
@@ -109,7 +109,7 @@ function normalizeDocument(doc: DocumentHandlerResponse): PartnerDocument {
 }
 
 function idOrNull(value: Int64): Int64 | null {
-  return value && value !== '0' ? value : null;
+  return isPresentId(value) ? value : null;
 }
 
 function timeOrNull(value: string): string | null {

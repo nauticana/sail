@@ -5,8 +5,8 @@ import { MatFormField } from "@angular/material/form-field";
 /** Message for the enclosing field's first validation error: `<mat-error sailFieldError />`. */
 @Component({
     selector: 'mat-error[sailFieldError]',
-    // Default: control errors are not signals, so the message is re-read on every check.
-    changeDetection: ChangeDetectionStrategy.Default,
+    // Eager: control errors are not signals, so the message is re-read on every check.
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '{{ message }}',
 })
 export class FieldError {
