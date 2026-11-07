@@ -21,8 +21,10 @@ export class DocumentReviewQueueComponent extends BaseAsync {
   private readonly service = inject(PartnerDocumentService);
   private readonly sanitizer = inject(DomSanitizer);
 
-  /** One member's documents; all pending documents when absent. */
+  /** One member's documents; exclusive with `subjectKey`; all pending documents when both are absent. */
   readonly userId = input<Int64>();
+  /** One application record's documents; exclusive with `userId`. */
+  readonly subjectKey = input('');
   /** Limits the queue to these document_type codes; all types when absent. */
   readonly documentTypes = input<readonly string[]>();
   readonly reviewed = output<{ id: Int64; approved: boolean }>();
@@ -36,13 +38,14 @@ export class DocumentReviewQueueComponent extends BaseAsync {
   readonly reviewing = signal<Int64 | null>(null);
   readonly notes = signal<Record<Int64, string>>({});
 
-  private readonly userIdEffect = effect(() => this.reload());
+  private readonly subjectEffect = effect(() => this.reload());
 
   reload(): void {
     const userId = this.userId();
-    this.run(this.service.pending(userId), (rows) => {
-      // A slower response for a member no longer shown must not replace the current list.
-      if (userId === this.userId()) this.pendingRows.set(rows);
+    const subjectKey = this.subjectKey();
+    this.run(this.service.pending({ userId, subjectKey: subjectKey || undefined }), (rows) => {
+      // A slower response for a subject no longer shown must not replace the current list.
+      if (userId === this.userId() && subjectKey === this.subjectKey()) this.pendingRows.set(rows);
     }, 'Could not load pending documents.');
   }
 

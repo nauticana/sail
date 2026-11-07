@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.4",
+   "title": "Document subjects and language, assignment reference on a turn",
+   "tags": [
+    "breaking",
+    "additive"
+   ],
+   "summary": "sail adopts keel v1.3.3 and Scout v1.3.2. A partner document is about a member, an application record (subject_key) or the partner, and records a language; PartnerDocumentService.list and pending take a DocumentSubject in place of a user id. ConversationTurnRequest gains assignment_ref.",
+   "body_markdown": "### Breaking\n\n- `PartnerDocumentService.list(subject?, status?)` and `pending(subject?)` take a `DocumentSubject` (`{ userId?, subjectKey? }`) where they took a user id: `list(userId)` becomes `list({ userId })`; a call without a user id is unchanged. An absent or empty subject lists every subject.\n\n### Additive\n\n- `PartnerDocument.SubjectKey` and `Language` (null when absent); `DocumentUploadRequest.subjectKey` and `language`; `DocumentSubject`. `upload` sends `subject_key` and `language` when present; `list`, `pending` and `upload` fail (an erroring observable, no request) when both `userId` and `subjectKey` are given; keel v1.3.3 answers 400 `document_invalid_upload` for a key over 200 or a language over 8 characters, which `errorDetail` words for the user.\n- `<sail-document-upload>`: `[language]` and `[subjectKey]` beside `[userId]`. `<sail-partner-documents>` and `<sail-document-review-queue>`: `[subjectKey]` beside `[userId]`, exclusive with it; the latest-version grouping is per subject and type, and a replacement upload keeps the row's subject and language.\n- `ConversationTurnRequest.assignment_ref` (Scout v1.3.2): the product's opaque reference to the Charter assignment the conversation serves, at most 200 bytes; a new conversation naming one takes an assignment pin of its agent.\n\n### keel\n\n- `document_type.independent_review` is dropped in keel v1.3.3; whether an uploader may review their own document comes from keel's `approval_policy`, and the review route still answers 403 `document_self_review`. The approval tables have no sail surface."
+  },
+  {
    "version": "v1.2.3",
    "title": "Studio Governance tab, takeover from the approval decision view",
    "tags": [

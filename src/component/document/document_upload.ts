@@ -30,7 +30,12 @@ export class DocumentUploadComponent {
   readonly documentNumber = input('');
   /** YYYY-MM-DD. */
   readonly expiresOn = input('');
+  /** BCP 47 tag, at most 8 characters. */
+  readonly language = input('');
+  /** The member the document is about; exclusive with `subjectKey`; neither = the partner. */
   readonly userId = input<Int64 | undefined>(undefined);
+  /** The application record the document is about; exclusive with `userId`. */
+  readonly subjectKey = input('');
   readonly accept = input('image/*,application/pdf');
   /** Client-side size cap; 0 leaves the limit to keel's document type. */
   readonly maxBytes = input(0);
@@ -82,7 +87,9 @@ export class DocumentUploadComponent {
       title: this.title() || undefined,
       documentNumber: this.documentNumber() || undefined,
       expiresOn: this.expiresOn() || undefined,
+      language: this.language() || undefined,
       userId: this.userId(),
+      subjectKey: this.subjectKey() || undefined,
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress && event.total) {

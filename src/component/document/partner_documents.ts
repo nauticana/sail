@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { forkJoin } from 'rxjs';
 import { BaseAsync } from '../abstract/base_async';
-import { PartnerDocument } from '../../model/document';
+import { DocumentSubject, PartnerDocument } from '../../model/document';
 import { LabelService } from '../../service/label.service';
 import { PartnerDocumentService } from '../../service/partner_document.service';
 import { Int64 } from '../../util/integer';
@@ -21,7 +21,10 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   private readonly service = inject(PartnerDocumentService);
   private readonly labels = inject(LabelService);
 
+  /** The member whose documents are shown; exclusive with `subjectKey`; neither = every subject. */
   readonly userId = input<Int64 | undefined>(undefined);
+  /** The application record whose documents are shown; exclusive with `userId`. */
+  readonly subjectKey = input('');
   readonly heading = input('Documents');
   readonly emptyMessage = input('No documents uploaded.');
   readonly expiringWithinDays = input(30);
@@ -33,14 +36,15 @@ export class PartnerDocumentsComponent extends BaseAsync implements OnInit {
   readonly documents = signal<PartnerDocument[]>([]);
   readonly reuploading = signal<PartnerDocument | null>(null);
   readonly latest = computed(() => latestByType(this.documents(), this.documentTypes()));
+  private readonly subject = computed<DocumentSubject>(() => ({ userId: this.userId(), subjectKey: this.subjectKey() || undefined }));
 
   ngOnInit(): void {
-    this.run(forkJoin([this.labels.loadLabels('partner_document_status'), this.service.list(this.userId())]),
+    this.run(forkJoin([this.labels.loadLabels('partner_document_status'), this.service.list(this.subject())]),
       ([, rows]) => this.documents.set(rows), 'Could not load documents.');
   }
 
   reload(): void {
-    this.run(this.service.list(this.userId()), (rows) => this.documents.set(rows), 'Could not load documents.');
+    this.run(this.service.list(this.subject()), (rows) => this.documents.set(rows), 'Could not load documents.');
   }
 
   status(status: string): string {
@@ -77,7 +81,7 @@ function latestByType(rows: PartnerDocument[], types?: readonly string[]): Partn
   const latest = new Map<string, PartnerDocument>();
   for (const row of rows) {
     if (types && !types.includes(row.DocumentType)) continue;
-    const key = `${row.UserId ?? ''}:${row.DocumentType}`;
+    const key = JSON.stringify([row.UserId, row.SubjectKey, row.DocumentType]);
     const current = latest.get(key);
     if (!current || row.VersionNo > current.VersionNo) latest.set(key, row);
   }

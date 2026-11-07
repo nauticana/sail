@@ -2,7 +2,7 @@
 
 A shared Angular component library for building CRUD-based admin frontends. Provides table management, form handling, navigation, authentication, two-factor authentication, and trusted device management — all driven by metadata from a [keel](https://github.com/nauticana/keel) Go backend.
 
-> **Compatibility:** sail v1.2.0 and later require Angular 22. sail and keel are versioned in lock-step. The current line is **sail v1.2.x ↔ keel v1.3.0 and later**; restoring a release under an enterprise governance source needs Scout v1.3.1, sail v1.2.0 adopts keel v1.2.135 to v1.3.0 and Scout v1.3.0 (64-bit integers as JSON strings, `minSpecial`, foreign keys to a unique key, invite acceptance and delegation revocation authority, setup checkout currency and method types; keel v1.3.0 and v1.3.1 change no API sail uses), sail v1.1.47 adopts keel v1.2.131 (money columns declare their currency), sail v1.1.45 adopts keel v1.2.126 (a plan change takes the offer), sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v1.1.x ↔ keel v1.2.x** (Angular 21), **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
+> **Compatibility:** sail v1.2.0 and later require Angular 22. sail and keel are versioned in lock-step. The current line is **sail v1.2.x ↔ keel v1.3.0 and later**; sail v1.2.4 adopts keel v1.3.3 (document subjects and language) and Scout v1.3.2 (`assignment_ref` on a turn), restoring a release under an enterprise governance source needs Scout v1.3.1, sail v1.2.0 adopts keel v1.2.135 to v1.3.0 and Scout v1.3.0 (64-bit integers as JSON strings, `minSpecial`, foreign keys to a unique key, invite acceptance and delegation revocation authority, setup checkout currency and method types; keel v1.3.0 and v1.3.1 change no API sail uses), sail v1.1.47 adopts keel v1.2.131 (money columns declare their currency), sail v1.1.45 adopts keel v1.2.126 (a plan change takes the offer), sail v1.1.43 adopts keel v1.2.125 (plan-change overages), sail v1.1.42 adopts keel v1.2.118 (RFC 3339 timestamps, `X-Time-Zone`), sail v1.1.41 adopts keel v1.2.117 (scheduled plan changes), sail v1.1.39 and v1.1.40 adopt keel v1.2.115 (usage captions, provider-managed subscriptions, the connect disconnect route), sail v1.1.37 adopts keel v1.2.114 (scopes validated against a constant list), sail v1.1.36 adopts keel v1.2.113 (API key expiry, caller-aware scope policy), sail v1.1.35 adopts keel v1.2.112 (minor-unit money, the `currency` catalog, OAuth grant routes), sail v1.1.33 adopts keel v1.2.106 (`prompt` on the login page, new-device step-up, sign-in sessions), sail v1.1.32 adopts keel v1.2.101 (the OAuth connect callback ticket), sail v1.1.31 adopts keel v1.2.100 (tenant single sign-on, DNS and HTTP-file domain verification), sail v1.1.30 adopts keel v1.2.99 (password routes; a password change signs out), sail v1.1.29 adopts keel v1.2.94 (signup: confirmation signs in, partner setup, sign-in hand-off code), sail v1.1.28 adopts keel v1.2.93 (absolute `return` for the OAuth hand-off), sail v1.1.18 adopts keel v1.2.58 (refresh-token rotation, `/public/logout`, setup intents, the realtime hub), the agency components in sail v1.1.14 require keel v1.2.41 (sail v1.1.9 needs keel v1.2.16 for the OAuth-connect layer). Earlier lines: **sail v1.1.x ↔ keel v1.2.x** (Angular 21), **sail v0.5.x ↔ keel v0.5.x**, **sail v0.6.x / v0.7.x ↔ keel v0.7.x**, **sail v0.8.x ↔ keel v0.8.x**, **sail v0.9.x ↔ keel v0.9.x**. Newer sail releases extend the contract — older keel servers reject unknown endpoints with HTTP 404 / 400. The v0.8.x line additionally ships the `table_action` framework (per-table custom buttons surfaced in `TableList` / `TableSearch` / `TableEdit` / `TableDetail`); see the [Migrating to v0.7.0 §5 — TableAction](#migrating-to-v070--payout-user-payment-methods-table-actions) section for the seed shape (basis `table_action` + `authorization_object` + `authorization_object_action` rows) and the [keel/README Table Actions](https://github.com/nauticana/keel#table-actions) section for backend wiring via `handler.WrapTableAction`.
 
 **Recent additions:** `BaseAuthService.acceptToken(jwt)` — adopt an externally-minted JWT (registration / SSO-handoff flows) and run the full post-login sequence (store under the canonical `jwt` key, load appdata, init routes); apps must use this instead of writing `localStorage` directly. `BaseRestService.analytic<T>(endpoint, params?)` — GET a keel `analytic/<endpoint>` report and return its rows. `passwordPolicyValidator` + `BaseAuthService.ensurePasswordPolicy()` — validate passwords against keel's policy (via `SailGuiConfig.passwordPolicyUrl`); see Configuration reference.
 
@@ -732,7 +732,7 @@ A complete screen is the pieces above assembled over `BillingService` — no met
 
 ## Agent UI (v1.1.20)
 
-Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency. The wire types match Scout v1.2.20: every Go `int` or `int64` (ids, revisions, versions, sequences, cursors, counts, minor-unit amounts, `exponent`, an event's `v`) is an `Int64` string, compared with `compareInt64` and sent back as received; floats such as the model credit rates and the stream error `status` stay numbers.
+Agent Studio and agent-conversation UI live in a secondary entry point, `@nauticana/sail/agent`. Nothing in it is exported from `@nauticana/sail`, so an app that never imports it bundles none of it. It needs no additional peer dependency. The wire types match Scout v1.3.2 (`assignment_ref` on a turn request since sail v1.2.4): every Go `int` or `int64` (ids, revisions, versions, sequences, cursors, counts, minor-unit amounts, `exponent`, an event's `v`) is an `Int64` string, compared with `compareInt64` and sent back as received; floats such as the model credit rates and the stream error `status` stay numbers.
 
 ```ts
 import { AgentStudioService, PromptLanguageEditorComponent, TurnStream } from '@nauticana/sail/agent';
@@ -1266,16 +1266,23 @@ Ships no CSS — style
 ## Partner documents (v1.1.26)
 
 `PartnerDocumentService` covers generic `partner_document` reads plus keel's
-`handler.DocumentHandler` (keel **v1.2.79+**): `list(userId?, status?)`, `pending(userId?)`,
+`handler.DocumentHandler` (keel **v1.2.79+**): `list(subject?, status?)`, `pending(subject?)`,
 `upload(file, request)` (progress events), `previewUrl(id)` and `review(id, approve,
-notes)`. The defaults assume the handler is mounted at
+notes)`. A document is about one subject (keel v1.3.3): a member (`userId`), an
+application record (`subjectKey`, an opaque key of at most 200 characters) or,
+with neither, the partner itself. `DocumentSubject` narrows a list to a member or a
+record; an empty subject lists every subject. `DocumentUploadRequest` takes the
+subject and a BCP 47 `language` (at most 8 characters). `list`, `pending` and `upload`
+fail before any request when the subject names both a member and a record, and keel answers 400
+`document_invalid_upload` for a key or language over its length. `PartnerDocument`
+carries `SubjectKey` and `Language`, null when absent. The defaults assume the handler is mounted at
 `/api/v1/partner_document/{upload,preview,review}`; override the three
 `partnerDocument*URL` values otherwise. Authorization stays in keel's hooks.
 Angular's default fetch backend reports no upload progress, so the upload bar stays
 indeterminate; `provideHttpClient(withXhr(), ...)` makes it show percent.
 
 ```html
-<sail-document-upload documentType="driver_license" [maxBytes]="10485760"
+<sail-document-upload documentType="driver_license" [maxBytes]="10485760" language="en-GB"
     [canUpload]="attested()" (uploaded)="onUploaded($event)" (failed)="onFailed($event)">
   <!-- app-specific attestations -->
 </sail-document-upload>
@@ -1285,11 +1292,12 @@ Images preview inline, PDFs open in a new tab. `(failed)` hands over the raw err
 branch on `errorCode(err)` for keel's `document_*` codes. Status captions come from
 the `partner_document_status` domain through `LabelService`.
 
-`<sail-partner-documents>` shows the latest version per type, narrowed by
-`[documentTypes]`, and offers replacement uploads for rejected or expiring
-documents unless `[allowReupload]="false"`.
+`<sail-partner-documents>` shows the latest version per subject and type, narrowed by
+`[documentTypes]` and by `[userId]` or `[subjectKey]`, and offers replacement uploads
+for rejected or expiring documents unless `[allowReupload]="false"`; a replacement
+keeps the row's subject and language.
 `<sail-document-review-queue>` lists pending rows with an inline preview and
-approve/reject controls; `[userId]` and `[documentTypes]` narrow it, and `(reviewed)`
+approve/reject controls; `[userId]` or `[subjectKey]` and `[documentTypes]` narrow it, and `(reviewed)`
 emits `{ id, approved }` after each decision. Both rely on the
 app's generic `partner_document` read grants and the handler authorization hooks.
 

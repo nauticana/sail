@@ -15,6 +15,7 @@ const codeMessages = new Map([
   ['signin_network', 'Sign-in is not allowed from this network.'],
   ['signin_network_lockout', 'The allowed networks must include your current address.'],
   ['stepup_unavailable', 'A sign-in code cannot be sent right now. Please try again later.'],
+  ['document_invalid_upload', 'The document must be about one member or one record, with a key of at most 200 and a language of at most 8 characters.'],
 ]);
 
 function asString(value: unknown): string | undefined {

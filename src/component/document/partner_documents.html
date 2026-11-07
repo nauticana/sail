@@ -24,7 +24,8 @@
           </div>
           @if (reuploading()?.Id === doc.Id) {
             <sail-document-upload [documentType]="doc.DocumentType" [title]="doc.Title"
-                [documentNumber]="doc.DocumentNumber ?? ''" [userId]="doc.UserId ?? undefined" (uploaded)="uploaded()" />
+                [documentNumber]="doc.DocumentNumber ?? ''" [language]="doc.Language ?? ''"
+                [userId]="doc.UserId ?? undefined" [subjectKey]="doc.SubjectKey ?? ''" (uploaded)="uploaded()" />
           }
         </li>
       }
