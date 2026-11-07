@@ -1,20 +1,25 @@
 import { DatePipe, JsonPipe, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy, Component, Directive, ElementRef, Injector, OnInit, Signal, TemplateRef, afterNextRender,
-  computed, contentChildren, inject, input, output, signal, viewChild,
+  computed, contentChildren, effect, inject, input, output, signal, viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { Observable, catchError, forkJoin, of } from 'rxjs';
+import { Observable, catchError, forkJoin, of, switchMap } from 'rxjs';
 import { BaseAsync } from '../../component/abstract/base_async';
+import { BaseAuthService } from '../../service/auth.service';
 import { CaptionPipe } from '../../service/caption_pipe';
 import { errorDetail, httpStatus } from '../../util/errors';
+import { LiveTurn } from '../model/agent_studio';
 import {
   ApprovalRequest, ApprovalVerdict, CONFIRMATION_NOTE_MAX, Confirmation, ReconcileOutcome,
 } from '../model/approval';
+import { TERMINAL_TURN_STATUSES } from '../model/conversation';
 import { principalName } from '../model/decision';
+import { AgentStudioService } from '../service/agent_studio.service';
 import { ApprovalService } from '../service/approval.service';
+import { parseJsonObject } from '../util/json_object';
 
 export interface ApprovalPreviewContext {
   $implicit: Confirmation;
@@ -51,6 +56,7 @@ const actionErrors: Record<number, string> = {
  * needing reconciliation and recent, with a decision view: approve, reject, or edit a tool call's
  * arguments; confirm, decline, withdraw, or reconcile a confirmation. Approving and withdrawing ask
  * once more, and reconciling requires a note. A list the backend does not serve (404) stays empty.
+ * With `[turnAgent]`, a person holding `AGENT_OPERATION` `OPERATE` may also take the run over.
  * Selector: <sail-approval-inbox>.
  */
 @Component({
@@ -61,6 +67,8 @@ const actionErrors: Record<number, string> = {
 })
 export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   private readonly approvals = inject(ApprovalService);
+  private readonly studio = inject(AgentStudioService);
+  private readonly auth = inject(BaseAuthService);
   private readonly injector = inject(Injector);
   private readonly previews = contentChildren(ApprovalPreviewDirective);
   private readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
@@ -75,9 +83,13 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   readonly historyDays = input(30);
   /** Most confirmations listed, newest first. */
   readonly limit = input(200);
+  /** The agent running a request's turn, which Scout's approval does not carry; empty offers no takeover. */
+  readonly turnAgent = input<(request: ApprovalRequest) => string>(() => '');
 
   readonly decided = output<ApprovalRequest>();
   readonly confirmationChanged = output<Confirmation>();
+  /** The turn the person now operates under its lease, at the fence its operator routes name. */
+  readonly takenOver = output<LiveTurn>();
 
   readonly noteMax = CONFIRMATION_NOTE_MAX;
   readonly name = principalName;
@@ -88,9 +100,40 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   readonly reason = signal('');
   readonly revisedArguments = signal('');
   /** The step awaiting its second click. */
-  readonly confirming = signal<'' | 'approve' | 'withdraw'>('');
+  readonly confirming = signal<'' | 'approve' | 'withdraw' | 'takeover'>('');
   readonly selected = computed(() => this.requests().find((r) => this.key(r) === this.selectedKey()));
   readonly selectedConfirmation = computed(() => this.confirmations().find((c) => this.confirmationKey(c) === this.selectedKey()));
+  /** The selected request's turn when the caller may operate its agent; Scout still decides. */
+  readonly turn = signal<LiveTurn | null>(null);
+  private readonly turnReload = signal(0);
+  private readonly operatedAgent = computed(() => {
+    const request = this.selected();
+    const agent = request ? this.turnAgent()(request) : '';
+    return agent && this.auth.hasPermission('AGENT_OPERATION', 'OPERATE', `agent:${agent}`) ? agent : '';
+  });
+  readonly canTakeOver = computed(() => {
+    const turn = this.turn();
+    return !!turn && turn.status !== 'O' && !turn.cancel_requested && !TERMINAL_TURN_STATUSES.has(turn.status);
+  });
+
+  constructor() {
+    super();
+    effect((onCleanup) => {
+      this.turnReload();
+      const agent = this.operatedAgent();
+      const requestId = this.selected()?.request_id;
+      this.turn.set(null);
+      if (!agent || !requestId) return;
+      const read = this.studio.turn(agent, requestId).subscribe({
+        next: (turn) => this.turn.set(turn),
+        error: (err: unknown) => {
+          // A deployment without turn control, or an agent the caller may not view, offers no takeover.
+          if (![403, 404].includes(httpStatus(err) ?? 0)) this.errorMessage.set(errorDetail(err, 'Failed to load the run.'));
+        },
+      });
+      onCleanup(() => read.unsubscribe());
+    });
+  }
 
   ngOnInit(): void {
     this.load();
@@ -131,7 +174,7 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
     this.confirming.set('');
   }
 
-  ask(step: 'approve' | 'withdraw'): void {
+  ask(step: 'approve' | 'withdraw' | 'takeover'): void {
     this.confirming.set(step);
     this.focus(this.yes);
   }
@@ -151,7 +194,7 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
     if (!request) return;
     let revised: Record<string, unknown> | undefined;
     if (verdict === 'E') {
-      revised = parseObject(this.revisedArguments());
+      revised = parseJsonObject(this.revisedArguments());
       if (!revised) {
         this.errorMessage.set('Revised arguments must be a JSON object.');
         return;
@@ -169,6 +212,30 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
       this.selectFirst();
       this.decided.emit(result);
       return verdict === 'X' ? 'Rejected.' : 'Approved.';
+    });
+  }
+
+  /** Holds the turn unless it is held already, then takes it over. A refused takeover leaves it held, and may be retried. */
+  takeOver(): void {
+    const turn = this.turn();
+    const agent = this.operatedAgent();
+    if (!turn || !agent) return;
+    const held = turn.status === 'H' ? of({ held: true, fence: turn.fence })
+      : this.studio.holdTurn(agent, turn.request_id, 'Taken over from an approval decision');
+    this.run(held.pipe(switchMap((h) => h.held ? this.studio.takeOverTurn(agent, turn.request_id, h.fence) : of(null))), (taken) => {
+      this.confirming.set('');
+      this.focus(this.heading);
+      if (!taken) {
+        this.turnReload.update((n) => n + 1);
+        this.successMessage.set('The run holds at its next checkpoint; take it over then.');
+        return;
+      }
+      this.turn.set(taken);
+      this.takenOver.emit(taken);
+      this.successMessage.set('You now operate this run.');
+    }, 'Failed to take the run over.', () => {
+      this.confirming.set('');
+      this.turnReload.update((n) => n + 1);
     });
   }
 
@@ -268,13 +335,4 @@ function time(value: string | undefined): number {
 
 function lastActivity(c: Confirmation): number {
   return Math.max(time(c.created_at), time(c.decided_at), time(c.completed_at));
-}
-
-function parseObject(text: string): Record<string, unknown> | undefined {
-  try {
-    const value: unknown = JSON.parse(text);
-    return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
-  } catch {
-    return undefined;
-  }
 }

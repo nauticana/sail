@@ -56,6 +56,13 @@
           <dt>Decision links</dt><dd>Not offered; decide it while signed in</dd>
         }
         <dt>Requested</dt><dd>{{ request.created_at | date: 'medium' }}</dd>
+        @if (turn(); as t) {
+          <dt>Run</dt>
+          <dd>
+            {{ t.status | sailCaption:'turn_status' }}@if (t.hold_requested) { · holds at its next checkpoint }
+            @if (t.holder_id) { · {{ t.holder_kind }} {{ t.holder_id }} }@if (t.hold_until) { · until {{ t.hold_until | date: 'medium' }} }
+          </dd>
+        }
       </dl>
 
       <mat-form-field>
@@ -68,14 +75,21 @@
       </mat-form-field>
 
       <div class="approval-inbox__actions" role="group" aria-label="Decide">
-        @if (confirming()) {
+        @if (confirming() === 'approve') {
           <span>Approve this action? It runs exactly as shown.</span>
           <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="decide('A')">Yes, approve</button>
+          <button matButton type="button" [disabled]="loading()" (click)="cancelAsk()">Cancel</button>
+        } @else if (confirming() === 'takeover') {
+          <span>Take over this run? The agent stops until you hand it back or finish it.</span>
+          <button #yes matButton="filled" type="button" [disabled]="loading()" (click)="takeOver()">Yes, take over</button>
           <button matButton type="button" [disabled]="loading()" (click)="cancelAsk()">Cancel</button>
         } @else {
           <button matButton="filled" type="button" [disabled]="loading()" (click)="ask('approve')">Approve</button>
           <button matButton type="button" class="warn" [disabled]="loading()" (click)="decide('X')">Reject</button>
           <button matButton type="button" [disabled]="loading() || !revisedArguments().trim()" (click)="decide('E')">Edit and run</button>
+          @if (canTakeOver()) {
+            <button matButton type="button" [disabled]="loading()" (click)="ask('takeover')">Take over</button>
+          }
         }
       </div>
     </section>

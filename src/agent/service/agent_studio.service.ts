@@ -9,6 +9,8 @@ import {
   AgentCreateRequest,
   AgentDraft,
   AgentEnabledState,
+  AgentGovernance,
+  AgentGovernanceChange,
   AgentPublishRequest,
   AgentRelease,
   AgentReleaseSection,
@@ -22,9 +24,11 @@ import {
   AgentSummary,
   AgentTestRequest,
   AgentTestResult,
+  LiveTurn,
   SafetyEvent,
   StudioFeature,
   StudioModel,
+  TurnHoldResult,
 } from '../model/agent_studio';
 import { DecisionOutcome, DecisionPage } from '../model/decision';
 import { Int64 } from '../../util/integer';
@@ -143,6 +147,30 @@ export class AgentStudioService extends BaseRestService {
     const params: Record<string, string> = { agent_name: agentName, limit: String(limit) };
     if (before) params['before'] = before;
     return this.http.get<SafetyEvent[]>(this.studioUrl('safety-events'), { params });
+  }
+
+  /** Scout's optional `governance` feature. */
+  governance(agentName: string): Observable<AgentGovernance> {
+    return this.http.get<AgentGovernance>(this.studioUrl('governance'), { params: { agent_name: agentName } });
+  }
+
+  saveGovernance(change: AgentGovernanceChange): Observable<AgentGovernance> {
+    return this.http.post<AgentGovernance>(this.studioUrl('governance'), change);
+  }
+
+  /** Scout's optional `turn_control` feature. */
+  turn(agentName: string, requestId: string): Observable<LiveTurn> {
+    return this.http.get<LiveTurn>(this.studioUrl('turn'), { params: { agent_name: agentName, request_id: requestId } });
+  }
+
+  /** Holds a queued or suspended turn at once and a running one at its next checkpoint; `reason` must not be blank. */
+  holdTurn(agentName: string, requestId: string, reason: string): Observable<TurnHoldResult> {
+    return this.http.post<TurnHoldResult>(this.studioUrl('turn/hold'), { agent_name: agentName, request_id: requestId, mode: 'checkpoint', reason });
+  }
+
+  /** 409 for a stale fence, an open call outcome, or an earlier live turn of the conversation. */
+  takeOverTurn(agentName: string, requestId: string, fence: Int64): Observable<LiveTurn> {
+    return this.http.post<LiveTurn>(this.studioUrl('turn/takeover'), { agent_name: agentName, request_id: requestId, fence });
   }
 
   private studioUrl(route: string): string {

@@ -46,7 +46,7 @@
       </nav>
 
       <div class="studio__panel" role="tabpanel">
-        @switch (tab()) {
+        @switch (corePanel()) {
           @case ('overview') {
             <mat-form-field>
               <mat-label>Display name</mat-label>
@@ -263,6 +263,34 @@
               </ul>
               @if (!safetyExhausted()) {
                 <button matButton type="button" [disabled]="busy()" (click)="loadSafetyEvents()">Load more</button>
+              }
+            }
+          }
+          @case ('governance') {
+            @if (governance(); as g) {
+              @if (g.problems.length > 0) {
+                <h3>A publish would refuse</h3>
+                <ul class="studio__problems">
+                  @for (p of g.problems; track p.field + p.message) { <li>{{ p.field }}: {{ p.message }}</li> }
+                </ul>
+              }
+              @if (g.governance.enterprise; as owner) {
+                <h3>Owned by {{ owner.document.id }} · version {{ owner.version }}</h3>
+                @if (g.enterprise_link) { <a [href]="g.enterprise_link" target="_blank" rel="noopener">Edit these fields where they are owned</a> }
+                <dl class="studio__governed">
+                  @for (field of owner.fields; track field) {
+                    <dt>{{ field }}</dt>
+                    <dd><pre>{{ g.governance[field] | json }}</pre></dd>
+                  }
+                </dl>
+              }
+              <h3>Kept in Studio</h3>
+              <mat-form-field class="studio__governance-editor">
+                <mat-label>Governance (JSON object)</mat-label>
+                <textarea matInput rows="10" #governanceDraft [value]="g.draft | json" [disabled]="!can('EDIT', undefined, 'governance')"></textarea>
+              </mat-form-field>
+              @if (can('EDIT', undefined, 'governance')) {
+                <button matButton="elevated" type="button" [disabled]="busy()" (click)="saveGovernance(governanceDraft.value)">Save governance</button>
               }
             }
           }

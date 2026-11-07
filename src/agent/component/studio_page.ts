@@ -15,11 +15,12 @@ import { LabelOption, LabelService } from '../../service/label.service';
 import { PromptService } from '../../service/prompt.service';
 import { ConfirmOptions } from '../../component/dialog/confirm_dialog';
 import {
-  AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentReadiness, AgentDraft, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
+  AGENT_READINESS_CAPTIONS, AgentAuditEvent, AgentReadiness, AgentDraft, AgentGovernance, AgentGuardrails, AgentLanguageDraft, AgentMergeMode,
   AgentModelSelection, AgentRelease, AgentSetting, AgentSettings, AgentSummary, AgentTestResult, GuardrailRule,
   SafetyEvent, StudioFeature, StudioModel,
 } from '../model/agent_studio';
 import { AgentStudioService } from '../service/agent_studio.service';
+import { parseJsonObject } from '../util/json_object';
 import { ReleaseSectionDiff, diffReleaseSections } from '../util/release_diff';
 import { studioErrorMessage } from '../util/studio_errors';
 import { Int64, compareInt64 } from '../../util/integer';
@@ -34,12 +35,14 @@ const CORE_TABS = [
   { id: 'history', label: 'History' },
 ];
 const GUARDRAILS_TAB = { id: 'guardrails', label: 'Guardrails' };
+const GOVERNANCE_TAB = { id: 'governance', label: 'Governance' };
 const DISCARD: ConfirmOptions = { title: 'Discard unsaved changes?', action: 'Discard changes', destructive: true };
 
 /**
  * Embeddable Agent Studio over Scout's core `agents` feature: a grouped agent rail and tabs
- * for the draft, prompts, scoped settings, tests, and release history, a Guardrails tab when the
- * manifest lists that feature, plus product tabs declared with `sailStudioTab`. A control shows only when the feature manifest lists its
+ * for the draft, prompts, scoped settings, tests, and release history, Guardrails and Governance tabs
+ * when the manifest lists those features, plus product tabs declared with `sailStudioTab`; a product
+ * tab replaces a core tab of the same id. A control shows only when the feature manifest lists its
  * action and the caller holds the grant; hiding is never the authorization, Scout decides.
  * Selector: <sail-studio-page>.
  */
@@ -76,6 +79,7 @@ export class StudioPageComponent implements OnInit {
   readonly guardrails = signal<AgentGuardrails | null>(null);
   readonly safetyEvents = signal<SafetyEvent[]>([]);
   readonly safetyExhausted = signal(true);
+  readonly governance = signal<AgentGovernance | null>(null);
   readonly diff = signal<{ version: Int64; previous: Int64; rows: ReleaseSectionDiff[] } | null>(null);
   readonly testResult = signal<AgentTestResult | null>(null);
   readonly tab = signal('overview');
@@ -89,11 +93,14 @@ export class StudioPageComponent implements OnInit {
   private readonly pending = signal(0);
   readonly busy = computed(() => this.pending() > 0);
 
-  readonly tabs = computed(() => [
-    ...CORE_TABS, ...(this.feature('guardrails') ? [GUARDRAILS_TAB] : []),
+  /** Core tabs, then product tabs; a product tab with a core tab's id takes its place. */
+  readonly tabs = computed(() => [...new Map([
+    ...CORE_TABS, ...(this.feature('guardrails') ? [GUARDRAILS_TAB] : []), ...(this.feature('governance') ? [GOVERNANCE_TAB] : []),
     ...this.productTabs().map((t) => ({ id: t.id(), label: t.label() })),
-  ]);
+  ].map((t) => [t.id, t])).values()]);
   readonly productTab = computed(() => this.productTabs().find((t) => t.id() === this.tab()));
+  /** The core panel to render; empty leaves it to the product tab. */
+  readonly corePanel = computed(() => this.productTab() ? '' : this.tab());
   readonly selected = computed(() => this.summaries().find((a) => a.agent_name === this.selectedName()));
   readonly dirty = computed(() => this.draft() !== null && JSON.stringify(this.draft()) !== this.baseline());
   readonly currentLanguage = computed<AgentLanguageDraft | undefined>(() => {
@@ -165,6 +172,7 @@ export class StudioPageComponent implements OnInit {
     this.audit.set([]);
     this.guardrails.set(null);
     this.safetyEvents.set([]);
+    this.governance.set(null);
     this.diff.set(null);
     this.testResult.set(null);
     this.errorMessage.set('');
@@ -174,16 +182,21 @@ export class StudioPageComponent implements OnInit {
 
   openTab(id: string): void {
     this.tab.set(id);
-    if (id === 'history') this.loadHistory();
-    if (id === 'guardrails') this.loadGuardrails();
+    this.loadPanel();
   }
 
   private loadAgent(): void {
     const name = this.selectedName();
     this.call(this.studio.getDraft(name), (draft) => this.applyDraft(draft), name);
     this.call(this.studio.settings(name), (settings) => this.settings.set(settings), name);
-    if (this.tab() === 'history') this.loadHistory();
-    if (this.tab() === 'guardrails') this.loadGuardrails();
+    this.loadPanel();
+  }
+
+  private loadPanel(): void {
+    const panel = this.corePanel();
+    if (panel === 'history') this.loadHistory();
+    if (panel === 'guardrails') this.loadGuardrails();
+    if (panel === 'governance') this.call(this.studio.governance(this.selectedName()), (g) => this.governance.set(g), this.selectedName());
   }
 
   private applyDraft(draft: AgentDraft): void {
@@ -383,6 +396,22 @@ export class StudioPageComponent implements OnInit {
       this.applyRevisions(saved.expected_agent_revision);
       this.successMessage.set('Guardrails saved.');
     }, g.agent_name);
+  }
+
+  /** Replaces what Studio keeps with the JSON object typed in, behind the draft's revision. */
+  saveGovernance(draftText: string): void {
+    const d = this.draft();
+    if (!d) return;
+    const draft = parseJsonObject(draftText);
+    if (!draft) {
+      this.errorMessage.set('The governance must be a JSON object.');
+      return;
+    }
+    this.act(this.studio.saveGovernance({ agent_name: d.agent_name, draft, expected_agent_revision: d.expected_agent_revision }), (saved) => {
+      this.governance.set(saved);
+      this.applyRevisions(saved.expected_agent_revision);
+      this.successMessage.set('Governance saved.');
+    }, d.agent_name);
   }
 
   /** The newest release before `version`; null for the first. */

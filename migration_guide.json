@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.3",
+   "title": "Studio Governance tab, takeover from the approval decision view",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "sail-studio-page gains a Governance tab over Scout's governance feature, showing enterprise-owned fields read-only with their link. sail-approval-inbox can take a run over through Scout's turn control routes when the product supplies [turnAgent].",
+   "body_markdown": "### Additive\n\n- `sail-studio-page`: a Governance tab when the `features` manifest lists `governance`. Fields named by `governance.enterprise.fields` show read-only with `enterprise_link`; what Studio keeps edits as a JSON object. Restoring a release under an enterprise governance source needs Scout v1.3.1.\n- `sail-approval-inbox`: `[turnAgent]` maps a request to its agent, and `(takenOver)` emits the turn now operated. A person holding `AGENT_OPERATION` `OPERATE` sees the run's status and, while the run can be taken over, a Take over action: it holds the turn in checkpoint mode, then takes it over. A refused takeover leaves the turn held, and it may be retried.\n- `AgentStudioService`: `governance`, `saveGovernance`, `turn`, `holdTurn`, `takeOverTurn`. Types `AgentGovernance`, `AgentGovernanceChange`, `AgentGovernanceFields`, `GovernanceSnapshotRef`, `LiveTurn`, `TurnHoldResult`.\n\n### Behavioral\n\n- A `sailStudioTab` whose id matches a core tab now replaces it. A product tab with the id `governance` keeps working and hides the new core tab.\n- `sail-approval-inbox` now injects `BaseAuthService`; an app that embeds it must provide that token."
+  },
+  {
    "version": "v1.2.2",
    "title": "isPresentId, Eager field errors, upload progress without XHR",
    "tags": [

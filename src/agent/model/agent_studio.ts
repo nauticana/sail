@@ -382,3 +382,58 @@ export interface SafetyEvent {
   duration_ms: Int64;
   occurred_at: string;
 }
+
+/** What a publish freezes of enterprise-owned governance: the document and the Charter fields it supplies. */
+export interface GovernanceSnapshotRef {
+  document: { kind: string; id: string; namespace?: string; external?: boolean };
+  version: string;
+  digest: string;
+  fields: string[];
+}
+
+/** A Charter AgentDefinition fragment in Charter's member names. */
+export interface AgentGovernanceFields {
+  enterprise?: GovernanceSnapshotRef;
+  [field: string]: unknown;
+}
+
+/** `governance` is what a publish would freeze now; `draft` what Studio keeps, without the enterprise's fields. */
+export interface AgentGovernance {
+  agent_name: string;
+  governance: AgentGovernanceFields;
+  draft: Record<string, unknown>;
+  /** Where a person reads or changes the enterprise's fields. */
+  enterprise_link?: string;
+  /** What a publish would refuse now. */
+  problems: AgentFieldError[];
+  expected_agent_revision: Int64;
+}
+
+/** Replaces the governance Studio keeps; a field the enterprise supplies is refused. */
+export interface AgentGovernanceChange {
+  agent_name: string;
+  draft: Record<string, unknown>;
+  expected_agent_revision: Int64;
+}
+
+/** The fields of Scout's `turn_control` turn a takeover reads; `status` is a `turn_status` code. */
+export interface LiveTurn {
+  request_id: string;
+  conversation_id: string;
+  turn_no: Int64;
+  status: string;
+  fence: Int64;
+  hold_code?: string;
+  hold_requested: boolean;
+  cancel_requested: boolean;
+  holder_kind?: string;
+  holder_id?: string;
+  hold_until?: string;
+}
+
+/** Whether a turn is held now or asked to hold at its next checkpoint. */
+export interface TurnHoldResult {
+  held: boolean;
+  status: string;
+  fence: Int64;
+}
