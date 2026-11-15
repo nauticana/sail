@@ -7,7 +7,9 @@
     <section class="account-section">
       <h3>Security</h3>
       <nav class="account-links">
-        <a matButton routerLink="/login/chpass">Change password</a>
+        @if (passwordLogin) {
+          <a matButton routerLink="/login/chpass">Change password</a>
+        }
         <a matButton routerLink="/account/2fa">Two-factor authentication</a>
         <a matButton routerLink="/account/devices">Trusted devices</a>
         <a matButton class="warn" routerLink="/account/delete">Delete account</a>

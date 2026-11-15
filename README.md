@@ -175,7 +175,7 @@ export class App {}
 
 Place the application logo in the consumer's `public/` directory (for example,
 `public/logo.png`) and set the same public URL in `appLogoUrl`. Sail displays it
-in the sidenav toolbar as a link to `/`. When `appLogoUrl` is omitted, the link
+in the sidenav toolbar (the main toolbar under `navigationLayout: 'top'`) as a link to `/`. When `appLogoUrl` is omitted, the link
 falls back to `appTitle`, then to a home icon, so home navigation remains
 available without requiring a library-owned brand asset. The consuming app may
 also reuse that asset as its favicon:
@@ -183,6 +183,10 @@ also reuse that asset as its favicon:
 ```html
 <link rel="icon" type="image/png" href="logo.png">
 ```
+
+`navigationLayout: 'top'` renders each menu as a toolbar button opening its
+items in a `mat-menu`, inside `<nav class="sail-navigation-menus">`; a handset
+keeps the sidenav and its toggle.
 
 ### 6. Provide global styles
 
@@ -202,7 +206,8 @@ Key CSS classes used by components:
 .auth-container, .auth-card, .auth-header, .auth-title, .auth-form,
 .auth-actions, .auth-footer, .auth-app-title, .auth-checkbox,
 .auth-section-label, .auth-instructions, .form-row, .register-card,
-.sail-navigation-home, .sail-navigation-logo, .sail-navigation-home-title
+.sail-navigation-home, .sail-navigation-logo, .sail-navigation-home-title,
+.sail-navigation-menus
 
 /* Feedback */
 .auth-error, .auth-success, .geocode-status, .geocode-loading,
@@ -316,6 +321,7 @@ interface SailGuiConfig {
   dashboardComponent?: Type<any>;     // Component for /dashboard route
   publicRoutes?: Routes;              // Routes available before login
   publicRouteLinks?: RouteLink[];     // Links shown in toolbar when logged out
+  navigationLayout?: 'side' | 'top';  // Menus in the sidenav (default) or the toolbar
   loginFooterLinks?: RouteLink[];     // Extra links below login form
   extraRoutes?: (data) => Routes;     // Dynamic routes from ApplicationData
   menuItemRouteOverrides?: {          // Map RestUri to custom component
@@ -334,6 +340,7 @@ interface SailGuiConfig {
   passwordPolicyUrl?: string;         // Public route serving keel's password policy (see below)
   oauthServerUrl?: string;            // Base URL of keel's OAuth authorization server (see below)
   allowedReturnHosts?: string[];      // Hosts a post-login ?return= may name
+  passwordLogin?: boolean;            // Password form on <sail-login>, change-password link on <sail-my-account> (default true)
   ssoLogin?: boolean;                 // Shows organization sign-in on <sail-login> (see Tenant single sign-on)
   ssoErrorMessages?: Partial<Record<SsoErrorCode, string>>; // Rewords single sign-on errors
 }
@@ -1107,6 +1114,8 @@ Opt in and add the return route:
   ],
 }
 ```
+
+Set `passwordLogin: false` as well when users sign in only through their identity provider: `<sail-login>` then hides the password form and the forgotten-password link, and `<sail-my-account>` the change-password link.
 
 Pair it with keel's `SSOHandler.PublicBaseURL` (the API origin) and `SSOHandler.FrontendReturnURL` (`https://<app>/login/sso`).
 

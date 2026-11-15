@@ -14,7 +14,7 @@ export interface ConversationTurnRequest {
   release_reason?: string;
   /** The product's opaque reference to the work the turn serves. */
   work_ref?: string;
-  /** The product's opaque reference to the Charter assignment the conversation serves (at most 200 bytes). */
+  /** The id of the Charter assignment the conversation serves, in the tenant's namespace (at most 200 bytes). */
   assignment_ref?: string;
   /** Opaque product payload; the backend forwards it to the agent unread. */
   input: unknown;

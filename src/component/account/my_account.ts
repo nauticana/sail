@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { ProfileEditorComponent } from './profile_editor';
+import { SAIL_GUI_CONFIG } from '../../config';
 
 // "My Account" hub: the profile editor plus links to the existing self-service
 // flows (password, 2FA, trusted devices, account deletion) at their
@@ -13,6 +14,7 @@ import { ProfileEditorComponent } from './profile_editor';
   imports: [RouterLink, MatButtonModule, ProfileEditorComponent],
 })
 export class MyAccountComponent {
+  protected readonly passwordLogin = inject(SAIL_GUI_CONFIG, { optional: true })?.passwordLogin ?? true;
   /** Opt-in: set true once the host's backend has an SMS provider, to expose
    *  phone-number change in the embedded profile editor. */
   readonly phoneChangeEnabled = input(false);

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild, ViewEncapsulation } from "@angular/core";
-import { NgOptimizedImage } from "@angular/common";
+import { NgOptimizedImage, NgTemplateOutlet } from "@angular/common";
 import { takeUntilDestroyed, toSignal } from "@angular/core/rxjs-interop";
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from "@angular/router";
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
@@ -8,6 +8,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatMenuModule } from '@angular/material/menu';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { filter, map, pairwise } from 'rxjs/operators';
 import { ApplicationMenu, ApplicationMenuItem } from "../../model/common";
@@ -26,9 +27,11 @@ import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from "../../config";
     MatIconModule,
     MatButtonModule,
     NgOptimizedImage,
+    NgTemplateOutlet,
     RouterOutlet,
     RouterLink,
     MatExpansionModule,
+    MatMenuModule,
   ],
 })
 export class Navigation {
@@ -36,7 +39,7 @@ export class Navigation {
   private readonly breakpointObserver = inject(BreakpointObserver);
   protected readonly guiConfig: SailGuiConfig = inject(SAIL_GUI_CONFIG, {optional: true}) ?? DEFAULT_CONFIG;
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
-  private readonly sidenav = viewChild.required(MatSidenav);
+  protected readonly sidenav = viewChild(MatSidenav);
 
   // Restore the stored JWT before the menu stream fires so `canAccess()` checks
   // resolve against the right user. Done at field-init time (runs in injection
@@ -60,6 +63,9 @@ export class Navigation {
     { initialValue: false },
   );
 
+  /** Menus render in the toolbar; a handset keeps the sidenav. */
+  readonly topMenu = computed(() => this.guiConfig.navigationLayout === 'top' && !this.isHandset());
+
   readonly isLoggedIn = this.authService.isLoggedIn;
   protected readonly accountLink = this.guiConfig.accountLink;
 
@@ -70,7 +76,7 @@ export class Navigation {
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
       map((e) => e.urlAfterRedirects.split(/[?#]/)[0]),
       pairwise(),
-      filter(([before, after]) => before !== after && !(this.isHandset() && this.sidenav().opened)),
+      filter(([before, after]) => before !== after && !(this.isHandset() && this.sidenav()?.opened)),
       takeUntilDestroyed(),
     ).subscribe(() => this.main().nativeElement.focus());
   }

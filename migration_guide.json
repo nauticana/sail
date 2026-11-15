@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.2.5",
+   "title": "Top menu navigation, sign-in without a password form",
+   "tags": [
+    "additive"
+   ],
+   "summary": "SailGuiConfig.navigationLayout renders the sail-navigation menus in the toolbar; SailGuiConfig.passwordLogin hides the password form on sail-login and the change-password link on sail-my-account.",
+   "body_markdown": "### Additive\n\n- `SailGuiConfig.navigationLayout`: `'side'` (default) keeps the sidenav accordion; `'top'` renders each menu as a toolbar button with its items in a `mat-menu`, inside `nav.sail-navigation-menus`, with the home link in the toolbar. A handset keeps the sidenav.\n- `SailGuiConfig.passwordLogin`: default true; `false` hides the username and password form and the forgotten-password link on `<sail-login>` and the change-password link on `<sail-my-account>`, for a deployment that signs in only through social or organization sign-in."
+  },
+  {
    "version": "v1.2.4",
    "title": "Document subjects and language, assignment reference on a turn",
    "tags": [

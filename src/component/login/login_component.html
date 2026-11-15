@@ -26,38 +26,46 @@
         <button matButton type="button" (click)="auth.signOutHere()">Sign out of the current account</button>
       </div>
     }
-    <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
-      <mat-form-field appearance="outline">
-        <mat-label>Username</mat-label>
-        <input matInput type="text" formControlName="username" autocomplete="username" required>
-        <mat-error sailFieldError></mat-error>
-      </mat-form-field>
-      <mat-form-field appearance="outline">
-        <mat-label>Password</mat-label>
-        <input matInput type="password" formControlName="password" autocomplete="current-password" required>
-        <mat-error sailFieldError></mat-error>
-      </mat-form-field>
-      @if (errorMessage()) {
-        <p class="auth-error" role="alert">{{ errorMessage() }}</p>
-      }
-      <button matButton="elevated" class="primary" type="submit" [disabled]="loading()">
-        {{ loading() ? 'Signing in…' : 'Login' }}
-      </button>
-    </form>
+    @if (passwordLogin) {
+      <form [formGroup]="loginForm" (ngSubmit)="login()" class="auth-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Username</mat-label>
+          <input matInput type="text" formControlName="username" autocomplete="username" required>
+          <mat-error sailFieldError></mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" autocomplete="current-password" required>
+          <mat-error sailFieldError></mat-error>
+        </mat-form-field>
+        @if (errorMessage()) {
+          <p class="auth-error" role="alert">{{ errorMessage() }}</p>
+        }
+        <button matButton="elevated" class="primary" type="submit" [disabled]="loading()">
+          {{ loading() ? 'Signing in…' : 'Login' }}
+        </button>
+      </form>
+    }
     @if (showSocialLogin()) {
-      <hr class="auth-divider">
+      @if (passwordLogin) {
+        <hr class="auth-divider">
+      }
       <sail-social-login
         [providers]="enabledSocialProviders()"
         (loginSuccess)="onSocialSuccess($event)"
         (loginError)="onSocialError($event)" />
     }
     @if (guiConfig.ssoLogin) {
-      <hr class="auth-divider">
+      @if (passwordLogin || showSocialLogin()) {
+        <hr class="auth-divider">
+      }
       <sail-sso-login />
     }
-    <div class="auth-actions">
-      <a routerLink="/login/chpass">I forgot my password</a>
-    </div>
+    @if (passwordLogin) {
+      <div class="auth-actions">
+        <a routerLink="/login/chpass">I forgot my password</a>
+      </div>
+    }
     @if (guiConfig.loginFooterLinks?.length || guiConfig.termsUrl || guiConfig.privacyPolicyUrl) {
       <div class="auth-footer">
         @for (link of guiConfig.loginFooterLinks ?? []; track link.routerLink) {

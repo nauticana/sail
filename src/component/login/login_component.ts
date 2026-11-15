@@ -39,14 +39,9 @@ export class LoginComponent extends BaseAsync {
   /** OAuth session hand-off failure from BaseAuthService, shown below. */
   protected readonly sessionHandoffError = this.auth.sessionHandoffError;
   protected readonly signInPrompt = this.auth.signInPrompt;
+  protected readonly passwordLogin = this.guiConfig.passwordLogin ?? true;
 
-  /**
-   * Auto-show the embedded SocialLoginComponent whenever at least one
-   * provider is configured in SailGuiConfig. Consumers that don't set
-   * googleClientId/appleServiceId see no change; consumers that do get a
-   * working social-login surface inside the standard /login route — no
-   * wrapper component required.
-   */
+  /** Social sign-in shows for every provider configured in SailGuiConfig. */
   protected readonly enabledSocialProviders = computed<SocialProvider[]>(() => {
     const providers: SocialProvider[] = [];
     if (this.guiConfig.googleClientId)  providers.push('google');

@@ -1,54 +1,79 @@
+<ng-template #home>
+    <a class="sail-navigation-home"
+        routerLink="/"
+        [attr.aria-label]="guiConfig.appTitle ? guiConfig.appTitle + ' home' : 'Home'">
+        @if (guiConfig.appLogoUrl) {
+            <img class="sail-navigation-logo"
+                [ngSrc]="guiConfig.appLogoUrl"
+                width="40"
+                height="40"
+                alt="">
+        } @else if (guiConfig.appTitle) {
+            <span class="sail-navigation-home-title">{{ guiConfig.appTitle }}</span>
+        } @else {
+            <mat-icon aria-hidden="true">home</mat-icon>
+        }
+    </a>
+</ng-template>
 <a class="sail-skip-link" href="#sail-main" (click)="focusMain($event)">Skip to content</a>
 <mat-sidenav-container class="sidenav-container">
-    <mat-sidenav #sidenav class="sidenav"
-        [attr.role]="isHandset() ? 'dialog' : 'navigation'"
-        [mode]="isHandset() ? 'over' : 'side'"
-        [opened]="isLoggedIn() && !isHandset()">
+    @if (!topMenu()) {
+        <mat-sidenav class="sidenav"
+            [attr.role]="isHandset() ? 'dialog' : 'navigation'"
+            [mode]="isHandset() ? 'over' : 'side'"
+            [opened]="isLoggedIn() && !isHandset()">
+            <mat-toolbar class="primary">
+                <ng-container [ngTemplateOutlet]="home" />
+            </mat-toolbar>
+            @if (isLoggedIn()) {
+                <mat-accordion>
+                    @for (menu of menuItems(); track menu.Id) {
+                        <mat-expansion-panel>
+                            <mat-expansion-panel-header>
+                                <mat-panel-title>@if (menu.Icon) {<mat-icon>{{menu.Icon}}</mat-icon>}{{menu.Caption}}</mat-panel-title>
+                            </mat-expansion-panel-header>
+                            <mat-nav-list>
+                                @for (item of menu.ApplicationMenuItems; track item.ItemId) {
+                                    <a mat-list-item [routerLink]="getRouterLink(item)">
+                                        @if (item.Icon) {<mat-icon>{{item.Icon}}</mat-icon>}
+                                        <span>{{item.Caption}}</span>
+                                    </a>
+                                }
+                            </mat-nav-list>
+                        </mat-expansion-panel>
+                    }
+                </mat-accordion>
+            }
+        </mat-sidenav>
+    }
+    <mat-sidenav-content>
         <mat-toolbar class="primary">
-            <a class="sail-navigation-home"
-                routerLink="/"
-                [attr.aria-label]="guiConfig.appTitle ? guiConfig.appTitle + ' home' : 'Home'">
-                @if (guiConfig.appLogoUrl) {
-                    <img class="sail-navigation-logo"
-                        [ngSrc]="guiConfig.appLogoUrl"
-                        width="40"
-                        height="40"
-                        alt="">
-                } @else if (guiConfig.appTitle) {
-                    <span class="sail-navigation-home-title">{{ guiConfig.appTitle }}</span>
-                } @else {
-                    <mat-icon aria-hidden="true">home</mat-icon>
-                }
-            </a>
-        </mat-toolbar>
-        @if (isLoggedIn()) {
-            <mat-accordion>
-                @for (menu of menuItems(); track menu.Id) {
-                    <mat-expansion-panel>
-                        <mat-expansion-panel-header>
-                            <mat-panel-title>@if (menu.Icon) {<mat-icon>{{menu.Icon}}</mat-icon>}{{menu.Caption}}</mat-panel-title>
-                        </mat-expansion-panel-header>
-                        <mat-nav-list>
+            @if (isHandset()) {
+                <button type="button" aria-label="Toggle sidenav" matIconButton (click)="sidenav()?.toggle()">
+                    <mat-icon>menu</mat-icon>
+                </button>
+            }
+            @if (topMenu()) {
+                <ng-container [ngTemplateOutlet]="home" />
+            }
+            <ng-content select="[toolbar-title]"></ng-content>
+            @if (topMenu() && isLoggedIn()) {
+                <nav class="sail-navigation-menus" aria-label="Main">
+                    @for (menu of menuItems(); track menu.Id) {
+                        <button type="button" matButton [matMenuTriggerFor]="items">
+                            @if (menu.Icon) {<mat-icon>{{menu.Icon}}</mat-icon>}{{menu.Caption}}
+                        </button>
+                        <mat-menu #items="matMenu">
                             @for (item of menu.ApplicationMenuItems; track item.ItemId) {
-                                <a mat-list-item [routerLink]="getRouterLink(item)">
+                                <a mat-menu-item [routerLink]="getRouterLink(item)">
                                     @if (item.Icon) {<mat-icon>{{item.Icon}}</mat-icon>}
                                     <span>{{item.Caption}}</span>
                                 </a>
                             }
-                        </mat-nav-list>
-                    </mat-expansion-panel>
-                }
-            </mat-accordion>
-        }
-    </mat-sidenav>
-    <mat-sidenav-content>
-        <mat-toolbar class="primary">
-            @if (isHandset()) {
-                <button type="button" aria-label="Toggle sidenav" matIconButton (click)="sidenav.toggle()">
-                    <mat-icon>menu</mat-icon>
-                </button>
+                        </mat-menu>
+                    }
+                </nav>
             }
-            <ng-content select="[toolbar-title]"></ng-content>
             <span class="toolbar-spacer"></span>
             <ng-content select="[toolbar-actions]"></ng-content>
             @if (isLoggedIn()) {

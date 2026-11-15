@@ -43,6 +43,8 @@ export interface SailGuiConfig {
   publicRouteLinks?: RouteLink[];
   /** Link shown in the toolbar before Logout when logged in, e.g. {label:'My Account', routerLink:'/account'}. Omitted → not shown. */
   accountLink?: RouteLink;
+  /** Where `<sail-navigation>` renders the menus: a sidenav accordion (default) or toolbar menu buttons; a handset always uses the sidenav. */
+  navigationLayout?: 'side' | 'top';
   /** Map RestUri (or prefix pattern like 'analytic/*') to a custom component */
   menuItemRouteOverrides?: { [restUriPattern: string]: Type<unknown> };
   /** Per-table overrides for hiding fields / seeding defaults. Keyed by table PascalName. */
@@ -82,6 +84,8 @@ export interface SailGuiConfig {
    * e.g. ['mcp.example.com']. Anything not listed is ignored. */
   allowedReturnHosts?: string[];
 
+  /** Shows the password form and forgotten-password link on `<sail-login>` and the change-password link on `<sail-my-account>`. Default true. */
+  passwordLogin?: boolean;
   /** Shows `<sail-sso-login>` (organization sign-in) on `<sail-login>`. Off by default. */
   ssoLogin?: boolean;
   /** Replaces the default wording of single sign-on error codes. */
