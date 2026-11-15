@@ -1,0 +1,23 @@
+<section class="approval-policy" [attr.aria-busy]="loading()">
+  @if (errorMessage()) { <p class="approval-policy__error" role="alert">{{ errorMessage() }}</p> }
+  @if (successMessage()) { <p class="approval-policy__notice" role="status">{{ successMessage() }}</p> }
+  @for (kind of reviewKinds(); track kind.objectType) {
+    <article class="approval-policy__kind">
+      <h3>{{ kind.caption }}</h3>
+      @if (isPending(kind.objectType)) {
+        <p>Two people decide until another administrator confirms that one person may.</p>
+        @if (canChange()) {
+          <div class="approval-policy__actions">
+            <button matButton="filled" type="button" [disabled]="saving() === kind.objectType" (click)="confirm(kind.objectType)">Confirm</button>
+            <button matButton type="button" [disabled]="saving() === kind.objectType" (click)="withdraw(kind.objectType)">Withdraw</button>
+          </div>
+        }
+      } @else {
+        <mat-slide-toggle [checked]="allowsSinglePerson(kind.objectType)" [disabled]="!canChange() || saving() === kind.objectType"
+            (change)="toggle(kind.objectType, $event)">
+          One person may submit and decide
+        </mat-slide-toggle>
+      }
+    </article>
+  }
+</section>

@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.7",
+   "title": "Approval policy screen, document upload body",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "sail adopts keel v1.3.5's approval policy routes with sail-approval-policy, and PartnerDocumentService.upload reads keel's column-name upload body.",
+   "body_markdown": "Requires keel v1.3.5 for the approval policy routes; nothing else changes.\n\n### Behavioral\n\n- `PartnerDocumentService.upload` maps keel's `partner_document` column names (keel v1.3.4 and later) to `PartnerDocument`; the emitted row was empty before.\n\n### Additive\n\n- `<sail-approval-policy [reviewKinds] (changed)>` lists the session partner's `approval_policy` per `ApprovalReviewKind` and, for a holder of `APPROVAL_POLICY` `CHANGE`, sets it, confirms another administrator's change or withdraws it.\n- `ApprovalPolicyService` (`current`, `set`, `confirm`), `ApprovalPolicy`, `ApprovalReviewKind`, `ApprovalPolicyChange`, and `RestURL.approvalPolicySetURL` / `approvalPolicyConfirmURL`.\n- The app grants `TABLE` `SELECT` on `approval_policy` and mounts `handler.ApprovalPolicyHandler`.\n"
+  },
+  {
    "version": "v1.2.6",
    "title": "CSV export on the table list",
    "tags": [

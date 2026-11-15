@@ -7,30 +7,31 @@ import { RestURL } from './rest_url';
 import { DocumentSubject, DocumentUploadRequest, PartnerDocument } from '../model/document';
 import { Int64, isPresentId } from '../util/integer';
 
+/** keel's `document.PartnerDocument`: column names, empty values omitted. */
 interface DocumentHandlerResponse {
-  ID: Int64;
-  ContRepID: string;
-  DocKey: string;
-  PartnerID: Int64;
-  UserID: Int64;
-  SubjectKey: string;
-  DocumentType: string;
-  Title: string;
-  FileName: string;
-  VersionNo: number;
-  DocumentNumber: string;
-  ExpiresOn: string;
-  Language: string;
-  OriginIP: string;
-  UploadedBy: Int64;
-  UploadedAt: string;
-  Status: string;
-  ReviewerID: Int64;
-  ReviewedAt: string;
-  ReviewerNotes: string;
-  SupersededAt: string;
-  RetiredAt: string;
-  PurgedAt: string;
+  id: Int64;
+  contrep_id: string;
+  doc_key: string;
+  partner_id: Int64;
+  user_id?: Int64;
+  subject_key?: string;
+  document_type: string;
+  title: string;
+  file_name: string;
+  version_no: number;
+  document_number?: string;
+  expires_on?: string;
+  language?: string;
+  origin_ip?: string;
+  uploaded_by?: Int64;
+  uploaded_at?: string;
+  status: string;
+  reviewer_id?: Int64;
+  reviewed_at?: string;
+  reviewer_notes?: string;
+  superseded_at?: string;
+  retired_at?: string;
+  purged_at?: string;
 }
 
 /** Client for keel's `handler.DocumentHandler` and `partner_document` REST table. */
@@ -98,39 +99,30 @@ function normalizeUploadEvent(event: HttpEvent<DocumentHandlerResponse>): HttpEv
   });
 }
 
-/** DocumentHandler answers with keel's Go struct: zero values stand for the row's NULLs. */
 function normalizeDocument(doc: DocumentHandlerResponse): PartnerDocument {
   return {
-    Id: doc.ID,
-    ContrepId: doc.ContRepID,
-    DocKey: doc.DocKey,
-    PartnerId: doc.PartnerID,
-    UserId: idOrNull(doc.UserID),
-    SubjectKey: doc.SubjectKey || null,
-    DocumentType: doc.DocumentType,
-    Title: doc.Title,
-    FileName: doc.FileName,
-    VersionNo: doc.VersionNo,
-    DocumentNumber: doc.DocumentNumber || null,
-    ExpiresOn: timeOrNull(doc.ExpiresOn),
-    Language: doc.Language || null,
-    OriginIp: doc.OriginIP || null,
-    UploadedBy: idOrNull(doc.UploadedBy),
-    UploadedAt: doc.UploadedAt,
-    Status: doc.Status,
-    ReviewerId: idOrNull(doc.ReviewerID),
-    ReviewedAt: timeOrNull(doc.ReviewedAt),
-    ReviewerNotes: doc.ReviewerNotes || null,
-    SupersededAt: timeOrNull(doc.SupersededAt),
-    RetiredAt: timeOrNull(doc.RetiredAt),
-    PurgedAt: timeOrNull(doc.PurgedAt),
+    Id: doc.id,
+    ContrepId: doc.contrep_id,
+    DocKey: doc.doc_key,
+    PartnerId: doc.partner_id,
+    UserId: doc.user_id ?? null,
+    SubjectKey: doc.subject_key ?? null,
+    DocumentType: doc.document_type,
+    Title: doc.title,
+    FileName: doc.file_name,
+    VersionNo: doc.version_no,
+    DocumentNumber: doc.document_number ?? null,
+    ExpiresOn: doc.expires_on ?? null,
+    Language: doc.language ?? null,
+    OriginIp: doc.origin_ip ?? null,
+    UploadedBy: doc.uploaded_by ?? null,
+    UploadedAt: doc.uploaded_at ?? '',
+    Status: doc.status,
+    ReviewerId: doc.reviewer_id ?? null,
+    ReviewedAt: doc.reviewed_at ?? null,
+    ReviewerNotes: doc.reviewer_notes ?? null,
+    SupersededAt: doc.superseded_at ?? null,
+    RetiredAt: doc.retired_at ?? null,
+    PurgedAt: doc.purged_at ?? null,
   };
-}
-
-function idOrNull(value: Int64): Int64 | null {
-  return isPresentId(value) ? value : null;
-}
-
-function timeOrNull(value: string): string | null {
-  return !value || value.startsWith('0001-01-01') ? null : value;
 }

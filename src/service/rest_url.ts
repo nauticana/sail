@@ -99,6 +99,9 @@ export const RestURL = {
   partnerDocumentUploadURL:  '/api/v1/partner_document/upload',
   partnerDocumentPreviewURL: '/api/v1/partner_document/preview',
   partnerDocumentReviewURL:  '/api/v1/partner_document/review',
+  // keel ApprovalPolicyHandler.
+  approvalPolicySetURL:     '/api/v1/approval_policy/set',
+  approvalPolicyConfirmURL: '/api/v1/approval_policy/confirm',
 };
 
 /** Call this at app startup to set the backend host URL */
