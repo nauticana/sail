@@ -14,10 +14,20 @@
             </button>
         }
     }
+    @if (canExport()) {
+        <button matButton="outlined" type="button" [disabled]="exporting()" (click)="exportCsv()">
+            <mat-icon>download</mat-icon>
+            Export CSV
+        </button>
+    }
 </div>
 
 @if (viewError()) {
     <p class="table-list__error" role="alert">{{ viewError() }}</p>
+}
+
+@if (exportTruncated()) {
+    <p class="table-list__notice" role="status">The export holds only the first rows; narrow the filters to export the rest.</p>
 }
 
 @if (loading()) {

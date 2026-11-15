@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.2.6",
+   "title": "CSV export on the table list",
+   "tags": [
+    "additive"
+   ],
+   "summary": "sail adopts keel v1.3.4's CSV export: sail-table-list offers Export CSV to a holder of TABLE EXPORT, and BackendService.exportCsv serves custom screens.",
+   "body_markdown": "Requires keel v1.3.4 with `RestHandler.Export` mounted for the export; nothing else changes.\n\n### Additive\n\n- `sail-table-list`: an Export CSV button for a holder of `TABLE EXPORT` on the table. It downloads `<table>.csv` with every row matching the current filters, in the current order. When keel truncated the export at `max_export_rows`, a `p.table-list__notice` says so; a cross-origin API exposes `X-Export-Truncated` through `Access-Control-Expose-Headers` for it to appear.\n- `BaseAuthService.canExport(tableName)`, `BaseTable.canExport()`, and `'export'` in `AuthVerb`.\n- `BackendService.exportCsv(apiName, filter?, orderBy?)` returning `CsvExport` (`{ blob, truncated }`).\n- `saveBlob(blob, filename)`."
+  },
+  {
    "version": "v1.2.5",
    "title": "Top menu navigation, sign-in without a password form",
    "tags": [

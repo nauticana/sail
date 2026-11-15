@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BaseAsync } from '../abstract/base_async';
+import { saveBlob } from '../../util/download';
 import { toDataURL } from 'qrcode';
 
 @Component({
@@ -90,13 +91,7 @@ export class TwoFactorSetupComponent extends BaseAsync {
   // Backup codes are shown once at setup. Offer a download (they're hashed
   // server-side, so they can never be re-displayed later — only regenerated).
   downloadBackupCodes() {
-    const blob = new Blob([this.backupCodes().join('\n') + '\n'], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'backup-codes.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+    saveBlob(new Blob([this.backupCodes().join('\n') + '\n'], { type: 'text/plain' }), 'backup-codes.txt');
   }
 
   confirmSetup() {

@@ -831,6 +831,7 @@ export abstract class BaseAuthService extends BaseRestService {
   canCreate(tableName: string) { return this.checkPermission('TABLE', 'INSERT', tableName); }
   canUpdate(tableName: string) { return this.checkPermission('TABLE', 'UPDATE', tableName); }
   canDelete(tableName: string) { return this.checkPermission('TABLE', 'DELETE', tableName); }
+  canExport(tableName: string) { return this.checkPermission('TABLE', 'EXPORT', tableName); }
   /** Whether a grant's low_limit pattern matches value. */
   hasPermission(authorityObject: string, activity: string, value: string): boolean {
     return this.checkPermission(authorityObject, activity, value);

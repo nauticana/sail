@@ -16,7 +16,7 @@ import { isInt64 } from "../../util/integer";
 
 
 /** CRUD verb used by `requireAuth()` to compose the "Missing authorization" message. */
-export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view';
+export type AuthVerb = 'create' | 'read' | 'update' | 'delete' | 'view' | 'export';
 
 /** ISO-like timestamp prefix — gate for comparing two strings as instants. */
 const ISO_PREFIX = /^\d{4}-\d{2}-\d{2}T/;
@@ -74,6 +74,7 @@ export abstract class BaseTable {
     canCreate() { return this.cacheService.canCreate(this.tableName()); }
     canUpdate() { return this.cacheService.canUpdate(this.tableName()); }
     canDelete() { return this.cacheService.canDelete(this.tableName()); }
+    canExport() { return this.cacheService.canExport(this.tableName()); }
 
     /** True when the record is a locally-inserted row not yet persisted (op_code === 'I'). */
     isInserted(record: Record<string, unknown>): boolean { return record[this.config.opField] === OpCode.Insert; }

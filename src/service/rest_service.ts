@@ -37,6 +37,11 @@ export class SailApiError extends Error {
     }
 }
 
+export interface CsvExport {
+    blob: Blob;
+    truncated: boolean;
+}
+
 @Injectable({providedIn: 'root'})
 export class BackendService extends BaseRestService {
     protected readonly auth = inject(BaseAuthService);
@@ -115,6 +120,22 @@ export class BackendService extends BaseRestService {
                 this.crudUrl(apiName, 'list'),
                 {params: this.toParams(filter, page)},
             )),
+            catchError((err) => this.handleError(err)),
+        );
+    }
+
+    /** The rows `list` would return, as keel's CSV export; `truncated` when more matched than `max_export_rows`. */
+    exportCsv(apiName: string, filter?: {[key: string]: string}, orderBy?: string): Observable<CsvExport> {
+        return this.appDataReady().pipe(
+            switchMap(() => this.http.get(this.crudUrl(apiName, 'export'), {
+                params: this.toParams(filter, { orderBy }),
+                responseType: 'blob',
+                observe: 'response',
+            })),
+            map((response) => ({
+                blob: response.body ?? new Blob(),
+                truncated: response.headers.get('X-Export-Truncated') === 'true',
+            })),
             catchError((err) => this.handleError(err)),
         );
     }

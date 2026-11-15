@@ -116,3 +116,4 @@ export * from './util/errors';
 export * from './util/forms';
 export * from './util/password_policy';
 export * from './util/sso';
+export * from './util/download';

@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute, Params, Router } from "@angular/router";
 import { catchError, EMPTY, finalize, Observable, switchMap, take, tap } from "rxjs";
 import { errorDetail } from "../../util/errors";
+import { saveBlob } from "../../util/download";
 import { AbstractEditableView } from "../abstract/base_view";
 import { TableEdit } from "./table_edit";
 import { MatButtonModule } from "@angular/material/button";
@@ -46,6 +47,9 @@ export class TableList extends AbstractEditableView implements OnInit {
     readonly sortColumn = signal('');
     readonly sortAscending = signal(true);
     readonly loading = signal(false);
+    readonly exporting = signal(false);
+    /** The last export held fewer rows than matched (keel's `max_export_rows`). */
+    readonly exportTruncated = signal(false);
     private request = 0;
 
     readonly activeFilters = computed(() => Object.entries(this.searchTerms())
@@ -99,13 +103,12 @@ export class TableList extends AbstractEditableView implements OnInit {
     private loadPage(): Observable<unknown> {
         const id = ++this.request;
         const size = this.pageSize();
-        const column = this.sortColumn();
         this.records.set([]);
         this.loading.set(true);
         return this.backendService.listPaginated<Record<string, unknown>>(this.apiName(), this.searchTerms(), {
             limit: size,
             offset: this.pageIndex() * size,
-            orderBy: column ? `${column} ${this.sortAscending() ? 'ASC' : 'DESC'}` : undefined,
+            orderBy: this.orderBy(),
         }).pipe(
             tap((page) => {
                 if (id !== this.request) return;
@@ -121,6 +124,31 @@ export class TableList extends AbstractEditableView implements OnInit {
             }),
             finalize(() => { if (id === this.request) this.loading.set(false); }),
         );
+    }
+
+    private orderBy(): string | undefined {
+        const column = this.sortColumn();
+        return column ? `${column} ${this.sortAscending() ? 'ASC' : 'DESC'}` : undefined;
+    }
+
+    /** Downloads every row matching the current filters, in the current order. */
+    exportCsv() {
+        if (!this.requireAuth(() => this.canExport(), 'export')) return;
+        this.exporting.set(true);
+        this.exportTruncated.set(false);
+        this.backendService.exportCsv(this.apiName(), this.searchTerms(), this.orderBy()).pipe(
+            finalize(() => this.exporting.set(false)),
+        ).subscribe({
+            next: (file) => {
+                saveBlob(file.blob, this.tableName() + '.csv');
+                this.exportTruncated.set(file.truncated);
+                this.viewError.set('');
+            },
+            error: (err) => {
+                console.error('Export failed', err);
+                this.viewError.set('Export failed.');
+            },
+        });
     }
 
     onPage(event: PageEvent) {
