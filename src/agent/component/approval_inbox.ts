@@ -85,6 +85,8 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   readonly limit = input(200);
   /** The agent running a request's turn, which Scout's approval does not carry; empty offers no takeover. */
   readonly turnAgent = input<(request: ApprovalRequest) => string>(() => '');
+  /** The pending approvals to list; the default lists every one Scout returns. */
+  readonly include = input<(request: ApprovalRequest) => boolean>(() => true);
 
   readonly decided = output<ApprovalRequest>();
   readonly confirmationChanged = output<Confirmation>();
@@ -93,7 +95,8 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
 
   readonly noteMax = CONFIRMATION_NOTE_MAX;
   readonly name = principalName;
-  readonly requests = signal<ApprovalRequest[]>([]);
+  private readonly pending = signal<ApprovalRequest[]>([]);
+  readonly requests = computed(() => this.pending().filter((r) => this.include()(r)));
   readonly confirmations = signal<Confirmation[]>([]);
   readonly sections = computed(() => groupInbox(this.requests(), this.confirmations()));
   readonly selectedKey = signal('');
@@ -141,15 +144,15 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
 
   load(): void {
     this.run(forkJoin([
-      this.listed(this.approvals.pending(), this.requests(), 'Failed to load approvals.'),
+      this.listed(this.approvals.pending(), this.pending(), 'Failed to load approvals.'),
       this.listed(this.approvals.confirmations(new Date(Date.now() - this.historyDays() * 86_400_000).toISOString(), this.limit()),
         this.confirmations(), 'Failed to load confirmations.'),
     ]), ([requests, confirmations]) => {
-      this.requests.set(requests);
+      this.pending.set(requests);
       this.confirmations.set(confirmations);
       const link = this.open();
       if (link && link !== this.opened) {
-        const linked = requests.find((r) => this.key(r) === link)
+        const linked = this.requests().find((r) => this.key(r) === link)
           ?? confirmations.find((c) => this.confirmationKey(c) === link || String(c.id) === link);
         if (linked) {
           this.opened = link;
@@ -208,7 +211,7 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
       reason: this.reason().trim() || undefined,
       revised_arguments: revised,
     }), (result) => {
-      this.requests.update((rows) => rows.filter((r) => this.key(r) !== this.key(request)));
+      this.pending.update((rows) => rows.filter((r) => this.key(r) !== this.key(request)));
       this.selectFirst();
       this.decided.emit(result);
       return verdict === 'X' ? 'Rejected.' : 'Approved.';

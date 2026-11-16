@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, ViewEncapsulation, effect, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleChange, MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { BaseAsync } from '../abstract/base_async';
-import { ApprovalPolicy, ApprovalPolicyChange, ApprovalReviewKind } from '../../model/approval_policy';
+import { ApprovalPolicyChange, ApprovalReviewKind } from '../../model/approval_policy';
 import { ApprovalPolicyService } from '../../service/approval_policy.service';
 import { BaseAuthService } from '../../service/auth.service';
 
-/** The session partner's separation-of-duties policy per review kind. */
+/** The session partner's, or with `platform` the platform's, separation-of-duties policy per review kind. */
 @Component({
   selector: 'sail-approval-policy',
   templateUrl: './approval_policy.html',
@@ -20,45 +20,42 @@ export class ApprovalPolicyComponent extends BaseAsync {
   private readonly auth = inject(BaseAuthService);
 
   readonly reviewKinds = input.required<readonly ApprovalReviewKind[]>();
+  readonly platform = input(false);
   readonly changed = output<ApprovalPolicyChange>();
 
-  readonly policies = signal<Record<string, ApprovalPolicy | null>>({});
+  readonly policies = signal<Record<string, ApprovalPolicyChange>>({});
   readonly saving = signal<string | null>(null);
 
   private readonly kindsEffect = effect(() => this.reload());
 
   reload(): void {
-    const kinds = this.reviewKinds();
-    const requests = Object.fromEntries(kinds.map((kind) => [kind.objectType, this.service.current(kind.objectType)]));
-    this.run(kinds.length ? forkJoin(requests) : of({}), (rows) => this.policies.set(rows), 'Could not load approval policies.');
+    const objectTypes = this.reviewKinds().map((kind) => kind.objectType);
+    this.run(this.service.open(objectTypes, this.platform()), (rules) => this.policies.set(rules), 'Could not load approval policies.');
   }
 
   canChange(): boolean {
-    return this.auth.hasPermission('APPROVAL_POLICY', 'CHANGE', 'approval_policy');
+    return this.auth.hasPermission('APPROVAL_POLICY', this.platform() ? 'CHANGE_PLATFORM' : 'CHANGE', 'approval_policy');
   }
 
-  /** Open row in force that lets one person decide. */
   allowsSinglePerson(objectType: string): boolean {
-    const row = this.policies()[objectType];
-    return !!row?.AllowSinglePerson && !!row.Begda;
+    const rule = this.policies()[objectType];
+    return !!rule?.allowSinglePerson && rule.inForce;
   }
 
-  /** Allowing one person was set and waits for another administrator's confirmation. */
   isPending(objectType: string): boolean {
-    const row = this.policies()[objectType];
-    return !!row && !row.Begda;
+    return this.policies()[objectType]?.inForce === false;
   }
 
   toggle(objectType: string, event: MatSlideToggleChange): void {
-    this.save(objectType, this.service.set(objectType, event.checked), () => { event.source.checked = !event.checked; });
+    this.save(objectType, this.service.set(objectType, event.checked, this.platform()), () => { event.source.checked = !event.checked; });
   }
 
   withdraw(objectType: string): void {
-    this.save(objectType, this.service.set(objectType, false));
+    this.save(objectType, this.service.set(objectType, false, this.platform()));
   }
 
   confirm(objectType: string): void {
-    this.save(objectType, this.service.confirm(objectType));
+    this.save(objectType, this.service.confirm(objectType, this.platform()));
   }
 
   private save(objectType: string, request: Observable<ApprovalPolicyChange>, undo?: () => void): void {

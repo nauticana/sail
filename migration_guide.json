@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.8",
+   "title": "Platform approval policy, approval inbox filter",
+   "tags": [
+    "additive",
+    "breaking"
+   ],
+   "summary": "sail-approval-policy gains a platform mode over keel v1.3.6's platform routes, and sail-approval-inbox an include predicate over pending approvals.",
+   "body_markdown": "Requires keel v1.3.6; keel v1.3.7 changes no API sail uses.\n\n### Compile breaks\n\n- `ApprovalPolicyComponent.policies` holds an `ApprovalPolicyChange` per object type instead of an `ApprovalPolicy | null`.\n- `ApprovalInboxComponent.requests` is a read-only computed signal (the listed approvals); it no longer has `set` or `update`.\n\n### Additive\n\n- `<sail-approval-policy [platform]=\"true\">` reads and changes the platform's policy through `approval_policy/platform`, `set_platform` and `confirm_platform`, gated by `APPROVAL_POLICY` `CHANGE_PLATFORM`.\n- `ApprovalPolicyService.open(objectTypes, platform?)`; `set` and `confirm` take an optional `platform`.\n- `ApprovalPolicyChange.allowSinglePerson`, matching keel's answer; `(changed)` emits it.\n- `RestURL.approvalPolicyPlatformURL`, `approvalPolicySetPlatformURL`, `approvalPolicyConfirmPlatformURL`.\n- `<sail-approval-inbox [include]>`: a predicate over `ApprovalRequest`; only pending approvals it returns true for are listed.\n"
+  },
+  {
    "version": "v1.2.7",
    "title": "Approval policy screen, document upload body",
    "tags": [

@@ -20,8 +20,10 @@ export interface ApprovalReviewKind {
   caption:    string;
 }
 
-/** keel `ApprovalPolicyHandler`'s answer to set and confirm. */
+/** keel's `OpenPolicy`: an owner's open rule, and the answer to set and confirm. */
 export interface ApprovalPolicyChange {
-  objectType: string;
-  inForce:    boolean;
+  objectType:        string;
+  allowSinglePerson: boolean;
+  /** False while allowing one person waits for another administrator's confirmation. */
+  inForce:           boolean;
 }
