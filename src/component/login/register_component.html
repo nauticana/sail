@@ -112,24 +112,37 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label>State</mat-label>
-          <input matInput type="text" formControlName="State" autocomplete="address-level1" required>
-          <mat-error sailFieldError></mat-error>
-        </mat-form-field>
-      </div>
-
-      <div class="form-row">
-        <mat-form-field appearance="outline">
           <mat-label>Zipcode</mat-label>
           <input matInput type="text" formControlName="Zipcode" autocomplete="postal-code" required>
           <mat-error sailFieldError></mat-error>
         </mat-form-field>
+      </div>
 
+      @if (catalogError()) {
+        <div class="geocode-status geocode-error" role="alert">{{ catalogError() }}</div>
+      }
+      <div class="form-row">
         <mat-form-field appearance="outline">
           <mat-label>Country</mat-label>
-          <input matInput type="text" formControlName="Country" autocomplete="country-name" required>
+          <mat-select formControlName="Country" required>
+            @for (c of countries(); track c.code) {
+              <mat-option [value]="c.code">{{ c.caption }}</mat-option>
+            }
+          </mat-select>
           <mat-error sailFieldError></mat-error>
         </mat-form-field>
+
+        @if (states().length) {
+          <mat-form-field appearance="outline">
+            <mat-label>State</mat-label>
+            <mat-select formControlName="State" required>
+              @for (s of states(); track s.code) {
+                <mat-option [value]="s.code">{{ s.caption }}</mat-option>
+              }
+            </mat-select>
+            <mat-error sailFieldError></mat-error>
+          </mat-form-field>
+        }
       </div>
 
       @if (geocodeEnabled) {

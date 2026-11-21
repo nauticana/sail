@@ -14,6 +14,7 @@ export const RestURL = {
   registerExchangeURL: '/public/register/exchange',
   registerPartnerURL: '/api/register/partner',
   plansURL: '/public/plans',
+  countriesURL: '/public/countries',
   confirmChpassURL: '/public/password/reset',
   twoFactorSetupURL: '/api/user/2fa/setup',
   twoFactorVerifyURL: '/api/user/2fa/verify',          // authenticated — confirms setup

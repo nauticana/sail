@@ -7,6 +7,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 import { BaseAuthService } from '../../service/auth.service';
 import { BillingService } from '../../service/billing.service';
+import { GeoCatalogService } from '../../service/geo_catalog.service';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from '@angular/material/input';
@@ -14,7 +15,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
 import { catchError, debounceTime, map, merge, of, switchMap, tap } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { PartnerRegistration, PublicPlan } from '../../model/appdata';
+import { CatalogEntry, PartnerRegistration, PublicPlan } from '../../model/appdata';
 import { SAIL_GUI_CONFIG, SailGuiConfig, DEFAULT_CONFIG } from '../../config';
 import { fromPriceLabel } from '../../util/money';
 import { errorDetail } from '../../util/errors';
@@ -46,6 +47,7 @@ export class RegisterComponent implements OnInit {
   private readonly host: HTMLElement = inject(ElementRef).nativeElement;
   private auth = inject(BaseAuthService);
   private billing = inject(BillingService);
+  private catalog = inject(GeoCatalogService);
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
@@ -61,6 +63,9 @@ export class RegisterComponent implements OnInit {
   protected readonly challenge = viewChild(HumanChallengeComponent);
   readonly plansError = signal('');
   readonly plans = signal<PublicPlan[]>([]);
+  readonly catalogError = signal('');
+  readonly countries = signal<CatalogEntry[]>([]);
+  readonly states = signal<CatalogEntry[]>([]);
 
   readonly registerForm = this.fb.group({
     FirstName: ['', Validators.required],
@@ -72,7 +77,7 @@ export class RegisterComponent implements OnInit {
     PartnerCaption: ['', Validators.required],
     Address: ['', Validators.required],
     City: ['', Validators.required],
-    State: ['', Validators.required],
+    State: [''],
     Zipcode: ['', Validators.required],
     Country: ['', Validators.required],
     Phone: ['', Validators.required],
@@ -109,9 +114,27 @@ export class RegisterComponent implements OnInit {
       next: (list) => this.plans.set(list ?? []),
       error: () => this.plansError.set('Could not load subscription plans. Please reload the page.'),
     });
+    this.catalog.countries().subscribe({
+      next: (list) => this.countries.set(list),
+      error: () => this.catalogError.set('Could not load countries. Please reload the page.'),
+    });
   }
 
   constructor() {
+    const state = this.registerForm.controls.State;
+    this.registerForm.controls.Country.valueChanges.pipe(
+      takeUntilDestroyed(),
+      tap(() => { state.reset(''); this.states.set([]); this.catalogError.set(''); }),
+      switchMap((country) => !country ? of([]) : this.catalog.states(country).pipe(catchError(() => {
+        this.catalogError.set('Could not load states. Please try again.');
+        return of([]);
+      }))),
+    ).subscribe((list) => {
+      // keel accepts an empty state only for a country without states.
+      state.setValidators(list.length ? Validators.required : null);
+      state.updateValueAndValidity();
+      this.states.set(list);
+    });
     // Debounced + switchMapped so per-keystroke edits don't fan out billable
     // geocode calls and a stale response can't overwrite a newer address.
     merge(
@@ -132,14 +155,14 @@ export class RegisterComponent implements OnInit {
       return of(null);
     }
     const { Address, City, State, Zipcode, Country } = this.registerForm.getRawValue();
-    if (!Address || !City || !State || !Zipcode || !Country) {
+    if (!Address || !City || !Zipcode || !Country) {
       this.geocodeStatus.set('idle');
       this.geocodeError.set('');
       return of(null);
     }
     this.geocodeStatus.set('loading');
     this.geocodeError.set('');
-    const address = `${Address}, ${City}, ${State} ${Zipcode}, ${Country}`;
+    const address = [Address, City, `${State} ${Zipcode}`.trim(), Country].join(', ');
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${this.getGoogleMapsApiKey()}`;
     return this.http.get<GeocodingResponse>(url).pipe(
       map((data) => {

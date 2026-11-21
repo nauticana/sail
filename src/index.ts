@@ -108,6 +108,7 @@ export * from './service/rest_url';
 export * from './service/label.service';
 export * from './service/caption_pipe';
 export * from './service/currency.service';
+export * from './service/geo_catalog.service';
 export * from './service/access.service';
 export * from './service/money_pipe';
 export * from './service/money_column.service';

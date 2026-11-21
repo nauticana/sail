@@ -9,6 +9,16 @@
  },
  "migrations": [
   {
+   "version": "v1.2.9",
+   "title": "Country and state from keel's catalog at registration",
+   "tags": [
+    "additive",
+    "behavioral"
+   ],
+   "summary": "RegisterComponent picks country and state from keel v1.3.12's public catalog and sends the codes registration accepts.",
+   "body_markdown": "Requires keel v1.3.12 with `PublicHandler.Catalog` set, which mounts `GET /public/countries` and `GET /public/countries/{code}/states`.\n\n### Additive\n\n- `GeoCatalogService`: `countries()` and `states(country)`, returning `CatalogEntry` (`code`, `caption`). `RestURL.countriesURL`.\n\n### Behavioral\n\n- `RegisterComponent` shows Country and State as selects by caption and sends the codes. State lists the chosen country's states, resets when the country changes, and is required only for a country that has states.\n"
+  },
+  {
    "version": "v1.2.8",
    "title": "Platform approval policy, approval inbox filter",
    "tags": [

@@ -274,6 +274,12 @@ export interface PlanPrice {
 	priceId?:     string;
 }
 
+// Mirrors keel `geo.CatalogEntry` from GET /public/countries and /public/countries/{code}/states.
+export interface CatalogEntry {
+  code: string;
+  caption: string;
+}
+
 // Mirrors keel `billing.Plan` from GET /public/plans.
 export interface PublicPlan {
 	id:          string;
