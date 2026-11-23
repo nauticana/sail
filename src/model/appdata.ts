@@ -136,24 +136,27 @@ export interface DictionaryPath {
 export interface ReportParam {
   Name:       string;
   DataType:   string;
-  /**
-   * When set, the parameter input renders as a dropdown populated from
-   * the matching constant_value rows (Pass/Fail/etc.) instead of a free-text
-   * input. Empty string / undefined means no domain — render a plain input
-   * typed by DataType.
-   */
-  ConstantId?: string;
+  /** A constant_header id: the parameter is a dropdown of its constant_value rows. */
+  ConstantID?: string;
 }
 
 export interface RestReport {
   Id:          string;
   Version:     string;
   QueryName:   string;
-  // Long-form text rendered as the report page header. The short nav-rail
-  // label is application_menu_item.caption — no duplication here.
+  /** The report page header; the menu label is application_menu_item.caption. */
   Description: string;
   Params:      ReportParam[];
+  /** keel v1.3.14; absent on an older keel. */
+  ChartKind?:      ChartKind;
+  /** The result column a chart groups by; '' without a chart. */
+  CategoryColumn?: string;
+  /** The result columns a chart plots; a pie has one. */
+  Series?:         string[] | null;
 }
+
+/** keel `chart_kind`: None, Bar, Line, Pie. */
+export type ChartKind = 'N' | 'B' | 'L' | 'P';
 
 // 2FA / Trusted device types
 

@@ -2,6 +2,13 @@
 
 @if (params().length > 0) {
     <form class="report-params" (submit)="onSubmit($event)">
+        @if (dateRange()) {
+            <div class="report-presets" role="group" aria-label="Date range">
+                @for (preset of datePresets; track preset) {
+                    <button matButton="outlined" type="button" (click)="applyPreset(preset)">{{ preset }}</button>
+                }
+            </div>
+        }
         @for (param of params(); track param.Name) {
             @let opts = optionsFor(param);
             @if (opts) {
@@ -9,9 +16,6 @@
                     <mat-label>{{ titleCase(param.Name) }}</mat-label>
                     <mat-select [value]="paramValue(param.Name)"
                                 (valueChange)="setParam(param.Name, $event)">
-                        <!-- Empty option lets the user clear the filter — the empty
-                             value is dropped before the request is built so the
-                             backend sees no constraint on this param. -->
                         <mat-option [value]="''">Any</mat-option>
                         @for (opt of opts; track opt.Value) {
                             <mat-option [value]="opt.Value">{{ opt.Caption }}</mat-option>
@@ -36,6 +40,10 @@
 } @else if (records().length === 0) {
     <p class="empty-state">No data available.</p>
 } @else {
+    @if (chart(); as report) {
+        <sail-report-chart [kind]="report.ChartKind!" [rows]="records()" [category]="report.CategoryColumn!"
+                           [series]="report.Series!" [format]="cellText" />
+    }
     <table>
         <thead>
             <tr>

@@ -12,6 +12,10 @@ import { titleCase } from "../../util/text";
 import { errorDetail } from "../../util/errors";
 import { MoneyColumnService } from "../../service/money_column.service";
 import { isInt64 } from "../../util/integer";
+import { ReportChart } from "./report_chart";
+
+/** Periods offered when a report has a date range. */
+export type DatePreset = 'Today' | 'Last 7 days' | 'Last 30 days' | 'This month' | 'Last month' | 'This year';
 
 @Component({
     selector: 'sail-table-report',
@@ -23,6 +27,7 @@ import { isInt64 } from "../../util/integer";
         MatInputModule,
         MatSelectModule,
         MatButtonModule,
+        ReportChart,
     ],
 })
 export class TableReport {
@@ -36,42 +41,32 @@ export class TableReport {
     readonly records = signal<Record<string, unknown>[]>([]);
     readonly displayedColumns = signal<string[]>([]);
     readonly errorMessage = signal('');
-
-    /**
-     * Per-parameter input bindings, keyed by param name. Empty string when
-     * the user hasn't entered a value yet — fetchReport drops empties so
-     * the URL doesn't carry `?param=` for unset fields.
-     */
+    /** Entered values by parameter name; empty ones are not sent. */
     readonly paramValues = signal<Record<string, string>>({});
+    readonly datePresets: readonly DatePreset[] = ['Today', 'Last 7 days', 'Last 30 days', 'This month', 'Last month', 'This year'];
 
-    /**
-     * Report id — the last path segment of apiName (e.g. 'scorecard' for
-     * 'analytic/scorecard'). This is the key for metadata lookup AND the value
-     * REPORT/ACCESS grants are scoped to; the full path is only used for the
-     * fetch URL.
-     */
+    /** The last segment of apiName: the metadata key and the REPORT grant's scope. */
     readonly reportId = computed(() => this.apiName().split('/').pop() ?? '');
-
-    /** Long-form header from rest_report_header; falls back to the title-cased table name. */
-    readonly reportTitle = computed(() => {
-        return this.auth.getReport(this.reportId())?.Description || titleCase(this.tableName());
+    readonly reportTitle = computed(() => this.auth.getReport(this.reportId())?.Description || titleCase(this.tableName()));
+    /** With parameters the report waits for Run; without, it loads at once. */
+    readonly params = computed<ReportParam[]>(() => this.auth.getReport(this.reportId())?.Params ?? []);
+    /** The first two date or timestamp parameters, in order, are a range's start and end. */
+    readonly dateRange = computed(() => {
+        const dates = this.params().filter((p) => !p.ConstantID && ['date', 'datetime-local'].includes(this.inputTypeFor(p)));
+        return dates.length >= 2 ? [dates[0], dates[1]] as const : null;
     });
 
-    /**
-     * Param definitions for the current report. Empty when the report has
-     * no rest_report_param rows — in that case we fetch immediately. With
-     * params we render an input form and wait for the user to click "Run".
-     */
-    readonly params = computed<ReportParam[]>(() => {
-        return this.auth.getReport(this.reportId())?.Params ?? [];
+    /** The report when keel gives it a chart (v1.3.14), else null. */
+    readonly chart = computed(() => {
+        const report = this.auth.getReport(this.reportId());
+        return report?.ChartKind && report.ChartKind !== 'N' && report.CategoryColumn && report.Series?.length ? report : null;
     });
+    protected readonly cellText = (column: string, record: Record<string, unknown>) => this.cell(column, record);
 
     private lastApi: string | null = null;
 
     constructor() {
-        // Re-runs on apiName changes AND appdata (re)loads via params()/canReport;
-        // report state is only reset when the report actually changed, so an
-        // appdata refresh never wipes half-typed parameters.
+        // Runs on apiName and appdata changes; parameters reset only when the report changes.
         effect(() => {
             const api = this.apiName();
             if (!api) return;
@@ -83,33 +78,22 @@ export class TableReport {
                 this.paramValues.set({});
             }
             this.errorMessage.set('');
-
             if (!this.auth.canReport(this.reportId())) {
                 this.errorMessage.set('You do not have permission to view this report.');
                 return;
             }
-            // Auto-fetch only when the report takes no inputs and nothing is shown yet.
             if (this.params().length === 0 && (apiChanged || untracked(this.records).length === 0)) {
                 this.fetchReport(api, {});
             }
         });
     }
 
-    /**
-     * Look up the constant_value options for a parameter's domain.
-     * Returns undefined when the parameter has no ConstantId — caller
-     * renders a plain input in that case.
-     */
+    /** The parameter's constant_value options; undefined renders a typed input. */
     optionsFor(param: ReportParam): ConstantValue[] | undefined {
-        if (!param.ConstantId) return undefined;
-        return this.auth.getDomainValues(param.ConstantId);
+        return param.ConstantID ? this.auth.getDomainValues(param.ConstantID) : undefined;
     }
 
-    /**
-     * Native HTML input type derived from a parameter's data_type. Used
-     * only when the parameter has no constant domain.
-     */
-    inputTypeFor(param: ReportParam): string {
+    inputTypeFor(param: ReportParam): 'number' | 'date' | 'datetime-local' | 'text' {
         switch ((param.DataType || '').toLowerCase()) {
             case 'int':
             case 'integer':
@@ -138,6 +122,30 @@ export class TableReport {
         return this.paramValues()[name] ?? '';
     }
 
+    /** Fills the date range with the preset's first and last day, as of today. */
+    applyPreset(preset: DatePreset, today = new Date()) {
+        const range = this.dateRange();
+        if (!range) return;
+        const [start, end] = range;
+        const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+        const [from, to] = {
+            'Today': [today, today],
+            'Last 7 days': [new Date(y, m, d - 6), today],
+            'Last 30 days': [new Date(y, m, d - 29), today],
+            'This month': [new Date(y, m, 1), today],
+            'Last month': [new Date(y, m - 1, 1), new Date(y, m, 0)],
+            'This year': [new Date(y, 0, 1), today],
+        }[preset];
+        this.setParam(start.Name, this.dateValue(start, from, '00:00'));
+        this.setParam(end.Name, this.dateValue(end, to, '23:59'));
+    }
+
+    private dateValue(param: ReportParam, day: Date, time: string): string {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const date = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+        return this.inputTypeFor(param) === 'date' ? date : `${date}T${time}`;
+    }
+
     onSubmit(event: Event) {
         event.preventDefault();
         this.runReport();
@@ -148,11 +156,7 @@ export class TableReport {
     }
 
     private fetchReport(api: string, params: Record<string, string>) {
-        const filled: Record<string, string> = {};
-        for (const [k, v] of Object.entries(params)) {
-            // Drop empty values so the URL doesn't carry `?param=` for unset fields.
-            if (v !== '' && v != null) filled[k] = v;
-        }
+        const filled = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null));
         this.backend.report(api, filled).subscribe({
             next: (rows) => {
                 this.records.set(rows ?? []);
@@ -172,6 +176,5 @@ export class TableReport {
         return col?.CurrencyPath && (typeof value === 'number' || isInt64(value)) ? this.money.display(this.tableName(), col, value, record) : value;
     }
 
-    /** Re-exported for templates; same as the shared util. */
     titleCase(str: string): string { return titleCase(str); }
 }

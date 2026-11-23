@@ -1,0 +1,54 @@
+@if (layout(); as chart) {
+    <figure class="report-chart">
+        <svg class="report-chart__plot" role="img" [attr.viewBox]="viewBox()" [attr.width]="pie() ? height : null"
+             [attr.aria-label]="description()">
+            @for (tick of chart.ticks; track tick.y) {
+                <line class="report-chart__grid" [attr.x1]="plot.left" [attr.x2]="plot.right" [attr.y1]="tick.y" [attr.y2]="tick.y"
+                      stroke="currentColor" stroke-opacity="0.15" />
+                <text class="report-chart__tick" [attr.x]="plot.left - 8" [attr.y]="tick.y" text-anchor="end"
+                      dominant-baseline="middle" font-size="11" fill="currentColor">{{ tick.label }}</text>
+            }
+            @for (label of chart.labels; track label.x) {
+                <text class="report-chart__label" [attr.x]="label.x" [attr.y]="plot.bottom + 18" text-anchor="middle"
+                      font-size="11" fill="currentColor">{{ label.text }}</text>
+            }
+            @if (chart.ticks.length) {
+                <line class="report-chart__baseline" [attr.x1]="plot.left" [attr.x2]="plot.right" [attr.y1]="chart.baseline"
+                      [attr.y2]="chart.baseline" stroke="currentColor" stroke-opacity="0.5" />
+            }
+            @for (series of chart.series; track $index) {
+                <g class="report-chart__series" [class]="'report-chart__series--' + $index" [attr.opacity]="series.opacity">
+                    @if (series.line) {
+                        <polyline [attr.points]="series.line" fill="none" stroke="currentColor" stroke-width="2"
+                                  stroke-linejoin="round" stroke-linecap="round" />
+                    }
+                    @for (mark of series.marks; track $index) {
+                        @if (mark.path) {
+                            <path [attr.d]="mark.path" fill="currentColor" stroke="Canvas" stroke-width="2"><title>{{ mark.title }}</title></path>
+                        } @else if (!series.line) {
+                            <rect [attr.x]="mark.x" [attr.y]="mark.y" [attr.width]="mark.width" [attr.height]="mark.height"
+                                  fill="currentColor"><title>{{ mark.title }}</title></rect>
+                        } @else if (series.marks.length <= maxMarkers) {
+                            <circle [attr.cx]="mark.x" [attr.cy]="mark.y" r="4" fill="currentColor" stroke="Canvas" stroke-width="2"><title>{{ mark.title }}</title></circle>
+                        }
+                    }
+                </g>
+            }
+        </svg>
+        @if (chart.series.length > 1) {
+            <ul class="report-chart__legend">
+                @for (series of chart.series; track $index) {
+                    <li>
+                        <svg class="report-chart__swatch" [class]="'report-chart__series--' + $index" width="10" height="10" aria-hidden="true">
+                            <rect width="10" height="10" fill="currentColor" [attr.opacity]="series.opacity" />
+                        </svg>
+                        {{ series.name }}
+                    </li>
+                }
+            </ul>
+        }
+        @if (chart.truncated) {
+            <figcaption class="report-chart__notice">The chart shows the first rows; the table lists them all.</figcaption>
+        }
+    </figure>
+}

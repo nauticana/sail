@@ -20,7 +20,45 @@
             Export CSV
         </button>
     }
+    <button matButton="outlined" type="button" [attr.aria-expanded]="columnsOpen()" (click)="columnsOpen.set(!columnsOpen())">
+        <mat-icon>view_column</mat-icon>
+        Columns
+    </button>
+    <button matButton="outlined" type="button" [attr.aria-pressed]="!!prefs().compact" (click)="toggleCompact()">
+        <mat-icon>density_small</mat-icon>
+        Compact
+    </button>
+    @if (activeFilters().length > 0) {
+        <button matButton="outlined" type="button" (click)="saveFilter()">
+            <mat-icon>bookmark_add</mat-icon>
+            Save filter
+        </button>
+    }
 </div>
+
+<fieldset class="table-list__columns" [hidden]="!columnsOpen()">
+    <legend>Columns</legend>
+    @for (column of orderedColumns(); track column; let first = $first, last = $last) {
+        <div class="table-list__column-option">
+            <mat-checkbox [checked]="!isHidden(column)" [disabled]="!isHidden(column) && columns().length <= 1"
+                          (change)="toggleColumn(column)">{{ colCaption(column) }}</mat-checkbox>
+            <button matIconButton type="button" [disabled]="first" (click)="moveColumn(column, -1)" [attr.aria-label]="'Move ' + colCaption(column) + ' up'"><mat-icon>arrow_upward</mat-icon></button>
+            <button matIconButton type="button" [disabled]="last" (click)="moveColumn(column, 1)" [attr.aria-label]="'Move ' + colCaption(column) + ' down'"><mat-icon>arrow_downward</mat-icon></button>
+        </div>
+    }
+    <button matButton type="button" (click)="resetColumns()">Reset columns</button>
+</fieldset>
+
+@if (prefs().filters?.length) {
+    <ul class="table-list__saved-filters" aria-label="Saved filters">
+        @for (filter of prefs().filters; track $index) {
+            <li>
+                <button matButton type="button" (click)="applyFilters(filter.filters)">{{ filter.name }}</button>
+                <button matIconButton type="button" (click)="removeFilter($index)" [attr.aria-label]="'Remove saved filter ' + filter.name"><mat-icon>close</mat-icon></button>
+            </li>
+        }
+    </ul>
+}
 
 @if (viewError()) {
     <p class="table-list__error" role="alert">{{ viewError() }}</p>
@@ -34,11 +72,13 @@
     <mat-progress-bar mode="indeterminate" [attr.aria-label]="'Loading ' + getCaption()"></mat-progress-bar>
 }
 
-<table [attr.aria-busy]="loading()">
+<div class="table-list__body" [class.table-list__body--split]="!!pane()">
+<section class="table-list__list">
+<table [attr.aria-busy]="loading()" [class.table-list--compact]="prefs().compact">
     <thead>
         <tr>
-            @for (column of displayedColumns(); track column) {
-                <th scope="col">
+            @for (column of columns(); track column) {
+                <th scope="col" [style.width.px]="columnWidth(column)">
                     @if (column !== 'actions') {
                         <button type="button" class="table-list__sort" (click)="onSortColumn(column)"
                                 [attr.aria-sort]="sortColumn() === column ? (sortAscending() ? 'ascending' : 'descending') : null">
@@ -47,6 +87,12 @@
                                 <mat-icon>{{ sortAscending() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
                             }
                         </button>
+                        <button type="button" class="table-list__resize"
+                              [attr.aria-label]="'Resize ' + colCaption(column) + ' with the arrow keys'"
+                              (pointerdown)="startResize($event, column)" (pointermove)="dragResize($event)"
+                              (pointerup)="endResize()" (pointercancel)="endResize()"
+                              (keydown.arrowleft)="stepWidth($event, column, -1)"
+                              (keydown.arrowright)="stepWidth($event, column, 1)"></button>
                     } @else {
                         {{ colCaption(column) }}
                     }
@@ -57,8 +103,8 @@
 @if (records().length > 0) {
     <tbody>
     @for (record of records(); track trackByRecord($index, record)) {
-        <tr>
-        @for (column of displayedColumns(); track column) {
+        <tr [class.table-list__row--open]="isPaneRecord(record)" [attr.aria-current]="isPaneRecord(record) || null">
+        @for (column of columns(); track column) {
             <td>
             @if (isLinkColumn(column)) {
                 <a tabindex="0" role="button" (click)="editRecord(record)"
@@ -119,3 +165,18 @@
         }
     </div>
 }
+</section>
+
+@if (paneInjector(); as injector) {
+    <aside class="table-list__pane" [attr.aria-label]="getCaption() + ' record'">
+        @if (paneIndex() >= 0) {
+            <nav class="table-list__pane-nav" aria-label="Record navigation">
+                <button matIconButton type="button" [disabled]="paneIndex() === 0" (click)="stepRecord(-1)" aria-label="Previous record"><mat-icon>chevron_left</mat-icon></button>
+                <span>{{ paneIndex() + 1 }} of {{ records().length }}</span>
+                <button matIconButton type="button" [disabled]="paneIndex() === records().length - 1" (click)="stepRecord(1)" aria-label="Next record"><mat-icon>chevron_right</mat-icon></button>
+            </nav>
+        }
+        <ng-container [ngComponentOutlet]="dialogComponent() ?? null" [ngComponentOutletInjector]="injector" />
+    </aside>
+}
+</div>

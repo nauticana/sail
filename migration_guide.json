@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.2.10",
+   "title": "Split list layout, column controls, saved filters, report charts and date presets",
+   "tags": [
+    "additive",
+    "breaking",
+    "behavioral"
+   ],
+   "summary": "sail-table-list gains a split layout with the open record in the URL, column visibility, order and width, compact density and saved filters kept by TablePreferences; sail-table-report draws keel v1.3.14's report charts, offers date range presets and reads keel's ConstantID.",
+   "body_markdown": "Requires keel v1.3.14 for report charts; nothing else needs a newer keel.\n\n### Compile breaks\n\n- `ReportParam.ConstantId` is `ConstantID`, the name keel sends.\n- `AbstractEditableView`'s private `openRecordDialog` is the protected `openRecord(record, isNew)`; `recordData(record, isNew)` builds the row component's `MAT_DIALOG_DATA`.\n\n### Fixed\n\n- A report parameter with a constant renders as its dropdown; it rendered as a plain input before.\n\n### Additive\n\n- `<sail-table-list [layout]=\"'split'\">` or route data `layout: 'split'` (`TableListLayout`): the record opens beside the list in `aside.table-list__pane`, with Previous and Next over the page and its key in the `_record` query parameter. The pane hosts `dialogComponent` with `MAT_DIALOG_DATA` and a `MatDialogRef` that implements only `close`.\n- `sail-table-list` toolbar: Columns (hide, reorder, in `fieldset.table-list__columns`), Compact (`.table-list--compact`) and Save filter; `button.table-list__resize` on each sortable header.\n- `TablePreferences` (`read`, `write`) keeps `TablePrefs` and `SavedFilter` per table in `localStorage`; provide a subclass to store them elsewhere.\n- `RestReport.ChartKind` (`ChartKind`), `CategoryColumn` and `Series`. `sail-table-report` shows `<sail-report-chart>` (`ReportChart`) above the table for a bar, line or pie report; style series `n` through `.report-chart__series--n`.\n- `sail-table-report`: preset buttons fill the first two date or timestamp parameters as a range (`DatePreset`, `applyPreset`).\n\n### Behavioral\n\n- `TableEdit`'s close button is labelled Close."
+  },
+  {
    "version": "v1.2.9",
    "title": "Country and state from keel's catalog at registration",
    "tags": [

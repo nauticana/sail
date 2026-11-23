@@ -62,24 +62,27 @@ export abstract class AbstractEditableView extends BaseView {
 
     protected abstract handleUpdate(result: Record<string, unknown>, isNew: boolean, original: Record<string, unknown>): void;
 
+    /** The row component's MAT_DIALOG_DATA. */
+    protected recordData(record: Record<string, unknown>, isNew: boolean): Record<string, unknown> {
+        const data = this.getDialogData(record, isNew);
+        if (this.apiName()) data['apiName'] = this.apiName();
+        return data;
+    }
+
     /** Opens the row dialog and hands its result to `handleUpdate()`. */
-    private openRecordDialog(record: Record<string, unknown>, isNew: boolean): void {
+    protected openRecord(record: Record<string, unknown>, isNew: boolean): void {
         const component = this.dialogComponent();
         if (!component) {
             console.error('sail: no dialogComponent configured for', this.tableName());
             return;
         }
-        const dialogData = this.getDialogData(record, isNew);
-        const apiName = this.apiName();
-        if (apiName) dialogData['apiName'] = apiName;
-
         const ref = this.activeDialog = this.dialog.open(component, {
             width: '90vw',
             maxWidth: '1200px',
             maxHeight: '90vh',
             disableClose: true,
             closeOnNavigation: false,
-            data: dialogData,
+            data: this.recordData(record, isNew),
         });
         ref.afterClosed().subscribe((result) => {
             if (this.activeDialog === ref) this.activeDialog = undefined;
@@ -96,13 +99,13 @@ export abstract class AbstractEditableView extends BaseView {
         if (Object.keys(record).length === 1 && rows.length > 0) {
             Object.keys(rows[0]).forEach((key) => { record[key] = ''; });
         }
-        this.openRecordDialog(record, true);
+        this.openRecord(record, true);
     }
 
     /** Opens the row dialog; read-only users see the record, the dialog gates its own actions. */
     editRecord(record: Record<string, unknown>) {
         if (!this.canUpdate() && !this.requireAuth(() => this.canRead(), 'view')) return;
-        this.openRecordDialog(record, false);
+        this.openRecord(record, false);
     }
 
     deleteRecord(record: Record<string, unknown>) {
