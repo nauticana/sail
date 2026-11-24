@@ -1,5 +1,6 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { Observable, Subject, filter, map } from 'rxjs';
+import { Observable, Subject, Subscription, filter, map, timeout } from 'rxjs';
+import { BaseRestService } from './base_rest.service';
 import { RestURL } from './rest_url';
 
 /** Frame published on a channel by keel's realtime.Hub (Broadcast / PublishChannel). */
@@ -17,23 +18,30 @@ interface ControlFrame {
   reason?:  string;
 }
 
+/** keel's answer to a ticket request; `expiresIn` is in seconds. */
+interface RealtimeTicket {
+  ticket:    string;
+  expiresIn: number;
+}
+
+const TICKET_TIMEOUT_MS = 10_000;
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
 /**
  * RealtimeService — client for keel's realtime.Hub (`GET /public/ws`).
  *
- * Owns the socket lifecycle: JWT handshake via `?token=`, reconnect with
+ * Owns the socket lifecycle: a single-use ticket per handshake, reconnect with
  * backoff, and re-subscription of every channel after a reconnect. Channel
  * names and payload schemas are the app's; sail only carries the frames.
  * Relay delivery is fire-and-forget on the server, so keep a REST read path for
  * state a client may have missed while disconnected.
  */
 @Injectable({ providedIn: 'root' })
-export class RealtimeService {
+export class RealtimeService extends BaseRestService {
   private readonly destroyRef = inject(DestroyRef);
   private socket: WebSocket | null = null;
-  private wanted = false;
+  private ticketRequest: Subscription | null = null;
   private reconnectDelay = RECONNECT_MIN_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly channels = new Set<string>();
@@ -44,16 +52,71 @@ export class RealtimeService {
   readonly lastError = signal<{ channel?: string; reason?: string } | null>(null);
 
   constructor() {
+    super();
     this.destroyRef.onDestroy(() => this.disconnect());
   }
 
-  /** Open the socket with the stored JWT. Reconnects on drop until disconnect(). */
+  /** Open the socket for the stored session. Reconnects on drop until disconnect() or the session ends. */
   connect(): void {
-    this.wanted = true;
-    if (this.socket) return;
-    const token = localStorage.getItem('jwt');
-    if (!token) throw new Error('RealtimeService.connect: no session token stored');
-    const ws = new WebSocket(`${socketUrl(RestURL.realtimeURL)}?token=${encodeURIComponent(token)}`);
+    if (!this.hasSession()) throw new Error('RealtimeService.connect: no session token stored');
+    if (this.socket || this.ticketRequest) return;
+    this.clearReconnect();
+    this.requestTicket();
+  }
+
+  disconnect(): void {
+    this.clearReconnect();
+    this.reconnectDelay = RECONNECT_MIN_MS;
+    this.ticketRequest?.unsubscribe();
+    this.ticketRequest = null;
+    this.socket?.close();
+    this.socket = null;
+    this.connected.set(false);
+  }
+
+  private hasSession(): boolean {
+    return !!localStorage.getItem('jwt');
+  }
+
+  /** Through HttpClient, so authInterceptor attaches the JWT and rotates an expired one. */
+  private requestTicket(): void {
+    const sessionToken = localStorage.getItem('jwt');
+    if (!sessionToken) {
+      this.disconnect();
+      return;
+    }
+    const request = new Subscription();
+    this.ticketRequest = request;
+    request.add(this.http.post<RealtimeTicket>(this.url(RestURL.realtimeTicketURL), null).pipe(
+      timeout(TICKET_TIMEOUT_MS),
+      map((res) => {
+        if (typeof res?.ticket !== 'string' || !res.ticket) throw new Error('ticket response carries no ticket');
+        return res.ticket;
+      }),
+    ).subscribe({
+      next: (ticket) => {
+        this.ticketRequest = null;
+        // A ticket belongs to the session that requested it; one that changed meanwhile gets its own.
+        if (localStorage.getItem('jwt') === sessionToken) this.open(ticket);
+        else this.scheduleReconnect();
+      },
+      error: (err: unknown) => {
+        this.ticketRequest = null;
+        console.error('realtime: connection ticket request failed', err);
+        this.scheduleReconnect();
+      },
+    }));
+  }
+
+  private open(ticket: string): void {
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(`${this.socketUrl(RestURL.realtimeURL)}?ticket=${encodeURIComponent(ticket)}`);
+    } catch (err) {
+      console.error('realtime: WebSocket construction failed', err);
+      this.scheduleReconnect();
+      return;
+    }
     this.socket = ws;
     ws.onopen = () => {
       if (this.socket !== ws) return;
@@ -66,17 +129,9 @@ export class RealtimeService {
       if (this.socket !== ws) return;   // superseded by disconnect()/connect(); ignore its close
       this.socket = null;
       this.connected.set(false);
-      if (this.wanted) this.scheduleReconnect();
+      this.scheduleReconnect();
     };
     ws.onerror = () => ws.close();
-  }
-
-  disconnect(): void {
-    this.wanted = false;
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
-    this.socket?.close();
-    this.socket = null;
-    this.connected.set(false);
   }
 
   /** Frames published on `channel`; subscribes on first use and survives reconnects. */
@@ -120,12 +175,24 @@ export class RealtimeService {
     this.frames$.next(frame);
   }
 
+  private clearReconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+  }
+
   private scheduleReconnect(): void {
+    this.clearReconnect();
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      if (this.wanted) this.connect();
+      this.requestTicket();
     }, this.reconnectDelay);
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, RECONNECT_MAX_MS);
+  }
+
+  /** ws(s):// form of the configured backend host plus `path`; same-origin when no host is set. */
+  private socketUrl(path: string): string {
+    const base = RestURL.httpHost || window.location.origin;
+    return base.replace(/^http/, 'ws') + path;
   }
 }
 
@@ -135,10 +202,4 @@ function isChannelFrame(f: unknown): f is RealtimeChannelFrame {
 
 function isControlFrame(f: unknown): f is ControlFrame {
   return !!f && typeof f === 'object' && CONTROL_OPS.includes((f as { op?: unknown }).op as ControlFrame['op']);
-}
-
-/** ws(s):// form of the configured backend host plus `path`; same-origin when no host is set. */
-function socketUrl(path: string): string {
-  const base = RestURL.httpHost || window.location.origin;
-  return base.replace(/^http/, 'ws') + path;
 }

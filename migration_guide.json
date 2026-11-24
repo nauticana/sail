@@ -9,6 +9,17 @@
  },
  "migrations": [
   {
+   "version": "v1.2.11",
+   "title": "WebSocket tickets",
+   "tags": [
+    "breaking",
+    "behavioral",
+    "additive"
+   ],
+   "summary": "RealtimeService authenticates each WebSocket handshake with keel v1.3.18's single-use ticket instead of putting the access token in the URL.",
+   "body_markdown": "Requires keel v1.3.18 for `RealtimeService`; nothing else needs a newer keel. keel v1.3.18 refuses `?token=` on `/public/ws` and older keel has no ticket route, so deploy the two together.\n\n### Behavioral\n\n| Old | New |\n|---|---|\n| `GET /public/ws?token=<access token>` | `POST /api/ws/ticket`, then `GET /public/ws?ticket=<ticket>` |\n\n- `RealtimeService` requests a ticket for every handshake, reconnects included, through `HttpClient`, so `authInterceptor` must be provided; it also refreshes an expired access token.\n- `connect()` opens the socket after the ticket arrives. It still throws when no session is stored.\n- A reconnect that finds no stored session stops instead of throwing; call `connect()` after the next sign-in.\n\n### Additive\n\n- `RestURL.realtimeTicketURL` (`/api/ws/ticket`).\n\n### Migration steps\n\n1. On the backend, set `WebSocketHandler.Tickets` and mount `GetAuthRoutes()`.\n2. Release the frontend with the backend. A tab still open on the old frontend has no realtime until it is reloaded."
+  },
+  {
    "version": "v1.2.10",
    "title": "Split list layout, column controls, saved filters, report charts and date presets",
    "tags": [

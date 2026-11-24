@@ -5,7 +5,8 @@ export const RestURL = {
   loginURL: '/public/login/local',
   tokenRefreshURL: '/public/token/refresh',   // rotates {refreshToken} → new {token, refreshToken}
   logoutURL: '/public/logout',                // revokes {refreshToken}
-  realtimeURL: '/public/ws',                  // keel realtime.Hub handshake; JWT via ?token=
+  realtimeURL: '/public/ws',                  // keel realtime.Hub handshake; single-use ?ticket=
+  realtimeTicketURL: '/api/ws/ticket',        // mints {ticket, expiresIn} for one handshake
   loginGoogleURL: '/public/login/google',
   registerURL: '/public/register',
   chpassURL: '/public/password/change',       // keel revokes every refresh token on success
