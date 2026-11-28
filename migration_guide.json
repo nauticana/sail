@@ -9,6 +9,15 @@
  },
  "migrations": [
   {
+   "version": "v1.2.12",
+   "title": "Approval inbox selection output",
+   "tags": [
+    "additive"
+   ],
+   "summary": "sail-approval-inbox reports the approval a person picks from its list.",
+   "body_markdown": "### Additive\n\n- `ApprovalInboxComponent` `(selectedChange)` emits the `ApprovalRequest` a person picks from the list. The selection made on load, after a decision, or by `[open]` emits nothing, and neither does picking a confirmation.\n"
+  },
+  {
    "version": "v1.2.11",
    "title": "WebSocket tickets",
    "tags": [

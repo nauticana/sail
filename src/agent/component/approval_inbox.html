@@ -7,7 +7,7 @@
           @for (request of section.requests; track key(request)) {
             <li>
               <button type="button" class="approval-inbox__item" [class.selected]="key(request) === selectedKey()"
-                [attr.aria-current]="key(request) === selectedKey()" (click)="select(key(request))">
+                [attr.aria-current]="key(request) === selectedKey()" (click)="select(key(request)); selectedChange.emit(request)">
                 <span class="approval-inbox__summary">{{ request.summary || request.action }}</span>
                 @if (request.deadline_at) {
                   <span class="approval-inbox__deadline">Due {{ request.deadline_at | date: 'medium' }}</span>

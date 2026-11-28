@@ -88,6 +88,8 @@ export class ApprovalInboxComponent extends BaseAsync implements OnInit {
   /** The pending approvals to list; the default lists every one Scout returns. */
   readonly include = input<(request: ApprovalRequest) => boolean>(() => true);
 
+  /** The approval a person picks from the list; not the first one selected on load, nor `[open]`. */
+  readonly selectedChange = output<ApprovalRequest>();
   readonly decided = output<ApprovalRequest>();
   readonly confirmationChanged = output<Confirmation>();
   /** The turn the person now operates under its lease, at the fence its operator routes name. */
